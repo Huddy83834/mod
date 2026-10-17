@@ -15,12 +15,22 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.12
-      - run: gradle build --no-daemon
+          gradle-version: 9.5.1
+      - name: Build
+        shell: bash
+        run: |
+          set +e
+          gradle build --no-daemon 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            msg=$( (grep -B1 -A3 -E "error:|What went wrong|Could not|FAILED" build.log | head -80) | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
+            echo "::error title=Build errors::${msg}"
+          fi
+          exit $code
       - uses: actions/upload-artifact@v4
         with:
           name: lifesteal-stocks-jar
-          path: lifesteal-stocks-ci/build/libs/lifesteal-stocks-1.0.0.jar
+          path: lifesteal-stocks-ci/build/libs/lifesteal-stocks-1.1.0.jar

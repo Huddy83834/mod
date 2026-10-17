@@ -3,7 +3,7 @@
   "id": "lsstocks",
   "version": "${version}",
   "name": "Lifesteal Stocks",
-  "description": "Tracks item prices over time and shows them like a stock ticker. Passive and client-side only.",
+  "description": "Reads Auction House and Orders prices as you browse them and shows them like a stock market.",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",
@@ -11,9 +11,9 @@
     "client": ["com.lsstocks.StocksClient"]
   },
   "depends": {
-    "fabricloader": ">=0.16.0",
-    "minecraft": "~1.21.4",
-    "java": ">=21",
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.2",
+    "java": ">=25",
     "fabric-api": "*"
   }
 }
