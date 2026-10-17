@@ -53,7 +53,7 @@ public class StocksClient implements ClientModInitializer {
                 Button button = Button.builder(Component.literal("LS Market"), b -> openMarket(client))
                         .bounds(6, 6, 90, 20)
                         .build();
-                Screens.getButtons(screen).add(button);
+                Screens.getWidgets(screen).add(button);
             }
         });
     }
