@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.registry.Registries;
@@ -44,7 +44,7 @@ public class StocksClient implements ClientModInitializer {
             for (Text line : lines) {
                 Matcher m = pattern.matcher(line.getString());
                 if (m.find()) {
-                    double price = parse(m.group(1), m.groupCount() >= 2 ? m.group(2) : "");
+                    double price = parse(m.group(1), m.groupCount() >= 2 && m.group(2) != null ? m.group(2) : "");
                     String id = Registries.ITEM.getId(stack.getItem()).getPath();
                     // Per-item price: divide by stack size if the listing is for a stack
                     TRACKER.record(id, price);
