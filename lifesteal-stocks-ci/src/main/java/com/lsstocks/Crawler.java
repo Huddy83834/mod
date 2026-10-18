@@ -5,7 +5,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
@@ -127,7 +127,7 @@ public final class Crawler {
                     return;
                 }
                 sigBefore = pageSig(cs.getMenu(), mc);
-                mc.gameMode.handleInventoryMouseClick(cs.getMenu().containerId, slot, 0, ClickType.PICKUP, mc.player);
+                mc.gameMode.handleContainerInput(cs.getMenu().containerId, slot, 0, ContainerInput.PICKUP, mc.player);
                 pages++;
                 state = State.WAIT_CHANGE;
                 ticks = 0;

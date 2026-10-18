@@ -39,7 +39,7 @@ public class MarketScreen extends Screen {
     private static final int[] DELAYS = {500, 900, 1500, 2500};
 
     private enum Tab {
-        ALL("All Items"), AH("Auction House"), ORDERS("Orders"), FLIPS("Flips"), WATCH("Watchlist"), SETTINGS("Settings");
+        ALL("All Items"), DEALS("Deals"), AH("Auction House"), ORDERS("Orders"), FLIPS("Flips"), WATCH("Watchlist"), SETTINGS("Settings");
         final String label;
 
         Tab(String label) {
@@ -56,7 +56,11 @@ public class MarketScreen extends Screen {
         }
     }
 
-    private record Row(String id, String name, Rec rec, double price, double change, int listings) {}
+    private record Row(String id, String name, Rec rec, double price, double change, int listings, double score) {
+        Row(String id, String name, Rec rec, double price, double change, int listings) {
+            this(id, name, rec, price, change, listings, Double.NaN);
+        }
+    }
 
     /** Every item in the game, built once, so search works even for items with no data yet. */
     private record Entry(String id, String name, String lower) {}
@@ -82,6 +86,8 @@ public class MarketScreen extends Screen {
     private final MarketStore store = StocksClient.STORE;
     private final List<Row> rows = new ArrayList<>();
     private final Map<String, ItemStack> icons = new HashMap<>();
+    private final Map<String, String> dealTypes = new HashMap<>();
+    private int dealCount;
 
     private Tab tab = Tab.ALL;
     private Sort sort = Sort.PRICE;
@@ -146,11 +152,15 @@ public class MarketScreen extends Screen {
         // tabs
         int x = px + 8;
         int y = py + 24;
+        dealCount = store.deals().size();
         for (Tab t : Tab.values()) {
-            int w = this.font.width(t.label) + 18;
+            String text = t == Tab.DEALS ? "Deals (" + dealCount + ")" : t.label;
+            int w = this.font.width(text) + 18;
             Component label = t == tab
-                    ? Component.literal(t.label).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-                    : Component.literal(t.label);
+                    ? Component.literal(text).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+                    : t == Tab.DEALS && dealCount > 0
+                            ? Component.literal(text).withStyle(ChatFormatting.GREEN)
+                            : Component.literal(text);
             addRenderableWidget(Button.builder(label, b -> {
                 tab = t;
                 scroll = 0;
@@ -281,6 +291,51 @@ public class MarketScreen extends Screen {
                         b.setMessage(Component.literal("Cleared"));
                     }
                 }).bounds(lx + 438, by, 120, 20).build());
+
+        int[] drops = {5, 10, 15, 20, 30, 40, 50};
+        int[] flips = {10, 15, 20, 30, 50, 100};
+        int[] mins = {0, 10, 100, 1000, 10000, 100000};
+        String[] windows = {"all history", "last 24 hours", "last 7 days"};
+        int by2 = by + 26;
+        addRenderableWidget(Button.builder(
+                Component.literal("Deal threshold: " + store.data.dealDropPct + "%"), b -> {
+                    store.data.dealDropPct = cycle(store.data.dealDropPct, drops);
+                    store.markDirty();
+                    b.setMessage(Component.literal("Deal threshold: " + store.data.dealDropPct + "%"));
+                }).bounds(lx, by2, 150, 20).build());
+        addRenderableWidget(Button.builder(
+                Component.literal("Flip margin: " + store.data.flipPct + "%"), b -> {
+                    store.data.flipPct = cycle(store.data.flipPct, flips);
+                    store.markDirty();
+                    b.setMessage(Component.literal("Flip margin: " + store.data.flipPct + "%"));
+                }).bounds(lx + 156, by2, 150, 20).build());
+        addRenderableWidget(Button.builder(
+                Component.literal("Average over: " + windows[store.data.avgWindow % 3]), b -> {
+                    store.data.avgWindow = (store.data.avgWindow + 1) % 3;
+                    store.markDirty();
+                    b.setMessage(Component.literal("Average over: " + windows[store.data.avgWindow]));
+                }).bounds(lx + 312, by2, 170, 20).build());
+        addRenderableWidget(Button.builder(
+                Component.literal("Ignore items under: " + store.data.minPrice), b -> {
+                    store.data.minPrice = cycle(store.data.minPrice, mins);
+                    store.markDirty();
+                    b.setMessage(Component.literal("Ignore items under: " + store.data.minPrice));
+                }).bounds(lx + 488, by2, 160, 20).build());
+
+        int by3 = by2 + 26;
+        addRenderableWidget(Button.builder(
+                Component.literal("Deal popups: " + (store.data.alerts ? "ON" : "OFF")), b -> {
+                    store.data.alerts = !store.data.alerts;
+                    store.markDirty();
+                    b.setMessage(Component.literal("Deal popups: " + (store.data.alerts ? "ON" : "OFF")));
+                }).bounds(lx, by3, 150, 20).build());
+        addRenderableWidget(Button.builder(
+                Component.literal("Popups for: " + (store.data.alertWatchedOnly ? "watchlist only" : "all items")), b -> {
+                    store.data.alertWatchedOnly = !store.data.alertWatchedOnly;
+                    store.markDirty();
+                    b.setMessage(Component.literal(
+                            "Popups for: " + (store.data.alertWatchedOnly ? "watchlist only" : "all items")));
+                }).bounds(lx + 156, by3, 190, 20).build());
     }
 
     @Override
@@ -337,6 +392,16 @@ public class MarketScreen extends Screen {
                     if (++n >= 500) break;
                 }
             }
+        } else if (tab == Tab.DEALS) {
+            dealTypes.clear();
+            for (MarketStore.Deal d : store.deals()) {
+                Rec r = d.rec();
+                if (!q.isEmpty() && !(r.name.toLowerCase(Locale.ROOT).contains(q) || r.id.contains(q))) continue;
+                dealTypes.put(r.id, d.type());
+                double shown = d.type().equals("BUY") ? -d.pct() : d.pct();
+                rows.add(new Row(r.id, r.name, r, d.price(), shown,
+                        d.type().equals("SELL") ? r.bidListings : r.askListings, d.pct()));
+            }
         } else {
             for (Rec r : store.data.items.values()) {
                 if (!q.isEmpty() && !(r.name.toLowerCase(Locale.ROOT).contains(q) || r.id.contains(q))) continue;
@@ -375,6 +440,11 @@ public class MarketScreen extends Screen {
             case NAME -> byName;
             case RECENT -> Comparator.comparingLong((Row r) -> r.rec() == null ? 0L : r.rec().updated).reversed().thenComparing(byName);
         };
+        if (tab == Tab.DEALS && (sort == Sort.PRICE || sort == Sort.GAINERS)) {
+            cmp = Comparator.comparingDouble((Row r) -> nz(r.score(), -1e9)).reversed().thenComparing(byName);
+        } else if (tab == Tab.DEALS && sort == Sort.LOSERS) {
+            cmp = Comparator.comparingDouble((Row r) -> nz(r.score(), 1e9)).thenComparing(byName);
+        }
         rows.sort(cmp);
 
         boolean found = false;
@@ -387,6 +457,20 @@ public class MarketScreen extends Screen {
         if (!found) selectedId = rows.isEmpty() ? null : rows.get(0).id();
         int maxScroll = Math.max(0, rows.size() - visibleRows());
         scroll = Math.max(0, Math.min(scroll, maxScroll));
+    }
+
+    private static String dealLabel(String type) {
+        if (type == null) return "";
+        return switch (type) {
+            case "BUY" -> "BUY: below average";
+            case "SELL" -> "SELL: above average";
+            default -> "FLIP: ask to bid margin";
+        };
+    }
+
+    private static int cycle(int cur, int[] opts) {
+        for (int i = 0; i < opts.length; i++) if (opts[i] == cur) return opts[(i + 1) % opts.length];
+        return opts[0];
     }
 
     private static double nz(double v, double fallback) {
@@ -477,6 +561,7 @@ public class MarketScreen extends Screen {
             String[] msg = switch (tab) {
                 case FLIPS -> new String[] {"No flips yet.", "A flip needs prices from both the", "Auction House and Orders."};
                 case WATCH -> new String[] {"Nothing on your watchlist.", "Select an item and press Watch."};
+                case DEALS -> new String[] {"No deals right now.", "A deal is a price far below (or above)", "its average. Change the limit in Settings."};
                 case ALL -> query.isEmpty()
                         ? new String[] {"Type an item name above to search", "every item and see its price.", "Use Scan all to collect prices."}
                         : new String[] {"No items match that search."};
@@ -520,7 +605,9 @@ public class MarketScreen extends Screen {
             int nameMax = priceRight - 56 - nameX;
             boolean data = !Double.isNaN(row.price());
             g.text(this.font, fit(row.name(), nameMax), nameX, ry + 4, data ? C_TEXT : C_DIM, true);
-            String sub = row.listings() > 0 ? row.listings() + " seen" : row.id().replace("minecraft:", "");
+            String sub = tab == Tab.DEALS
+                    ? dealLabel(dealTypes.get(row.id()))
+                    : row.listings() > 0 ? row.listings() + " seen" : row.id().replace("minecraft:", "");
             g.text(this.font, fit(sub, nameMax), nameX, ry + 14, C_DIM, false);
 
             if (data) {
@@ -528,6 +615,7 @@ public class MarketScreen extends Screen {
                 g.text(this.font, price, priceRight - this.font.width(price) + 44, ry + 8, C_TEXT, true);
                 String ch = Double.isNaN(row.change()) ? "-" : String.format("%+.1f%%", row.change());
                 int chColor = Double.isNaN(row.change()) ? C_DIM : row.change() >= 0 ? C_UP : C_DOWN;
+                if (tab == Tab.DEALS) chColor = C_UP;
                 g.text(this.font, ch, changeRight - this.font.width(ch), ry + 8, chColor, false);
                 Rec r = row.rec();
                 List<Point> series = tab == Tab.ORDERS ? r.bid : r.ask.isEmpty() ? r.bid : r.ask;
@@ -763,7 +851,7 @@ public class MarketScreen extends Screen {
         g.text(this.font, "Command that opens Orders", rx, sy + 34, C_DIM, false);
         g.text(this.font, "\"Next page\" button name contains", rx, sy + 68, C_DIM, false);
 
-        int cy = sy + 140;
+        int cy = sy + 192;
         g.text(this.font, Component.literal("What the scanner saw last").withStyle(ChatFormatting.BOLD), lx, cy, C_ACCENT, true);
         cy += 14;
         String seen = store.lastTitle.isEmpty() ? "No container screen opened yet"

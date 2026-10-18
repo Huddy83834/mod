@@ -95,6 +95,7 @@ public final class Scanner {
         if (!isBid && !isAsk) return;
 
         long now = System.currentTimeMillis();
+        List<MarketStore.Deal> fresh = new ArrayList<>();
         for (Map.Entry<String, Agg> e : found.entrySet()) {
             Agg a = e.getValue();
             MarketStore.Rec r = store.rec(e.getKey(), a.name);
@@ -104,14 +105,21 @@ public final class Scanner {
                 store.addSample(r.bid, a.best, now);
             } else {
                 r.askListings = a.count;
-                float prev = store.addSample(r.ask, a.best, now);
-                if (r.watched && !Float.isNaN(prev) && a.best <= prev * 0.9f) {
-                    mc.player.sendSystemMessage(Component.literal(
-                            "[LS Market] " + a.name + " dropped to " + MarketStore.fmt(a.best)
-                                    + " (was " + MarketStore.fmt(prev) + ")"));
+                store.addSample(r.ask, a.best, now);
+            }
+            if (store.data.alerts && (!store.data.alertWatchedOnly || r.watched)) {
+                MarketStore.Deal d = store.dealFor(r);
+                if (d != null) {
+                    String key = r.id + "/" + d.type();
+                    Long last = store.lastAlert.get(key);
+                    if (last == null || now - last > 10 * 60_000L) {
+                        store.lastAlert.put(key, now);
+                        fresh.add(d);
+                    }
                 }
             }
         }
+        Alerts.notify(mc, fresh);
         if (listings > 0) {
             store.lastScanTime = now;
             store.lastScanCount = listings;

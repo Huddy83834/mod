@@ -59,6 +59,80 @@ public class MarketStore {
         public String nextKeywords = "next";
         /** Delay between page turns during "Scan all". */
         public int scanDelayMs = 900;
+
+        // Deals
+        /** A price this many percent away from its average counts as a deal. */
+        public int dealDropPct = 15;
+        /** Buy-from-AH, sell-to-order margin (percent) that counts as a flip deal. */
+        public int flipPct = 20;
+        /** Which history the average is taken over: 0 all, 1 last 24h, 2 last 7 days. */
+        public int avgWindow = 0;
+        /** Ignore deals on items cheaper than this. */
+        public int minPrice = 0;
+        public boolean alerts = true;
+        public boolean alertWatchedOnly = false;
+    }
+
+    public record Deal(Rec rec, String type, double pct, float price) {}
+
+    /** Last time each item/type pair raised an alert (not saved). */
+    public final java.util.Map<String, Long> lastAlert = new java.util.HashMap<>();
+
+    /** Percent the latest price is above the average of the earlier samples (negative = below). */
+    public double deviation(List<Point> s) {
+        if (s.size() < 4) return Double.NaN;
+        long now = System.currentTimeMillis();
+        long cutoff = switch (data.avgWindow) {
+            case 1 -> now - 24L * 3600_000L;
+            case 2 -> now - 7L * 24L * 3600_000L;
+            default -> 0L;
+        };
+        double sum = 0;
+        int n = 0;
+        for (int i = 0; i < s.size() - 1; i++) {
+            Point p = s.get(i);
+            if (p.t >= cutoff) {
+                sum += p.p;
+                n++;
+            }
+        }
+        if (n < 3) return Double.NaN;
+        double avg = sum / n;
+        if (avg <= 0) return Double.NaN;
+        return (s.get(s.size() - 1).p - avg) / avg * 100.0;
+    }
+
+    /** The best current deal for an item, or null. */
+    public Deal dealFor(Rec r) {
+        Deal best = null;
+        float ask = latest(r.ask);
+        float bid = latest(r.bid);
+        double dev = deviation(r.ask);
+        if (!Double.isNaN(dev) && -dev >= data.dealDropPct && ask >= data.minPrice) {
+            best = new Deal(r, "BUY", -dev, ask);
+        }
+        double surge = deviation(r.bid);
+        if (!Double.isNaN(surge) && surge >= data.dealDropPct && bid >= data.minPrice
+                && (best == null || surge > best.pct())) {
+            best = new Deal(r, "SELL", surge, bid);
+        }
+        if (!r.ask.isEmpty() && !r.bid.isEmpty() && ask > 0 && ask >= data.minPrice) {
+            double margin = (bid - ask) / ask * 100.0;
+            if (margin >= data.flipPct && (best == null || margin > best.pct())) {
+                best = new Deal(r, "FLIP", margin, ask);
+            }
+        }
+        return best;
+    }
+
+    public List<Deal> deals() {
+        List<Deal> out = new ArrayList<>();
+        for (Rec r : data.items.values()) {
+            Deal d = dealFor(r);
+            if (d != null) out.add(d);
+        }
+        out.sort((a, b) -> Double.compare(b.pct(), a.pct()));
+        return out;
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
