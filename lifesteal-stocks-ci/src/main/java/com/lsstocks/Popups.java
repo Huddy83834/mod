@@ -47,16 +47,17 @@ public final class Popups {
         Popup p = new Popup();
         p.kind = d.type();
         p.title = switch (d.type()) {
-            case "BUY" -> "BUY DEAL";
-            case "SELL" -> "SELL DEAL";
-            default -> "FLIP DEAL";
+            case "BUY" -> "GOOD BUY";
+            case "SELL" -> "GOOD SELL";
+            default -> "FLIP PROFIT";
         };
         p.line1 = d.rec().name;
         String price = MarketStore.fmt(d.price());
+        String usual = MarketStore.fmt(d.usual());
         p.line2 = switch (d.type()) {
-            case "BUY" -> String.format("%.0f%% below average  ·  %s", d.pct(), price);
-            case "SELL" -> String.format("%.0f%% above average  ·  %s", d.pct(), price);
-            default -> String.format("+%.0f%% margin  ·  buy at %s", d.pct(), price);
+            case "BUY" -> String.format("%.0f%% cheaper than usual · %s (usual %s)", d.pct(), price, usual);
+            case "SELL" -> String.format("Orders pay %.0f%% more than usual · %s", d.pct(), price);
+            default -> String.format("Buy %s, sell for %s (+%.0f%%)", price, usual, d.pct());
         };
         p.base = d.rec().baseId();
         push(p, StocksClient.STORE.data.popupSeconds * 1000L);

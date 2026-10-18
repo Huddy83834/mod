@@ -35,6 +35,19 @@ public class MarketStore {
         }
     }
 
+    /** A listing that disappeared from the Auction House: it was (very likely) bought. */
+    public static class Sale {
+        public long t;
+        public float p;
+        public int qty;
+
+        public Sale(long t, float p, int qty) {
+            this.t = t;
+            this.p = p;
+            this.qty = qty;
+        }
+    }
+
     public static class Rec {
         public String id;
         /** Vanilla item id used for the icon, e.g. minecraft:diamond. */
@@ -49,6 +62,14 @@ public class MarketStore {
         /** Page (1-based) where the cheapest listing / best order was in the last complete scan. */
         public int askPage;
         public int bidPage;
+        /** The "usual price" over time (from estimated sales). */
+        public List<Point> mkt = new ArrayList<>();
+        /** Estimated recent sales, newest last. */
+        public List<Sale> sales = new ArrayList<>();
+        /** The cheapest listings in the last complete scan (sorted by price), to spot which got bought. */
+        public float[] askUnits;
+        public long[] askKeys;
+        public int[] askQty;
         public long updated;
         public boolean watched;
 
@@ -74,7 +95,9 @@ public class MarketStore {
 
         // Automatic updating
         public boolean autoUpdate = true;
-        public int autoMinutes = 10;
+        public int autoMinutes = 1;
+        /** Bumped when defaults change, so old saved settings can be migrated once. */
+        public int configVersion = 2;
         /** Auto-update only runs on servers whose address contains this (empty = any). */
         public String serverFilter = "lifesteal";
         public long lastFullUpdate = 0L;
@@ -87,14 +110,17 @@ public class MarketStore {
         public int dealDropPct = 15;
         public int flipPct = 20;
         /** Which history the average is taken over: 0 all, 1 last 24h, 2 last 7 days. */
-        public int avgWindow = 0;
+        public int avgWindow = 2;
         public int minPrice = 0;
         public boolean alerts = true;
         public boolean alertWatchedOnly = false;
         public int popupSeconds = 8;
     }
 
-    public record Deal(Rec rec, String type, double pct, float price) {}
+    public record Deal(Rec rec, String type, double pct, float price, float usual) {}
+
+    /** The usual price. source: 0 none, 1 current listings only, 2 price history, 3 estimated sales. */
+    public record Market(float price, int sales, int source) {}
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final Path file = FabricLoader.getInstance().getConfigDir().resolve("lsstocks-market.json");
@@ -132,7 +158,12 @@ public class MarketStore {
                     if (d.nextKeywords == null) d.nextKeywords = "next";
                     if (d.serverFilter == null) d.serverFilter = "lifesteal";
                     if (d.scanDelayMs < 300) d.scanDelayMs = 900;
-                    if (d.autoMinutes < 1) d.autoMinutes = 10;
+                    if (d.autoMinutes < 1) d.autoMinutes = 1;
+                    if (d.configVersion < 2) {
+                        d.autoMinutes = 1;
+                        d.avgWindow = 2;
+                        d.configVersion = 2;
+                    }
                     if (d.popupSeconds < 2) d.popupSeconds = 8;
                     data = d;
                 }
@@ -227,10 +258,29 @@ public class MarketStore {
     public static List<Point> view(List<Point> s) {
         int full = 0;
         for (Point p : s) if (p.full) full++;
-        if (full < 2) return s;
-        List<Point> out = new ArrayList<>(full);
-        for (Point p : s) if (p.full) out.add(p);
-        return out;
+        List<Point> base = s;
+        if (full >= 2) {
+            base = new ArrayList<>(full);
+            for (Point p : s) if (p.full) base.add(p);
+        }
+        if (base.size() < 5) return base;
+        // Drop wild spikes (e.g. the only listing left being absurdly overpriced).
+        float[] vals = new float[base.size()];
+        for (int i = 0; i < vals.length; i++) vals[i] = base.get(i).p;
+        java.util.Arrays.sort(vals);
+        float med = vals[vals.length / 2];
+        if (med <= 0) return base;
+        List<Point> out = new ArrayList<>(base.size());
+        for (Point p : base) if (p.p <= med * 4f && p.p >= med / 4f) out.add(p);
+        return out.size() >= 2 ? out : base;
+    }
+
+    public static float median(List<Float> v) {
+        if (v.isEmpty()) return Float.NaN;
+        List<Float> c = new ArrayList<>(v);
+        java.util.Collections.sort(c);
+        int n = c.size();
+        return n % 2 == 1 ? c.get(n / 2) : (c.get(n / 2 - 1) + c.get(n / 2)) / 2f;
     }
 
     public static float latest(List<Point> raw) {
@@ -275,52 +325,71 @@ public class MarketStore {
         return (float) (sum / s.size());
     }
 
-    // ---- deals ----
+    // ---- usual price and deals ----
 
-    /** Percent the latest price is above the average of the earlier samples (negative = below). */
-    public double deviation(List<Point> raw) {
-        List<Point> s = view(raw);
-        if (s.size() < 4) return Double.NaN;
-        long now = System.currentTimeMillis();
-        long cutoff = switch (data.avgWindow) {
+    private long windowCutoff(long now) {
+        return switch (data.avgWindow) {
             case 1 -> now - 24L * 3600_000L;
             case 2 -> now - 7L * 24L * 3600_000L;
             default -> 0L;
         };
-        double sum = 0;
-        int n = 0;
-        for (int i = 0; i < s.size() - 1; i++) {
-            Point p = s.get(i);
-            if (p.t >= cutoff) {
-                sum += p.p;
-                n++;
-            }
+    }
+
+    /**
+     * What the item usually sells for. Listings nobody buys say nothing about the price, so this is
+     * based on listings that disappeared (estimated sales), then on history, and only as a last
+     * resort on what is listed right now.
+     */
+    public Market market(Rec r) {
+        long now = System.currentTimeMillis();
+        long cutoff = windowCutoff(now);
+        List<Float> prices = new ArrayList<>();
+        for (Sale sale : r.sales) if (sale.t >= cutoff) prices.add(sale.p);
+        if (prices.size() >= 2) return new Market(median(prices), prices.size(), 3);
+
+        List<Point> hist = view(r.ask);
+        if (hist.size() >= 4) {
+            List<Float> v = new ArrayList<>();
+            for (Point p : hist) if (p.t >= cutoff) v.add(p.p);
+            if (v.size() >= 3) return new Market(median(v), 0, 2);
         }
-        if (n < 3) return Double.NaN;
-        double avg = sum / n;
-        if (avg <= 0) return Double.NaN;
-        return (s.get(s.size() - 1).p - avg) / avg * 100.0;
+        if (r.askUnits != null && r.askUnits.length > 0) {
+            return new Market(r.askUnits[(r.askUnits.length - 1) / 4], 0, 1);
+        }
+        return new Market(Float.NaN, 0, 0);
+    }
+
+    /** Percent the cheapest listing is above (+) or below (-) the usual price, or NaN. */
+    public double vsUsual(Rec r) {
+        Market m = market(r);
+        float ask = latest(r.ask);
+        if (m.source() == 0 || Float.isNaN(ask) || m.price() <= 0 || r.askListings <= 0) return Double.NaN;
+        return (ask - m.price()) / m.price() * 100.0;
     }
 
     /** The best current deal for an item, or null. */
     public Deal dealFor(Rec r) {
-        Deal best = null;
+        Market m = market(r);
         float ask = latest(r.ask);
         float bid = latest(r.bid);
-        double dev = deviation(r.ask);
-        if (!Double.isNaN(dev) && -dev >= data.dealDropPct && ask >= data.minPrice && r.askListings > 0) {
-            best = new Deal(r, "BUY", -dev, ask);
-        }
-        double surge = deviation(r.bid);
-        if (!Double.isNaN(surge) && surge >= data.dealDropPct && bid >= data.minPrice && r.bidListings > 0
-                && (best == null || surge > best.pct())) {
-            best = new Deal(r, "SELL", surge, bid);
+        Deal best = null;
+        if (m.source() >= 2 && m.price() > 0) {
+            if (r.askListings > 0 && !Float.isNaN(ask) && ask >= data.minPrice) {
+                double below = (m.price() - ask) / m.price() * 100.0;
+                if (below >= data.dealDropPct) best = new Deal(r, "BUY", below, ask, m.price());
+            }
+            if (r.bidListings > 0 && !Float.isNaN(bid) && bid >= data.minPrice) {
+                double above = (bid - m.price()) / m.price() * 100.0;
+                if (above >= data.dealDropPct && (best == null || above > best.pct())) {
+                    best = new Deal(r, "SELL", above, bid, m.price());
+                }
+            }
         }
         if (r.askListings > 0 && r.bidListings > 0 && !Float.isNaN(ask) && !Float.isNaN(bid)
                 && ask > 0 && ask >= data.minPrice) {
             double margin = (bid - ask) / ask * 100.0;
             if (margin >= data.flipPct && (best == null || margin > best.pct())) {
-                best = new Deal(r, "FLIP", margin, ask);
+                best = new Deal(r, "FLIP", margin, ask, bid);
             }
         }
         return best;

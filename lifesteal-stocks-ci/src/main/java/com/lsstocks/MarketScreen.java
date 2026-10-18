@@ -37,23 +37,32 @@ public class MarketScreen extends Screen {
     private static final int C_DIMMER = 0xFF596074;
     private static final int C_ASK = 0xFF4FC3F7;
     private static final int C_BID = 0xFFFFA726;
+    private static final int C_USUAL = 0xFFB794F6;
+    private static final int C_FAIR = 0xFF8FB4FF;
 
     private static final int ROW_H = 26;
     private static final int LIST_HEAD = 16;
     private static final int[] DELAYS = {500, 900, 1500, 2500};
 
     private enum Tab {
-        ALL("All Items"), DEALS("Deals"), AH("Auction House"), ORDERS("Orders"), FLIPS("Flips"),
-        WATCH("Watchlist"), SETTINGS("Settings");
+        ALL("Search", "Search every item and see what it costs"),
+        DEALS("Deals", "Items cheaper than they usually sell for"),
+        AH("For Sale", "Everything for sale on the Auction House"),
+        ORDERS("Buy Orders", "What buyers are offering to pay"),
+        FLIPS("Flips", "Buy from the Auction House, sell to an order"),
+        WATCH("Watchlist", "Items you are keeping an eye on"),
+        SETTINGS("Settings", "");
         final String label;
+        final String help;
 
-        Tab(String label) {
+        Tab(String label, String help) {
             this.label = label;
+            this.help = help;
         }
     }
 
     private enum Sort {
-        PRICE("Price"), GAINERS("Gainers"), LOSERS("Losers"), NAME("A-Z"), RECENT("Recent");
+        PRICE("Price"), DROPS("Biggest drops"), RISES("Biggest rises"), NAME("A-Z"), RECENT("Newest data");
         final String label;
 
         Sort(String label) {
@@ -73,15 +82,14 @@ public class MarketScreen extends Screen {
         }
     }
 
-    private record Row(String id, String name, Rec rec, double price, double change, int listings, double score) {
-        Row(String id, String name, Rec rec, double price, double change, int listings) {
-            this(id, name, rec, price, change, listings, Double.NaN);
-        }
-    }
+    /** a / b are the two price columns (meaning depends on the tab), pct is the coloured pill. */
+    private record Row(String id, String name, Rec rec, double a, double b, double pct, int listings, double score) {}
 
     private record Hit(int x, int y, int w, int h, Runnable action) {}
 
     private record Pt(long t, float p) {}
+
+    private record Verdict(String head, int color, List<String> lines) {}
 
     /** Every vanilla item, built once, so search works even for items with no data yet. */
     private record Entry(String id, String name, String lower) {}
@@ -110,20 +118,21 @@ public class MarketScreen extends Screen {
     private final Map<String, ItemStack> icons = new HashMap<>();
     private final Map<String, String> dealTypes = new HashMap<>();
 
-    private Tab tab = Tab.ALL;
+    private Tab tab = Tab.DEALS;
     private Sort sort = Sort.PRICE;
     private Range range = Range.ALL;
     private String query = "";
     private String selectedId = null;
     private int scroll = 0;
     private boolean confirmClear = false;
+    private boolean showHelp = false;
     private int seenVersion = -1;
     private boolean wasRunning;
     private int dealCount;
+    private String hoverHelp = "";
 
     // overview cards
-    private Rec ovGain, ovLose, ovFlip;
-    private double ovGainPct, ovLosePct, ovFlipPct;
+    private MarketStore.Deal ovBuy, ovSell, ovFlip;
     private int ovTracked;
 
     // layout
@@ -155,7 +164,7 @@ public class MarketScreen extends Screen {
         footY = py + ph - 18;
         bodyH = Math.max(60, footY - 6 - bodyY);
         listX = px + 10;
-        listW = (int) ((pw - 30) * 0.45);
+        listW = (int) ((pw - 30) * 0.46);
         detX = listX + listW + 10;
         detW = px + pw - 10 - detX;
     }
@@ -166,9 +175,9 @@ public class MarketScreen extends Screen {
         if (tab == Tab.SETTINGS) {
             initSettings();
         } else {
-            int sw = Math.max(120, Math.min(260, (int) (pw * 0.34)));
+            int sw = Math.max(120, Math.min(240, (int) (pw * 0.3)));
             EditBox search = new EditBox(this.font, px + 12, ctrlY, sw, 18, Component.literal("Search"));
-            search.setHint(Component.literal(tab == Tab.ALL ? "Search any item or enchant..." : "Search..."));
+            search.setHint(Component.literal("Search any item..."));
             search.setValue(query);
             search.setResponder(s -> {
                 query = s;
@@ -213,12 +222,33 @@ public class MarketScreen extends Screen {
         return i < 0 ? id : id.substring(0, i);
     }
 
-    private Row simpleRow(String id, String name, Rec r) {
-        if (!hasData(r)) return new Row(id, name, r, Double.NaN, Double.NaN, 0);
-        boolean useAsk = !r.ask.isEmpty();
-        List<Point> s = useAsk ? r.ask : r.bid;
-        return new Row(id, name, r, MarketStore.latest(s), MarketStore.changePct(s),
-                useAsk ? r.askListings : r.bidListings);
+    private static float nowAsk(Rec r) {
+        return r.askListings > 0 ? MarketStore.latest(r.ask) : Float.NaN;
+    }
+
+    private static float nowBid(Rec r) {
+        return r.bidListings > 0 ? MarketStore.latest(r.bid) : Float.NaN;
+    }
+
+    private static double pctOf(double value, double ref) {
+        if (Double.isNaN(value) || Double.isNaN(ref) || ref <= 0) return Double.NaN;
+        return (value - ref) / ref * 100.0;
+    }
+
+    private Row make(String id, String name, Rec r, Tab t) {
+        if (!hasData(r)) return new Row(id, name, r, Double.NaN, Double.NaN, Double.NaN, 0, Double.NaN);
+        MarketStore.Market m = store.market(r);
+        double usual = m.source() == 0 ? Double.NaN : m.price();
+        double ask = nowAsk(r);
+        double bid = nowBid(r);
+        return switch (t) {
+            case ORDERS -> new Row(id, name, r, usual, bid, pctOf(bid, usual), r.bidListings, Double.NaN);
+            case FLIPS -> {
+                double pct = pctOf(bid, ask);
+                yield new Row(id, name, r, ask, bid, pct, r.askListings, pct);
+            }
+            default -> new Row(id, name, r, usual, ask, pctOf(ask, usual), r.askListings, Double.NaN);
+        };
     }
 
     private void rebuild() {
@@ -227,88 +257,67 @@ public class MarketScreen extends Screen {
         String q = query.toLowerCase(Locale.ROOT).trim();
 
         // overview + deal count
-        dealCount = store.deals().size();
-        ovTracked = 0;
-        ovGain = ovLose = ovFlip = null;
-        ovGainPct = -1e18;
-        ovLosePct = 1e18;
-        ovFlipPct = -1e18;
-        for (Rec r : store.data.items.values()) {
-            if (!hasData(r)) continue;
-            ovTracked++;
-            double ch = MarketStore.changePct(r.ask);
-            if (!Double.isNaN(ch) && r.askListings > 0) {
-                if (ch > ovGainPct) {
-                    ovGainPct = ch;
-                    ovGain = r;
-                }
-                if (ch < ovLosePct) {
-                    ovLosePct = ch;
-                    ovLose = r;
-                }
-            }
-            float ask = MarketStore.latest(r.ask);
-            float bid = MarketStore.latest(r.bid);
-            if (r.askListings > 0 && r.bidListings > 0 && ask > 0 && !Float.isNaN(bid)) {
-                double mg = (bid - ask) / ask * 100.0;
-                if (mg > ovFlipPct) {
-                    ovFlipPct = mg;
-                    ovFlip = r;
-                }
-            }
+        List<MarketStore.Deal> deals = store.deals();
+        dealCount = deals.size();
+        ovBuy = ovSell = ovFlip = null;
+        for (MarketStore.Deal d : deals) {
+            if (d.type().equals("BUY") && ovBuy == null) ovBuy = d;
+            if (d.type().equals("SELL") && ovSell == null) ovSell = d;
+            if (d.type().equals("FLIP") && ovFlip == null) ovFlip = d;
         }
+        ovTracked = 0;
+        for (Rec r : store.data.items.values()) if (hasData(r)) ovTracked++;
 
         if (tab == Tab.ALL) {
             if (q.isEmpty()) {
                 for (Rec r : store.data.items.values()) {
-                    if (hasData(r)) rows.add(simpleRow(r.id, r.name, r));
+                    if (hasData(r)) rows.add(make(r.id, r.name, r, Tab.ALL));
                 }
             } else {
                 int n = 0;
                 for (Entry e : catalog()) {
                     if (!e.lower().contains(q) && !e.id().contains(q)) continue;
-                    rows.add(simpleRow(e.id(), e.name(), store.data.items.get(e.id())));
+                    rows.add(make(e.id(), e.name(), store.data.items.get(e.id()), Tab.ALL));
                     if (++n >= 500) break;
                 }
                 for (Rec r : store.data.items.values()) {
                     if (r.id.indexOf('|') >= 0 && r.name.toLowerCase(Locale.ROOT).contains(q)) {
-                        rows.add(simpleRow(r.id, r.name, r));
+                        rows.add(make(r.id, r.name, r, Tab.ALL));
                     }
                 }
             }
         } else if (tab == Tab.DEALS) {
             dealTypes.clear();
-            for (MarketStore.Deal d : store.deals()) {
+            for (MarketStore.Deal d : deals) {
                 Rec r = d.rec();
                 if (!q.isEmpty() && !(r.name.toLowerCase(Locale.ROOT).contains(q) || r.id.contains(q))) continue;
                 dealTypes.put(r.id, d.type());
-                double shown = d.type().equals("BUY") ? -d.pct() : d.pct();
-                rows.add(new Row(r.id, r.name, r, d.price(), shown,
-                        d.type().equals("SELL") ? r.bidListings : r.askListings, d.pct()));
+                Row row = switch (d.type()) {
+                    case "BUY" -> new Row(r.id, r.name, r, d.usual(), d.price(), -d.pct(), r.askListings, d.pct());
+                    case "SELL" -> new Row(r.id, r.name, r, d.usual(), d.price(), d.pct(), r.bidListings, d.pct());
+                    default -> new Row(r.id, r.name, r, d.price(), d.usual(), d.pct(), r.askListings, d.pct());
+                };
+                rows.add(row);
             }
         } else if (tab != Tab.SETTINGS) {
             for (Rec r : store.data.items.values()) {
                 if (!q.isEmpty() && !(r.name.toLowerCase(Locale.ROOT).contains(q) || r.id.contains(q))) continue;
-                float ask = MarketStore.latest(r.ask);
-                float bid = MarketStore.latest(r.bid);
                 switch (tab) {
                     case AH -> {
-                        if (r.ask.isEmpty()) continue;
-                        rows.add(new Row(r.id, r.name, r, ask, MarketStore.changePct(r.ask), r.askListings));
+                        if (Float.isNaN(nowAsk(r))) continue;
+                        rows.add(make(r.id, r.name, r, Tab.AH));
                     }
                     case ORDERS -> {
-                        if (r.bid.isEmpty()) continue;
-                        rows.add(new Row(r.id, r.name, r, bid, MarketStore.changePct(r.bid), r.bidListings));
+                        if (Float.isNaN(nowBid(r))) continue;
+                        rows.add(make(r.id, r.name, r, Tab.ORDERS));
                     }
                     case FLIPS -> {
-                        if (r.ask.isEmpty() || r.bid.isEmpty()) continue;
-                        double margin = bid - ask;
-                        double pct = ask > 0 ? margin / ask * 100.0 : 0;
-                        rows.add(new Row(r.id, r.name, r, margin, pct, r.askListings));
+                        if (Float.isNaN(nowAsk(r)) || Float.isNaN(nowBid(r))) continue;
+                        rows.add(make(r.id, r.name, r, Tab.FLIPS));
                     }
                     case WATCH -> {
                         if (!r.watched) continue;
-                        rows.add(simpleRow(r.id, r.name, r));
+                        rows.add(make(r.id, r.name, r, Tab.AH));
                     }
                     default -> {
                     }
@@ -318,16 +327,14 @@ public class MarketScreen extends Screen {
 
         Comparator<Row> byName = Comparator.comparing((Row r) -> r.name().toLowerCase(Locale.ROOT));
         Comparator<Row> cmp = switch (sort) {
-            case PRICE -> Comparator.comparingDouble((Row r) -> nz(r.price(), -1e18)).reversed().thenComparing(byName);
-            case GAINERS -> Comparator.comparingDouble((Row r) -> nz(r.change(), -1e9)).reversed().thenComparing(byName);
-            case LOSERS -> Comparator.comparingDouble((Row r) -> nz(r.change(), 1e9)).thenComparing(byName);
+            case PRICE -> Comparator.comparingDouble((Row r) -> nz(r.b(), -1e18)).reversed().thenComparing(byName);
+            case DROPS -> Comparator.comparingDouble((Row r) -> nz(r.pct(), 1e9)).thenComparing(byName);
+            case RISES -> Comparator.comparingDouble((Row r) -> nz(r.pct(), -1e9)).reversed().thenComparing(byName);
             case NAME -> byName;
             case RECENT -> Comparator.comparingLong((Row r) -> r.rec() == null ? 0L : r.rec().updated).reversed().thenComparing(byName);
         };
-        if (tab == Tab.DEALS && (sort == Sort.PRICE || sort == Sort.GAINERS)) {
+        if ((tab == Tab.DEALS || tab == Tab.FLIPS) && sort == Sort.PRICE) {
             cmp = Comparator.comparingDouble((Row r) -> nz(r.score(), -1e9)).reversed().thenComparing(byName);
-        } else if (tab == Tab.DEALS && sort == Sort.LOSERS) {
-            cmp = Comparator.comparingDouble((Row r) -> nz(r.score(), 1e9)).thenComparing(byName);
         }
         rows.sort(cmp);
 
@@ -390,6 +397,10 @@ public class MarketScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (showHelp) {
+            showHelp = false;
+            return true;
+        }
         if (super.mouseClicked(event, doubleClick)) return true;
         int mx = (int) event.x();
         int my = (int) event.y();
@@ -463,6 +474,27 @@ public class MarketScreen extends Screen {
         return s.substring(0, end) + ell;
     }
 
+    private List<String> wrap(String s, int maxWidth, int maxLines) {
+        List<String> out = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : s.split(" ")) {
+            String test = line.length() == 0 ? word : line + " " + word;
+            if (this.font.width(test) > maxWidth && line.length() > 0) {
+                out.add(line.toString());
+                line = new StringBuilder(word);
+            } else {
+                line = new StringBuilder(test);
+            }
+        }
+        if (line.length() > 0) out.add(line.toString());
+        if (out.size() > maxLines) {
+            List<String> cut = new ArrayList<>(out.subList(0, maxLines));
+            cut.set(maxLines - 1, fit(cut.get(maxLines - 1) + " ...", maxWidth));
+            return cut;
+        }
+        return out;
+    }
+
     private int chipW(String label) {
         return this.font.width(label) + 16;
     }
@@ -490,6 +522,7 @@ public class MarketScreen extends Screen {
         mouseXNow = mouseX;
         mouseYNow = mouseY;
         hits.clear();
+        hoverHelp = "";
 
         g.fill(0, 0, this.width, this.height, 0xB0070810);
         g.fill(px, py, px + pw, py + ph, C_BG);
@@ -512,6 +545,7 @@ public class MarketScreen extends Screen {
         for (GuiEventListener c : this.children()) {
             if (c instanceof AbstractWidget w) w.extractRenderState(g, mouseX, mouseY, delta);
         }
+        if (showHelp) drawHelp(g);
         Popups.render(g);
     }
 
@@ -531,7 +565,7 @@ public class MarketScreen extends Screen {
             status = "Live";
             sc = C_UP;
         } else {
-            status = "Offline · saved data";
+            status = "Offline · showing saved prices";
             sc = C_BID;
         }
         int sx = px + 12 + this.font.width("LS MARKET") + 14;
@@ -541,7 +575,7 @@ public class MarketScreen extends Screen {
         int y = py + 6;
         int right = px + pw - 10;
         boolean running = Crawler.running();
-        String upd = running ? "Stop update" : "Update all";
+        String upd = running ? "Stop update" : "Update now";
         right -= chipW(upd);
         chip(g, right, y, upd, online, running ? C_DOWN : C_ACCENT, () -> {
             if (Crawler.running()) Crawler.stop(Minecraft.getInstance(), store);
@@ -557,6 +591,8 @@ public class MarketScreen extends Screen {
         String ah = "Open AH";
         right -= 6 + chipW(ah);
         chip(g, right, y, ah, online && !running, 0, () -> runCommand(store.data.ahCommand));
+        right -= 6 + chipW("?");
+        chip(g, right, y, "?", true, C_FAIR, () -> showHelp = true);
     }
 
     private void drawTabs(GuiGraphicsExtractor g) {
@@ -591,32 +627,35 @@ public class MarketScreen extends Screen {
     }
 
     private void drawControls(GuiGraphicsExtractor g) {
-        int sw = Math.max(120, Math.min(260, (int) (pw * 0.34)));
+        int sw = Math.max(120, Math.min(240, (int) (pw * 0.3)));
         int x = px + 12 + sw + 8;
-        chip(g, x, ctrlY + 1, "Sort: " + sort.label, true, 0, () -> {
+        x += chip(g, x, ctrlY + 1, "Sort: " + sort.label, true, 0, () -> {
             sort = Sort.values()[(sort.ordinal() + 1) % Sort.values().length];
             scroll = 0;
             rebuild();
-        });
-        String count = rows.size() + (rows.size() == 1 ? " item" : " items");
-        rtext(g, count, px + pw - 12, ctrlY + 5, C_DIM);
+        }) + 10;
+        int room = px + pw - 12 - x;
+        if (room > 60) text(g, fit(tab.help, room), x, ctrlY + 5, C_DIM);
     }
 
     private void drawOverview(GuiGraphicsExtractor g) {
         int gap = 6;
         int cw = (pw - 20 - 3 * gap) / 4;
         int x = px + 10;
-        String upd = store.lastScanTime > 0 ? "scanned " + MarketStore.ago(store.lastScanTime) : "no scans yet";
-        card(g, x, ovY, cw, "TRACKED", ovTracked + " items", upd, C_TEXT, null);
+        String upd = store.lastScanTime > 0 ? "read " + MarketStore.ago(store.lastScanTime) : "nothing read yet";
+        card(g, x, ovY, cw, "ITEMS TRACKED", ovTracked + " items", upd, C_DIM, null);
         x += cw + gap;
-        card(g, x, ovY, cw, "TOP GAINER", ovGain == null ? "-" : ovGain.name,
-                ovGain == null ? "" : MarketStore.pctText(ovGainPct), C_UP, ovGain);
+        card(g, x, ovY, cw, "BEST BUY RIGHT NOW", ovBuy == null ? "none" : ovBuy.rec().name,
+                ovBuy == null ? "" : "-" + String.format(Locale.ROOT, "%.0f%%", ovBuy.pct()), C_UP,
+                ovBuy == null ? null : ovBuy.rec());
         x += cw + gap;
-        card(g, x, ovY, cw, "TOP LOSER", ovLose == null ? "-" : ovLose.name,
-                ovLose == null ? "" : MarketStore.pctText(ovLosePct), C_DOWN, ovLose);
+        card(g, x, ovY, cw, "BEST PRICE TO SELL AT", ovSell == null ? "none" : ovSell.rec().name,
+                ovSell == null ? "" : "+" + String.format(Locale.ROOT, "%.0f%%", ovSell.pct()), C_UP,
+                ovSell == null ? null : ovSell.rec());
         x += cw + gap;
-        card(g, x, ovY, cw, "BEST FLIP", ovFlip == null ? "-" : ovFlip.name,
-                ovFlip == null ? "" : MarketStore.pctText(ovFlipPct), C_BID, ovFlip);
+        card(g, x, ovY, cw, "BEST FLIP PROFIT", ovFlip == null ? "none" : ovFlip.rec().name,
+                ovFlip == null ? "" : "+" + String.format(Locale.ROOT, "%.0f%%", ovFlip.pct()), C_BID,
+                ovFlip == null ? null : ovFlip.rec());
     }
 
     private void card(GuiGraphicsExtractor g, int x, int y, int w, String label, String main, String sub, int subColor, Rec target) {
@@ -632,35 +671,42 @@ public class MarketScreen extends Screen {
 
     // ------------------------------------------------------------------ list
 
+    private String[] columnLabels() {
+        return switch (tab) {
+            case ORDERS -> new String[] {"USUAL PRICE", "BEST ORDER", "VS USUAL"};
+            case FLIPS -> new String[] {"BUY AT", "SELL AT", "PROFIT"};
+            case DEALS -> new String[] {"USUAL PRICE", "NOW", "DEAL"};
+            default -> new String[] {"USUAL PRICE", "CHEAPEST NOW", "VS USUAL"};
+        };
+    }
+
     private void drawList(GuiGraphicsExtractor g) {
         panel(g, listX, bodyY, listW, bodyH, C_PANEL);
 
-        int sparkW = 52;
         int right = listX + listW - 10;
-        int sparkX = right - sparkW;
-        int changeRight = sparkX - 8;
-        int changeW = 54;
-        int priceRight = changeRight - changeW - 8;
-        int priceW = 62;
+        int pillW = 58;
+        int pillRight = right;
+        int bRight = pillRight - pillW - 6;
+        int aRight = bRight - 66;
         int nameX = listX + 34;
-        int nameMax = priceRight - priceW - 4 - nameX;
+        int nameMax = aRight - 62 - nameX;
 
-        // column headers
+        String[] cols = columnLabels();
         g.fill(listX + 1, bodyY + 1, listX + listW - 1, bodyY + LIST_HEAD, 0xFF0D1016);
-        text(g, "ITEM", nameX, bodyY + 4, C_DIMMER);
-        rtext(g, tab == Tab.FLIPS ? "MARGIN" : "PRICE", priceRight, bodyY + 4, C_DIMMER);
-        rtext(g, tab == Tab.DEALS ? "VS AVG" : "CHANGE", changeRight, bodyY + 4, C_DIMMER);
-        text(g, "TREND", sparkX + 8, bodyY + 4, C_DIMMER);
+        text(g, "ITEM · " + rows.size(), nameX, bodyY + 4, C_DIMMER);
+        rtext(g, cols[0], aRight, bodyY + 4, C_DIMMER);
+        rtext(g, cols[1], bRight, bodyY + 4, C_DIMMER);
+        rtext(g, cols[2], pillRight, bodyY + 4, C_DIMMER);
 
         if (rows.isEmpty()) {
             String[] msg = switch (tab) {
-                case FLIPS -> new String[] {"No flips yet.", "A flip needs prices from both the", "Auction House and Orders."};
+                case FLIPS -> new String[] {"No flips right now.", "A flip needs an item that is both for sale", "and wanted by a buy order."};
                 case WATCH -> new String[] {"Nothing on your watchlist.", "Select an item and press Watch."};
-                case DEALS -> new String[] {"No deals right now.", "A deal is a price far below (or above)", "its average. Tune it in Settings."};
+                case DEALS -> new String[] {"No deals right now.", "A deal is an item priced well below", "what it usually sells for."};
                 case ALL -> query.isEmpty()
-                        ? new String[] {"Type an item name above to search", "every item and see its price.", "Press Update all to collect prices."}
+                        ? new String[] {"Type an item name above to search", "every item and see its price.", "Press Update now to collect prices."}
                         : new String[] {"No items match that search."};
-                default -> new String[] {"No data yet.", "Press Update all to read the market."};
+                default -> new String[] {"Nothing here yet.", "Press Update now to read the market."};
             };
             int ty = bodyY + LIST_HEAD + 20;
             for (String s : msg) {
@@ -690,32 +736,34 @@ public class MarketScreen extends Screen {
             }
 
             g.item(icon(row.id()), listX + 10, ry + 5);
-            boolean data = !Double.isNaN(row.price());
+            boolean data = hasData(row.rec());
             g.text(this.font, fit(row.name(), nameMax), nameX, ry + 5, data ? C_TEXT : C_DIM, false);
             String sub;
             if (tab == Tab.DEALS) sub = dealLabel(dealTypes.get(row.id()));
-            else if (row.listings() > 0) sub = row.listings() + " listed";
+            else if (row.listings() > 0) sub = row.listings() + (tab == Tab.ORDERS ? " orders" : " for sale");
             else sub = baseOf(row.id()).replace("minecraft:", "");
             g.text(this.font, fit(sub, nameMax), nameX, ry + 16, C_DIMMER, false);
 
-            if (data) {
-                rtext(g, MarketStore.fmt(row.price()), priceRight, ry + 9, C_TEXT);
-
-                boolean dealRow = tab == Tab.DEALS;
-                double ch = row.change();
-                int col = Double.isNaN(ch) ? C_DIM : dealRow ? C_UP : ch >= 0 ? C_UP : C_DOWN;
-                String chs = MarketStore.pctText(ch);
-                int cwid = this.font.width(chs) + 8;
-                int cx = changeRight - cwid;
-                if (!Double.isNaN(ch)) g.fill(cx, ry + 6, cx + cwid, ry + 19, withAlpha(col, 0x26));
-                g.text(this.font, chs, cx + 4, ry + 9, col, false);
-
-                Rec r = row.rec();
-                List<Point> series = tab == Tab.ORDERS ? r.bid : r.ask.isEmpty() ? r.bid : r.ask;
-                drawSpark(g, series, sparkX, ry + 6, sparkW, ROW_H - 12, col == C_DOWN ? C_DOWN : col == C_DIM ? C_DIMMER : C_UP);
-            } else {
-                rtext(g, "no data", right, ry + 9, C_DIMMER);
+            if (!data) {
+                rtext(g, "no data yet", pillRight, ry + 9, C_DIMMER);
+                continue;
             }
+            rtext(g, MarketStore.fmt(row.a()), aRight, ry + 9, C_DIM);
+            rtext(g, MarketStore.fmt(row.b()), bRight, ry + 9, C_TEXT);
+
+            double pct = row.pct();
+            // Green always means "good for you": cheaper than usual when buying, higher when selling.
+            boolean buyerSide = tab == Tab.AH || tab == Tab.ALL || tab == Tab.WATCH;
+            int col;
+            if (Double.isNaN(pct)) col = C_DIMMER;
+            else if (tab == Tab.DEALS) col = C_UP;
+            else if (buyerSide) col = pct <= 0 ? C_UP : C_DOWN;
+            else col = pct >= 0 ? C_UP : C_DOWN;
+            String chs = MarketStore.pctText(pct);
+            int cwid = this.font.width(chs) + 8;
+            int cx = pillRight - cwid;
+            if (!Double.isNaN(pct)) g.fill(cx, ry + 6, cx + cwid, ry + 19, withAlpha(col, 0x26));
+            g.text(this.font, chs, cx + 4, ry + 9, col, false);
         }
 
         if (rows.size() > vis) {
@@ -731,50 +779,70 @@ public class MarketScreen extends Screen {
     private static String dealLabel(String type) {
         if (type == null) return "";
         return switch (type) {
-            case "BUY" -> "BUY · below average";
-            case "SELL" -> "SELL · above average";
-            default -> "FLIP · ask to bid margin";
+            case "BUY" -> "GOOD BUY · cheaper than usual";
+            case "SELL" -> "GOOD SELL · orders pay extra";
+            default -> "FLIP · buy low, sell to an order";
         };
     }
 
-    private void drawSpark(GuiGraphicsExtractor g, List<Point> raw, int x, int y, int w, int h, int color) {
-        List<Point> s = MarketStore.view(raw);
-        if (s.size() < 2) {
-            g.fill(x, y + h / 2, x + w, y + h / 2 + 1, 0x33FFFFFF);
-            return;
-        }
-        int n = Math.min(s.size(), 40);
-        List<Point> tail = s.subList(s.size() - n, s.size());
-        float lo = Float.POSITIVE_INFINITY;
-        float hi = Float.NEGATIVE_INFINITY;
-        for (Point p : tail) {
-            lo = Math.min(lo, p.p);
-            hi = Math.max(hi, p.p);
-        }
-        float range = Math.max(hi - lo, 1e-6f);
-        int[] ys = new int[w];
-        for (int c = 0; c < w; c++) {
-            double pos = c * (tail.size() - 1) / (double) (w - 1);
-            int i0 = (int) Math.floor(pos);
-            int i1 = Math.min(tail.size() - 1, i0 + 1);
-            double f = pos - i0;
-            double v = tail.get(i0).p * (1 - f) + tail.get(i1).p * f;
-            ys[c] = y + h - 1 - (int) ((v - lo) / range * (h - 1));
-        }
-        for (int c = 0; c < w; c++) {
-            int y0 = ys[c];
-            int y1 = c + 1 < w ? ys[c + 1] : y0;
-            g.fill(x + c, Math.min(y0, y1), x + c + 1, Math.max(y0, y1) + 1, color);
-        }
-    }
-
     // ------------------------------------------------------------------ detail
+
+    private Verdict verdictFor(Rec r) {
+        if (!hasData(r)) {
+            return new Verdict("NO DATA YET", C_DIM,
+                    List.of("Nothing is known about this item yet. Press Update now to read the market."));
+        }
+        MarketStore.Market m = store.market(r);
+        float ask = nowAsk(r);
+        float bid = nowBid(r);
+        List<String> lines = new ArrayList<>();
+        String head;
+        int color;
+        String est = m.source() == 3 ? "" : " (estimate: not enough sales seen yet)";
+
+        if (m.source() == 0 || Float.isNaN(m.price())) {
+            head = "NOT ENOUGH DATA";
+            color = C_DIM;
+            lines.add("The usual price isn't known yet. Keep the market updating and this fills in as items get bought.");
+        } else if (Float.isNaN(ask)) {
+            head = "NONE FOR SALE";
+            color = C_DIM;
+            lines.add("Nobody is selling this right now. It usually sells for about " + MarketStore.fmt(m.price()) + "." + est);
+        } else {
+            double vs = (ask - m.price()) / m.price() * 100.0;
+            String cheapest = MarketStore.fmt(ask);
+            String usual = MarketStore.fmt(m.price());
+            if (vs <= -store.data.dealDropPct) {
+                head = "GOOD BUY";
+                color = C_UP;
+                lines.add(String.format(Locale.ROOT, "The cheapest one (%s) is %.0f%% below the usual price (%s). Good time to buy.%s",
+                        cheapest, -vs, usual, est));
+            } else if (vs >= store.data.dealDropPct) {
+                head = "OVERPRICED";
+                color = C_DOWN;
+                lines.add(String.format(Locale.ROOT,
+                        "The cheapest one (%s) is %.0f%% above the usual price (%s). Nobody buys at that price, so it's not the real price.%s",
+                        cheapest, vs, usual, est));
+            } else {
+                head = "FAIR PRICE";
+                color = C_FAIR;
+                lines.add(String.format(Locale.ROOT, "The cheapest one (%s) is close to the usual price (%s).%s", cheapest, usual, est));
+            }
+        }
+        if (!Float.isNaN(bid) && !Float.isNaN(ask) && bid > ask) {
+            lines.add(String.format(Locale.ROOT, "Flip: buy at %s and sell to a buy order for %s (+%.0f%%).",
+                    MarketStore.fmt(ask), MarketStore.fmt(bid), (bid - ask) / ask * 100.0));
+        } else if (!Float.isNaN(bid)) {
+            lines.add("A buyer will pay up to " + MarketStore.fmt(bid) + ".");
+        }
+        return new Verdict(head, color, lines);
+    }
 
     private void drawDetail(GuiGraphicsExtractor g) {
         panel(g, detX, bodyY, detW, bodyH, C_PANEL_2);
         Row sr = selectedRow();
         if (sr == null) {
-            String s = "Select an item to see its price history";
+            String s = "Select an item to see what it's worth";
             g.text(this.font, s, detX + detW / 2 - this.font.width(s) / 2, bodyY + 30, C_DIM, false);
             return;
         }
@@ -788,11 +856,13 @@ public class MarketScreen extends Screen {
         bold(g, fit(sr.name(), detW - 60), dx + 24, dy + 1, C_TEXT);
         text(g, fit(baseOf(sr.id()).replace("minecraft:", ""), detW - 60), dx + 24, dy + 12, C_DIMMER);
 
-        // action chips
-        int cy = bodyY + 36;
-        int x = dx;
+        // action chips (top right)
+        int cy = bodyY + 8;
+        int right = detX + detW - 12;
         boolean watched = r != null && r.watched;
-        x += chip(g, x, cy, watched ? "★ Watching" : "☆ Watch", true, watched ? C_ACCENT : 0, () -> {
+        String wl = watched ? "★ Watching" : "☆ Watch";
+        right -= chipW(wl);
+        chip(g, right, cy, wl, true, watched ? C_ACCENT : 0, () -> {
             Row cur = selectedRow();
             if (cur != null) {
                 Rec rec = store.rec(cur.id(), cur.name());
@@ -800,50 +870,60 @@ public class MarketScreen extends Screen {
                 store.markDirty();
                 store.version++;
             }
-        }) + 6;
+        });
         if (r != null && r.askPage > 0) {
             final Rec fr = r;
-            x += chip(g, x, cy, "Open AH page " + r.askPage, online, C_ASK, () -> openListingPage(fr, false)) + 6;
-        }
-        if (r != null && r.bidPage > 0) {
-            final Rec fr = r;
-            chip(g, x, cy, "Open orders page " + r.bidPage, online, C_BID, () -> openListingPage(fr, true));
+            String lab = "Go to AH page " + r.askPage;
+            right -= 6 + chipW(lab);
+            chip(g, right, cy, lab, online, C_ASK, () -> openListingPage(fr, false));
         }
 
-        if (!hasData(r)) {
-            int ty = bodyY + 70;
-            text(g, "No price data for this item yet.", dx, ty, C_TEXT);
-            text(g, "Press Update all and it will be picked up", dx, ty + 14, C_DIM);
-            text(g, "if anyone is selling it or buying it.", dx, ty + 26, C_DIM);
-            return;
-        }
+        // verdict banner
+        Verdict v = verdictFor(r);
+        int vy = bodyY + 34;
+        List<String> vl = new ArrayList<>();
+        for (String line : v.lines()) vl.addAll(wrap(line, detW - 40, 2));
+        if (vl.size() > 3) vl = new ArrayList<>(vl.subList(0, 3));
+        int vh = 20 + vl.size() * 11;
+        g.fill(detX + 10, vy, detX + detW - 10, vy + vh, withAlpha(v.color(), 0x1C));
+        g.fill(detX + 10, vy, detX + 13, vy + vh, v.color());
+        bold(g, v.head(), detX + 20, vy + 5, v.color());
+        for (int i = 0; i < vl.size(); i++) text(g, vl.get(i), detX + 20, vy + 17 + i * 11, C_TEXT);
 
-        float ask = MarketStore.latest(r.ask);
-        float bid = MarketStore.latest(r.bid);
-        boolean both = r.askListings > 0 && r.bidListings > 0 && !Float.isNaN(ask) && !Float.isNaN(bid);
-        int cardY = bodyY + 60;
+        if (!hasData(r)) return;
+
+        // stat cards
+        MarketStore.Market m = store.market(r);
+        float ask = nowAsk(r);
+        float bid = nowBid(r);
+        boolean both = !Float.isNaN(ask) && !Float.isNaN(bid);
+        int cardY = vy + vh + 8;
         int gap = 6;
         int cw = (detW - 24 - 3 * gap) / 4;
         int cx = dx;
-        statCard(g, cx, cardY, cw, "LOWEST ASK", r.askListings > 0 ? MarketStore.fmt(ask) : "-",
-                r.askListings > 0 ? MarketStore.pctText(MarketStore.changePct(r.ask)) + " 24h" : "none listed", C_ASK);
+        String src = switch (m.source()) {
+            case 3 -> "from " + m.sales() + " sales";
+            case 2 -> "from price history";
+            case 1 -> "estimate only";
+            default -> "no data yet";
+        };
+        statCard(g, cx, cardY, cw, "USUAL PRICE", m.source() == 0 ? "-" : MarketStore.fmt(m.price()), src, C_USUAL, C_DIM);
         cx += cw + gap;
-        statCard(g, cx, cardY, cw, "HIGHEST BID", r.bidListings > 0 ? MarketStore.fmt(bid) : "-",
-                r.bidListings > 0 ? MarketStore.pctText(MarketStore.changePct(r.bid)) + " 24h" : "no orders", C_BID);
+        statCard(g, cx, cardY, cw, "CHEAPEST LISTING", Float.isNaN(ask) ? "-" : MarketStore.fmt(ask),
+                r.askListings > 0 ? r.askListings + " for sale" : "none for sale", C_ASK, C_DIM);
         cx += cw + gap;
-        statCard(g, cx, cardY, cw, "FLIP MARGIN", both ? MarketStore.fmt(bid - ask) : "-",
-                both && ask > 0 ? MarketStore.pctText((bid - ask) / ask * 100) : "needs both", both && bid > ask ? C_UP : C_DIM);
+        statCard(g, cx, cardY, cw, "BEST BUY ORDER", Float.isNaN(bid) ? "-" : MarketStore.fmt(bid),
+                r.bidListings > 0 ? r.bidListings + " orders" : "no orders", C_BID, C_DIM);
         cx += cw + gap;
-        statCard(g, cx, cardY, cw, "LISTED", String.valueOf(r.askListings),
-                r.bidListings + " orders", C_DIM);
+        statCard(g, cx, cardY, cw, "FLIP PROFIT", both && bid > ask ? MarketStore.fmt(bid - ask) : "-",
+                both && ask > 0 ? MarketStore.pctText((bid - ask) / ask * 100) : "needs both", C_UP, C_DIM);
 
         // chart toolbar
-        int tbY = cardY + 44;
-        g.fill(dx, tbY + 3, dx + 10, tbY + 5, C_ASK);
-        text(g, "Ask", dx + 14, tbY, C_DIM);
-        int lx = dx + 14 + this.font.width("Ask") + 10;
-        g.fill(lx, tbY + 3, lx + 10, tbY + 5, C_BID);
-        text(g, "Bid", lx + 14, tbY, C_DIM);
+        int tbY = cardY + 46;
+        int lx = dx;
+        lx = legend(g, lx, tbY, "Cheapest", C_ASK);
+        lx = legend(g, lx, tbY, "Orders", C_BID);
+        legend(g, lx, tbY, "Usual", C_USUAL);
 
         int rx = detX + detW - 12;
         Range[] rs = Range.values();
@@ -865,21 +945,28 @@ public class MarketScreen extends Screen {
         int chartX = detX + 12 + gutter;
         int chartY = tbY + 16;
         int chartW = detW - 24 - gutter - tagW;
-        int chartH = bodyY + bodyH - 28 - chartY;
-        if (chartH >= 50 && chartW >= 80) {
+        int chartH = bodyY + bodyH - 26 - chartY;
+        if (chartH >= 44 && chartW >= 80) {
             drawChart(g, r, chartX, chartY, chartW, chartH);
         } else {
             text(g, "Enlarge the window to see the chart", dx, chartY + 6, C_DIMMER);
         }
     }
 
-    private void statCard(GuiGraphicsExtractor g, int x, int y, int w, String label, String value, String sub, int subColor) {
+    private int legend(GuiGraphicsExtractor g, int x, int y, String label, int color) {
+        g.fill(x, y + 3, x + 10, y + 5, color);
+        text(g, label, x + 14, y, C_DIM);
+        return x + 14 + this.font.width(label) + 12;
+    }
+
+    private void statCard(GuiGraphicsExtractor g, int x, int y, int w, String label, String value, String sub, int valueColor, int subColor) {
         g.fill(x, y, x + w, y + 38, C_PANEL);
         border(g, x, y, w, 38, C_BORDER);
-        text(g, label, x + 7, y + 5, C_DIMMER);
-        bold(g, fit(value, w - 12), x + 7, y + 16, C_TEXT);
+        g.fill(x, y, x + w, y + 2, valueColor);
+        text(g, fit(label, w - 10), x + 7, y + 6, C_DIMMER);
+        bold(g, fit(value, w - 12), x + 7, y + 17, C_TEXT);
         int sc = sub.startsWith("-") || sub.startsWith("<") ? C_DOWN : sub.startsWith("+") || sub.startsWith(">") ? C_UP : subColor;
-        text(g, fit(sub, w - 12), x + 7, y + 27, sc);
+        text(g, fit(sub, w - 12), x + 7, y + 28, sc);
     }
 
     // ------------------------------------------------------------------ chart
@@ -928,28 +1015,28 @@ public class MarketScreen extends Screen {
     private void drawChart(GuiGraphicsExtractor g, Rec r, int x, int y, int w, int h) {
         long now = System.currentTimeMillis();
         long first = Long.MAX_VALUE;
-        for (Point p : MarketStore.view(r.ask)) first = Math.min(first, p.t);
-        for (Point p : MarketStore.view(r.bid)) first = Math.min(first, p.t);
+        for (List<Point> s : List.of(r.ask, r.bid, r.mkt)) {
+            for (Point p : MarketStore.view(s)) first = Math.min(first, p.t);
+        }
         long t1 = now;
         long t0 = range == Range.ALL ? (first == Long.MAX_VALUE ? now - 60_000L : first) : now - range.ms;
         if (t1 - t0 < 60_000L) t0 = t1 - 60_000L;
 
         List<Pt> ask = windowOf(r.ask, t0, t1);
         List<Pt> bid = windowOf(r.bid, t0, t1);
-        if (ask.isEmpty() && bid.isEmpty()) {
+        List<Pt> usual = windowOf(r.mkt, t0, t1);
+        if (ask.isEmpty() && bid.isEmpty() && usual.isEmpty()) {
             text(g, "No data in this range", x + 8, y + 8, C_DIM);
             return;
         }
 
         double lo = Double.POSITIVE_INFINITY;
         double hi = Double.NEGATIVE_INFINITY;
-        for (Pt p : ask) {
-            lo = Math.min(lo, p.p());
-            hi = Math.max(hi, p.p());
-        }
-        for (Pt p : bid) {
-            lo = Math.min(lo, p.p());
-            hi = Math.max(hi, p.p());
+        for (List<Pt> s : List.of(ask, bid, usual)) {
+            for (Pt p : s) {
+                lo = Math.min(lo, p.p());
+                hi = Math.max(hi, p.p());
+            }
         }
         if (hi - lo < 1e-9) hi = lo + Math.max(1, Math.abs(lo) * 0.1);
         int maxTicks = Math.max(3, Math.min(7, h / 34));
@@ -958,7 +1045,6 @@ public class MarketScreen extends Screen {
         double nhi = Math.ceil(hi / step) * step;
         if (nhi - nlo < 1e-9) nhi = nlo + step;
 
-        // grid + axis labels (in their own gutter, so they never touch the lines)
         for (double v = nlo; v <= nhi + step * 0.01; v += step) {
             int gy = y + (int) ((nhi - v) / (nhi - nlo) * (h - 1));
             g.fill(x, gy, x + w, gy + 1, 0x16FFFFFF);
@@ -967,27 +1053,44 @@ public class MarketScreen extends Screen {
         }
         g.fill(x, y + h, x + w, y + h + 1, C_BORDER);
 
-        int[] askY = columns(ask, t0, t1, x, y, w, h, nlo, nhi);
-        int[] bidY = columns(bid, t0, t1, x, y, w, h, nlo, nhi);
-        drawSeries(g, askY, x, y, w, h, C_ASK, 0x1A4FC3F7);
-        drawSeries(g, bidY, x, y, w, h, C_BID, 0x14FFA726);
+        int[] askY = columns(ask, t0, t1, y, w, h, nlo, nhi);
+        int[] bidY = columns(bid, t0, t1, y, w, h, nlo, nhi);
+        int[] usualY = columns(usual, t0, t1, y, w, h, nlo, nhi);
+        drawSeries(g, askY, x, y, w, h, C_ASK, 0x184FC3F7);
+        drawSeries(g, bidY, x, y, w, h, C_BID, 0x00000000);
+        drawSeries(g, usualY, x, y, w, h, C_USUAL, 0x00000000);
 
-        // x axis labels
         String left = MarketStore.span(t1 - t0) + " ago";
         text(g, left, x, y + h + 5, C_DIMMER);
         String mid = MarketStore.span((t1 - t0) / 2) + " ago";
         text(g, mid, x + w / 2 - this.font.width(mid) / 2, y + h + 5, C_DIMMER);
         rtext(g, "now", x + w, y + h + 5, C_DIMMER);
 
-        // last-price tags on the right edge
+        // last-value tags on the right edge, nudged apart so they never overlap
         int tagX = x + w + 5;
-        int lastAskY = askY == null ? -1 : askY[w - 1];
-        int lastBidY = bidY == null ? -1 : bidY[w - 1];
-        if (askY != null) priceTag(g, tagX, lastAskY, y, h, MarketStore.fmt(ask.get(ask.size() - 1).p()), C_ASK);
+        List<int[]> tags = new ArrayList<>();
+        List<String> tagLabels = new ArrayList<>();
+        if (askY != null) {
+            tags.add(new int[] {askY[w - 1], C_ASK});
+            tagLabels.add(MarketStore.fmt(ask.get(ask.size() - 1).p()));
+        }
         if (bidY != null) {
-            int by = lastBidY;
-            if (askY != null && Math.abs(by - lastAskY) < 13) by = lastAskY + (by >= lastAskY ? 13 : -13);
-            priceTag(g, tagX, by, y, h, MarketStore.fmt(bid.get(bid.size() - 1).p()), C_BID);
+            tags.add(new int[] {bidY[w - 1], C_BID});
+            tagLabels.add(MarketStore.fmt(bid.get(bid.size() - 1).p()));
+        }
+        if (usualY != null) {
+            tags.add(new int[] {usualY[w - 1], C_USUAL});
+            tagLabels.add(MarketStore.fmt(usual.get(usual.size() - 1).p()));
+        }
+        Integer[] order = new Integer[tags.size()];
+        for (int i = 0; i < order.length; i++) order[i] = i;
+        java.util.Arrays.sort(order, Comparator.comparingInt(i -> tags.get(i)[0]));
+        int lastY = Integer.MIN_VALUE;
+        for (Integer oi : order) {
+            int ty = tags.get(oi)[0];
+            if (ty < lastY + 13) ty = lastY + 13;
+            lastY = ty;
+            priceTag(g, tagX, ty, y, h, tagLabels.get(oi), tags.get(oi)[1]);
         }
 
         // hover crosshair + tooltip
@@ -1001,13 +1104,18 @@ public class MarketScreen extends Screen {
             colors.add(C_DIM);
             if (askY != null) {
                 g.fill(mouseXNow - 2, askY[c] - 2, mouseXNow + 3, askY[c] + 3, C_ASK);
-                lines.add("Ask  " + MarketStore.fmt(interp(ask, t)));
+                lines.add("Cheapest  " + MarketStore.fmt(interp(ask, t)));
                 colors.add(C_ASK);
             }
             if (bidY != null) {
                 g.fill(mouseXNow - 2, bidY[c] - 2, mouseXNow + 3, bidY[c] + 3, C_BID);
-                lines.add("Bid  " + MarketStore.fmt(interp(bid, t)));
+                lines.add("Orders  " + MarketStore.fmt(interp(bid, t)));
                 colors.add(C_BID);
+            }
+            if (usualY != null) {
+                g.fill(mouseXNow - 2, usualY[c] - 2, mouseXNow + 3, usualY[c] + 3, C_USUAL);
+                lines.add("Usual  " + MarketStore.fmt(interp(usual, t)));
+                colors.add(C_USUAL);
             }
             int tw = 0;
             for (String s : lines) tw = Math.max(tw, this.font.width(s));
@@ -1025,7 +1133,7 @@ public class MarketScreen extends Screen {
     }
 
     /** One y per pixel column across the chart, linearly interpolated; null if there is no data. */
-    private int[] columns(List<Pt> pts, long t0, long t1, int x, int y, int w, int h, double nlo, double nhi) {
+    private int[] columns(List<Pt> pts, long t0, long t1, int y, int w, int h, double nlo, double nhi) {
         if (pts.isEmpty()) return null;
         int[] ys = new int[w];
         for (int c = 0; c < w; c++) {
@@ -1039,12 +1147,13 @@ public class MarketScreen extends Screen {
 
     private void drawSeries(GuiGraphicsExtractor g, int[] ys, int x, int y, int w, int h, int color, int area) {
         if (ys == null) return;
+        boolean fillArea = (area >>> 24) != 0;
         for (int c = 0; c < w; c++) {
             int y0 = ys[c];
             int y1 = c + 1 < w ? ys[c + 1] : y0;
             int top = Math.min(y0, y1);
             int bot = Math.max(y0, y1);
-            if (bot + 2 < y + h) g.fill(x + c, bot + 2, x + c + 1, y + h, area);
+            if (fillArea && bot + 2 < y + h) g.fill(x + c, bot + 2, x + c + 1, y + h, area);
             g.fill(x + c, top, x + c + 1, bot + 2, color);
         }
     }
@@ -1056,15 +1165,56 @@ public class MarketScreen extends Screen {
         g.text(this.font, label, x + 4, ty + 2, 0xFF0A0C11, false);
     }
 
-    // ------------------------------------------------------------------ footer
+    // ------------------------------------------------------------------ help + footer
+
+    private void drawHelp(GuiGraphicsExtractor g) {
+        int w = Math.min(520, pw - 40);
+        String[][] items = {
+                {"USUAL PRICE", "What the item normally sells for. It is worked out from listings that disappear from the Auction House (someone bought them)."},
+                {"OVERPRICED LISTINGS", "A listing nobody buys says nothing about the price. If a cheaper listing is still there, pricier ones are ignored."},
+                {"CHEAPEST LISTING", "The lowest price for sale right now."},
+                {"BEST BUY ORDER", "The highest price a buyer is offering to pay right now."},
+                {"GOOD BUY", "The cheapest listing is much lower than the usual price."},
+                {"FLIP", "Buy from the Auction House, then sell to a buy order for more."},
+                {"GREEN / RED", "Green is good for you: cheaper than usual when buying, higher than usual when selling."},
+                {"UPDATING", "Prices refresh by themselves (see Settings). It only runs when no menu is open and you haven't been hurt."},
+        };
+        int h = 34;
+        List<List<String>> wrapped = new ArrayList<>();
+        for (String[] it : items) {
+            List<String> ls = wrap(it[1], w - 24, 3);
+            wrapped.add(ls);
+            h += 14 + ls.size() * 11 + 4;
+        }
+        int x = px + (pw - w) / 2;
+        int y = py + Math.max(10, (ph - h) / 2);
+        g.fill(0, 0, this.width, this.height, 0x90000000);
+        panel(g, x, y, w, h, 0xFF10131A);
+        g.fill(x, y, x + w, y + 2, C_FAIR);
+        bold(g, "HOW TO READ THIS", x + 12, y + 10, C_FAIR);
+        int ty = y + 28;
+        for (int i = 0; i < items.length; i++) {
+            bold(g, items[i][0], x + 12, ty, C_ACCENT);
+            ty += 12;
+            for (String line : wrapped.get(i)) {
+                text(g, line, x + 12, ty, C_TEXT);
+                ty += 11;
+            }
+            ty += 6;
+        }
+        rtext(g, "Click anywhere to close", x + w - 12, y + 10, C_DIMMER);
+    }
 
     private void drawFooter(GuiGraphicsExtractor g) {
         long now = System.currentTimeMillis();
-        String left = store.lastScanTime > 0
-                ? "Last read: " + store.lastKind + " · " + store.lastScanCount + " listings · " + MarketStore.ago(store.lastScanTime)
-                : "Nothing read yet";
-        text(g, left, px + 12, footY + 4, C_DIM);
-
+        String left;
+        if (tab == Tab.SETTINGS && !hoverHelp.isEmpty()) {
+            left = hoverHelp;
+        } else {
+            left = store.lastScanTime > 0
+                    ? "Last read: " + store.lastKind + " · " + store.lastScanCount + " listings · " + MarketStore.ago(store.lastScanTime)
+                    : "Nothing read yet";
+        }
         String right;
         if (Crawler.running()) {
             right = "Updating now...";
@@ -1074,6 +1224,8 @@ public class MarketScreen extends Screen {
         } else {
             right = "Auto-update off";
         }
+        int rw = this.font.width(right);
+        text(g, fit(left, pw - 36 - rw), px + 12, footY + 4, tab == Tab.SETTINGS && !hoverHelp.isEmpty() ? C_TEXT : C_DIM);
         rtext(g, right, px + pw - 12, footY + 4, C_DIM);
     }
 
@@ -1082,7 +1234,7 @@ public class MarketScreen extends Screen {
     private record SettingsLayout(int cols, int chipsY1, int chipsY2, int chipsY3, int fieldsY, int fcols, int fw, int endY) {}
 
     private SettingsLayout settingsLayout() {
-        int cols = Math.max(1, Math.min(4, (pw - 28) / 188));
+        int cols = Math.max(1, Math.min(4, (pw - 28) / 218));
         int y = bodyY + 10;
         int y1 = y + 14;
         y = y1 + ((3 + cols - 1) / cols) * 20 + 10;
@@ -1158,14 +1310,17 @@ public class MarketScreen extends Screen {
         int[] flips = {10, 15, 20, 30, 50, 100};
         int[] mins = {0, 10, 100, 1000, 10000, 100000};
         int[] popups = {4, 8, 12, 20};
-        String[] windows = {"all history", "last 24 hours", "last 7 days"};
+        String[] windows = {"all history", "the last 24 hours", "the last 7 days"};
 
-        // --- updating
         bold(g, "UPDATING", sx, L.chipsY1 - 14, C_ACCENT);
         String[] l1 = {
-                "Auto-update: " + (store.data.autoUpdate ? "ON" : "OFF"),
-                "Every: " + store.data.autoMinutes + " min",
-                "Page speed: " + store.data.scanDelayMs + " ms"};
+                "Update by itself: " + (store.data.autoUpdate ? "ON" : "OFF"),
+                "Update every: " + store.data.autoMinutes + " min",
+                "Time per page: " + store.data.scanDelayMs + " ms"};
+        String[] h1 = {
+                "Reads the Auction House and Orders on its own. Only when no menu is open and you haven't just been hurt.",
+                "How long to wait between updates. Each update takes as long as it takes to turn every page.",
+                "How long it waits on each page before turning it. Slower is gentler on the server."};
         Runnable[] a1 = {
                 () -> store.data.autoUpdate = !store.data.autoUpdate,
                 () -> store.data.autoMinutes = cycle(store.data.autoMinutes, autoMins),
@@ -1174,18 +1329,25 @@ public class MarketScreen extends Screen {
                     for (int i = 0; i < DELAYS.length; i++) if (DELAYS[i] == store.data.scanDelayMs) idx = i;
                     store.data.scanDelayMs = DELAYS[(idx + 1) % DELAYS.length];
                 }};
-        settingChips(g, sx, L.chipsY1, cols, l1, a1);
+        settingChips(g, sx, L.chipsY1, cols, l1, h1, a1);
 
-        // --- deals
         bold(g, "DEALS & POPUPS", sx, L.chipsY2 - 14, C_ACCENT);
         String[] l2 = {
-                "Deal threshold: " + store.data.dealDropPct + "%",
-                "Flip margin: " + store.data.flipPct + "%",
-                "Average over: " + windows[store.data.avgWindow % 3],
-                "Ignore under: " + store.data.minPrice,
-                "Popups: " + (store.data.alerts ? "ON" : "OFF"),
-                "Popups for: " + (store.data.alertWatchedOnly ? "watchlist" : "all items"),
-                "Popup time: " + store.data.popupSeconds + "s"};
+                "A deal is: " + store.data.dealDropPct + "% off usual",
+                "A flip is: " + store.data.flipPct + "% profit",
+                "Usual price uses: " + windows[store.data.avgWindow % 3],
+                "Ignore items under: " + store.data.minPrice,
+                "Deal popups: " + (store.data.alerts ? "ON" : "OFF"),
+                "Popups for: " + (store.data.alertWatchedOnly ? "watchlist only" : "all items"),
+                "Popup stays: " + store.data.popupSeconds + " s"};
+        String[] h2 = {
+            "How much cheaper than the usual price an item must be to count as a good buy.",
+            "How much profit buying from the Auction House and selling to a buy order must make to count as a flip.",
+            "Which sales are used to work out the usual price. Shorter windows react faster.",
+            "Skip cheap items so junk doesn't fill the Deals list.",
+            "Show a card on screen when a new deal appears.",
+            "Only get popups for items on your watchlist.",
+            "How long a deal popup stays on screen."};
         Runnable[] a2 = {
                 () -> store.data.dealDropPct = cycle(store.data.dealDropPct, drops),
                 () -> store.data.flipPct = cycle(store.data.flipPct, flips),
@@ -1194,14 +1356,17 @@ public class MarketScreen extends Screen {
                 () -> store.data.alerts = !store.data.alerts,
                 () -> store.data.alertWatchedOnly = !store.data.alertWatchedOnly,
                 () -> store.data.popupSeconds = cycle(store.data.popupSeconds, popups)};
-        settingChips(g, sx, L.chipsY2, cols, l2, a2);
+        settingChips(g, sx, L.chipsY2, cols, l2, h2, a2);
 
-        // --- data
         bold(g, "ITEMS & DATA", sx, L.chipsY3 - 14, C_ACCENT);
         String[] l3 = {
-                "Listed price: " + (store.data.priceIsPerStack ? "per stack" : "per item"),
-                "Tell items apart by lore: " + (store.data.useLore ? "ON" : "OFF"),
-                confirmClear ? "Click again to wipe" : "Clear all data"};
+                "Listed price is for: " + (store.data.priceIsPerStack ? "the whole stack" : "one item"),
+                "Split items by lore: " + (store.data.useLore ? "ON" : "OFF"),
+                confirmClear ? "Click again to erase" : "Erase all saved data"};
+        String[] h3 = {
+                "Whether the price on a listing is for the whole stack or for each item in it.",
+                "Treat items with different description text as different items (for custom enchants).",
+                "Deletes every saved price and sale. This cannot be undone."};
         Runnable[] a3 = {
                 () -> store.data.priceIsPerStack = !store.data.priceIsPerStack,
                 () -> store.data.useLore = !store.data.useLore,
@@ -1213,15 +1378,14 @@ public class MarketScreen extends Screen {
                         selectedId = null;
                     }
                 }};
-        settingChips(g, sx, L.chipsY3, cols, l3, a3);
+        settingChips(g, sx, L.chipsY3, cols, l3, h3, a3);
 
-        // --- server wording (field labels; the boxes themselves are widgets)
-        bold(g, "SERVER WORDING", sx, L.fieldsY() - 14, C_ACCENT);
+        bold(g, "HOW THE SERVER WORDS THINGS", sx, L.fieldsY() - 14, C_ACCENT);
         String[] labels = {
-                "Auction House screen title contains", "Orders screen title contains",
+                "Auction House window title contains", "Orders window title contains",
                 "Command that opens the Auction House", "Command that opens Orders",
-                "\"Next page\" button name contains", "Auto-update only on servers containing",
-                "Price pattern (regex: group 1 number, group 2 k/m/b)"};
+                "Next-page button name contains", "Auto-update only on servers containing",
+                "Price pattern (advanced)"};
         for (int i = 0; i < 7; i++) {
             int lx = sx + (i % L.fcols()) * (L.fw() + 12);
             int ly = L.fieldsY() + (i / L.fcols()) * 32;
@@ -1231,17 +1395,16 @@ public class MarketScreen extends Screen {
             text(g, lab, lx, ly, col);
         }
 
-        // --- debug
         int cy = L.endY();
         if (cy < bodyY + bodyH - 40) {
-            bold(g, "LAST SCREEN THE SCANNER SAW", sx, cy, C_ACCENT);
+            bold(g, "LAST WINDOW THE MOD SAW", sx, cy, C_ACCENT);
             cy += 13;
-            String seen = store.lastTitle.isEmpty() ? "No container screen opened yet"
+            String seen = store.lastTitle.isEmpty() ? "No window opened yet"
                     : "\"" + store.lastTitle + "\"  ->  " + store.lastKind;
             text(g, fit(seen, pw - 40), sx, cy, C_TEXT);
             cy += 12;
             if (store.lastSample.isEmpty()) {
-                text(g, "Open the Auction House or Orders; sample item lore lines appear here.", sx, cy, C_DIMMER);
+                text(g, "Open the Auction House or Orders; sample item text appears here.", sx, cy, C_DIMMER);
             } else {
                 for (String line : store.lastSample) {
                     if (cy > bodyY + bodyH - 14) break;
@@ -1252,13 +1415,14 @@ public class MarketScreen extends Screen {
         }
     }
 
-    private void settingChips(GuiGraphicsExtractor g, int sx, int y, int cols, String[] labels, Runnable[] actions) {
+    private void settingChips(GuiGraphicsExtractor g, int sx, int y, int cols, String[] labels, String[] helps, Runnable[] actions) {
         for (int i = 0; i < labels.length; i++) {
-            int x = sx + (i % cols) * 188;
+            int x = sx + (i % cols) * 218;
             int yy = y + (i / cols) * 20;
-            String label = fit(labels[i], 172);
-            int w = 180;
+            int w = 210;
+            String label = fit(labels[i], w - 14);
             boolean hover = mouseXNow >= x && mouseXNow < x + w && mouseYNow >= yy && mouseYNow < yy + 16;
+            if (hover) hoverHelp = helps[i];
             g.fill(x, yy, x + w, yy + 16, hover ? 0xFF2D3446 : 0xFF1E2330);
             border(g, x, yy, w, 16, C_BORDER);
             text(g, label, x + 8, yy + 4, C_TEXT);

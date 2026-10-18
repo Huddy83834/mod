@@ -34,6 +34,9 @@ public final class Scanner {
 
     private Scanner() {}
 
+    /** One individual listing: unit price, how many items, and an identity key. */
+    record Lst(float unit, int qty, long key) {}
+
     static final class Agg {
         String id;
         String base;
@@ -41,7 +44,11 @@ public final class Scanner {
         float best = Float.NaN;
         int count;
         int bestPage = 1;
+        final List<Lst> listings = new ArrayList<>();
     }
+
+    private static final java.util.regex.Pattern SELLER =
+            java.util.regex.Pattern.compile("(?i)(?:seller|listed by|sold by|owner)\\s*:?\\s*([A-Za-z0-9_]{3,16})");
 
     /** Items merged across all pages of the current full update. */
     private static final Map<String, Agg> session = new HashMap<>();
@@ -122,8 +129,13 @@ public final class Scanner {
             List<Component> lines = itemLore == null ? List.of() : itemLore.lines();
 
             Double price = null;
+            String seller = "";
             for (Component line : lines) {
                 String text = line.getString();
+                if (seller.isEmpty()) {
+                    Matcher sm = SELLER.matcher(text);
+                    if (sm.find()) seller = sm.group(1);
+                }
                 if (sample.size() < 10 && !text.isBlank()) {
                     sample.add(stack.getHoverName().getString() + " :: " + text);
                 }
@@ -151,6 +163,8 @@ public final class Scanner {
             }
             a.count++;
             listings++;
+            long key = (((long) Float.floatToIntBits(u)) << 32) ^ ((long) stack.getCount() * 1_000_003L) ^ seller.hashCode();
+            a.listings.add(new Lst(u, Math.max(1, stack.getCount()), key));
         }
 
         store.lastTitle = title;
@@ -179,6 +193,7 @@ public final class Scanner {
                     return n;
                 });
                 s.count += a.count;
+                s.listings.addAll(a.listings);
                 if (Float.isNaN(s.best) || (isBid ? a.best > s.best : a.best < s.best)) {
                     s.best = a.best;
                     s.bestPage = a.bestPage;
@@ -221,21 +236,64 @@ public final class Scanner {
                 r.askListings = a.count;
                 r.askPage = a.bestPage;
                 store.addSample(r.ask, a.best, now, complete);
+                if (complete) {
+                    inferSales(r, a.listings, now);
+                    MarketStore.Market m = store.market(r);
+                    if (m.source() >= 2 && !Float.isNaN(m.price())) store.addSample(r.mkt, m.price(), now, true);
+                }
             }
             collectDeal(store, r, now, fresh);
         }
         if (complete) {
-            // Anything we knew about that is no longer listed has sold out.
+            // Anything we knew about that is no longer listed has sold out (or was taken down).
             for (MarketStore.Rec r : store.data.items.values()) {
                 if (session.containsKey(r.id)) continue;
-                if (bid) r.bidListings = 0;
-                else r.askListings = 0;
+                if (bid) {
+                    r.bidListings = 0;
+                } else {
+                    if (r.askListings > 0) inferSales(r, List.of(), now);
+                    r.askListings = 0;
+                }
             }
         }
         session.clear();
         store.version++;
         store.markDirty();
         Alerts.notify(mc, fresh);
+    }
+
+    /**
+     * Compares the cheapest listings from the previous complete scan with the new ones. Walking up
+     * from the cheapest, every listing that vanished counts as bought; the first one that is still
+     * there stops it, because anything pricier that vanished was most likely cancelled or expired.
+     * An overpriced listing that just sits there never counts as a sale.
+     */
+    private static void inferSales(MarketStore.Rec r, List<Lst> now, long t) {
+        float[] pu = r.askUnits;
+        long[] pk = r.askKeys;
+        int[] pq = r.askQty;
+        if (pk != null && pk.length > 0) {
+            java.util.Set<Long> current = new java.util.HashSet<>();
+            for (Lst l : now) current.add(l.key());
+            int added = 0;
+            for (int i = 0; i < pk.length && added < 25; i++) {
+                if (current.contains(pk[i])) break;
+                r.sales.add(new MarketStore.Sale(t, pu[i], pq[i]));
+                added++;
+            }
+            while (r.sales.size() > 80) r.sales.remove(0);
+        }
+        List<Lst> sorted = new ArrayList<>(now);
+        sorted.sort((x, y) -> Float.compare(x.unit(), y.unit()));
+        int n = Math.min(60, sorted.size());
+        r.askUnits = new float[n];
+        r.askKeys = new long[n];
+        r.askQty = new int[n];
+        for (int i = 0; i < n; i++) {
+            r.askUnits[i] = sorted.get(i).unit();
+            r.askKeys[i] = sorted.get(i).key();
+            r.askQty[i] = sorted.get(i).qty();
+        }
     }
 
     private static void collectDeal(MarketStore store, MarketStore.Rec r, long now, List<MarketStore.Deal> fresh) {
