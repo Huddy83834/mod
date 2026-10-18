@@ -158,7 +158,7 @@ public class MarketScreen extends Screen {
         ph = this.height - 2 * m;
         tabY = py + 28;
         ctrlY = py + 52;
-        showOverview = ph >= 330 && tab != Tab.SETTINGS;
+        showOverview = ph >= 400 && tab != Tab.SETTINGS;
         ovY = py + 76;
         bodyY = showOverview ? py + 112 : py + 76;
         footY = py + ph - 18;
@@ -883,7 +883,8 @@ public class MarketScreen extends Screen {
         int vy = bodyY + 34;
         List<String> vl = new ArrayList<>();
         for (String line : v.lines()) vl.addAll(wrap(line, detW - 40, 2));
-        if (vl.size() > 3) vl = new ArrayList<>(vl.subList(0, 3));
+        int maxLines = bodyH < 200 ? 2 : 3;
+        if (vl.size() > maxLines) vl = new ArrayList<>(vl.subList(0, maxLines));
         int vh = 20 + vl.size() * 11;
         g.fill(detX + 10, vy, detX + detW - 10, vy + vh, withAlpha(v.color(), 0x1C));
         g.fill(detX + 10, vy, detX + 13, vy + vh, v.color());
@@ -898,6 +899,8 @@ public class MarketScreen extends Screen {
         float bid = nowBid(r);
         boolean both = !Float.isNaN(ask) && !Float.isNaN(bid);
         int cardY = vy + vh + 8;
+        // Small windows: drop the four number cards so the chart keeps enough room.
+        boolean showCards = (bodyY + bodyH - 26) - (cardY + 46 + 32) >= 90;
         int gap = 6;
         int cw = (detW - 24 - 3 * gap) / 4;
         int cx = dx;
@@ -907,19 +910,19 @@ public class MarketScreen extends Screen {
             case 1 -> "estimate only";
             default -> "no data yet";
         };
-        statCard(g, cx, cardY, cw, "USUAL PRICE", m.source() == 0 ? "-" : MarketStore.fmt(m.price()), src, C_USUAL, C_DIM);
+        if (showCards) statCard(g, cx, cardY, cw, "USUAL PRICE", m.source() == 0 ? "-" : MarketStore.fmt(m.price()), src, C_USUAL, C_DIM);
         cx += cw + gap;
-        statCard(g, cx, cardY, cw, "CHEAPEST LISTING", Float.isNaN(ask) ? "-" : MarketStore.fmt(ask),
+        if (showCards) statCard(g, cx, cardY, cw, "CHEAPEST LISTING", Float.isNaN(ask) ? "-" : MarketStore.fmt(ask),
                 r.askListings > 0 ? r.askListings + " for sale" : "none for sale", C_ASK, C_DIM);
         cx += cw + gap;
-        statCard(g, cx, cardY, cw, "BEST BUY ORDER", Float.isNaN(bid) ? "-" : MarketStore.fmt(bid),
+        if (showCards) statCard(g, cx, cardY, cw, "BEST BUY ORDER", Float.isNaN(bid) ? "-" : MarketStore.fmt(bid),
                 r.bidListings > 0 ? r.bidListings + " orders" : "no orders", C_BID, C_DIM);
         cx += cw + gap;
-        statCard(g, cx, cardY, cw, "FLIP PROFIT", both && bid > ask ? MarketStore.fmt(bid - ask) : "-",
+        if (showCards) statCard(g, cx, cardY, cw, "FLIP PROFIT", both && bid > ask ? MarketStore.fmt(bid - ask) : "-",
                 both && ask > 0 ? MarketStore.pctText((bid - ask) / ask * 100) : "needs both", C_UP, C_DIM);
 
         // chart toolbar
-        int tbY = cardY + 46;
+        int tbY = showCards ? cardY + 46 : cardY;
         int lx = dx;
         lx = legend(g, lx, tbY, "Cheapest", C_ASK);
         lx = legend(g, lx, tbY, "Orders", C_BID);
@@ -1257,7 +1260,7 @@ public class MarketScreen extends Screen {
         int y2 = y + 14;
         y = y2 + ((7 + cols - 1) / cols) * 20 + 10;
         int y3 = y + 14;
-        y = y3 + ((3 + cols - 1) / cols) * 20 + 10;
+        y = y3 + ((4 + cols - 1) / cols) * 20 + 10;
         int y4 = y + 14;
         int fcols = pw >= 640 ? 2 : 1;
         int fw = Math.min(360, (pw - 28 - (fcols - 1) * 12) / fcols);
@@ -1378,11 +1381,13 @@ public class MarketScreen extends Screen {
         String[] l3 = {
                 "Listed price is for: " + (store.data.priceIsPerStack ? "the whole stack" : "one item"),
                 "Split items by lore: " + (store.data.useLore ? "ON" : "OFF"),
-                confirmClear ? "Click again to erase" : "Erase all saved data"};
+                confirmClear ? "Click again to erase" : "Erase all saved data",
+                "Save item details to a file"};
         String[] h3 = {
                 "Whether the price on a listing is for the whole stack or for each item in it.",
                 "Treat items with different description text as different items (for custom enchants).",
-                "Deletes every saved price and sale. This cannot be undone."};
+                "Deletes every saved price and sale. This cannot be undone.",
+                "Open the Auction House first. Saves exactly what the mod sees on each item (name, description, hidden data) to config/lsstocks-items.txt, so odd or custom items can be fixed."};
         Runnable[] a3 = {
                 () -> store.data.priceIsPerStack = !store.data.priceIsPerStack,
                 () -> store.data.useLore = !store.data.useLore,
@@ -1393,6 +1398,11 @@ public class MarketScreen extends Screen {
                         confirmClear = false;
                         selectedId = null;
                     }
+                },
+                () -> {
+                    String path = store.writeDump();
+                    Popups.info(path == null ? "Nothing to save" : "Saved",
+                            path == null ? "Open the Auction House first" : path);
                 }};
         settingChips(g, sx, L.chipsY3, cols, l3, h3, a3);
 

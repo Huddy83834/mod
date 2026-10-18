@@ -91,6 +91,10 @@ public class MarketStore {
         public String ahCommand = "ah";
         public String orderCommand = "orders";
         public String nextKeywords = "next";
+        /** Auction House lines containing these show an instant "buy now" price (the one we use). */
+        public String instantWords = "buy now, buy it now, instant, buyout, buy out, buy price";
+        /** Lines containing these are bids and are never used as the price. */
+        public String bidWords = "bid";
         public int scanDelayMs = 900;
 
         // Automatic updating
@@ -99,7 +103,7 @@ public class MarketStore {
         /** Seconds between automatic updates. */
         public int autoSeconds = 30;
         /** Bumped when defaults change, so old saved settings can be migrated once. */
-        public int configVersion = 3;
+        public int configVersion = 4;
         /** Auto-update only runs on servers whose address contains this (empty = any). */
         public String serverFilter = "lifesteal";
         public long lastFullUpdate = 0L;
@@ -124,7 +128,7 @@ public class MarketStore {
     /** The usual price. source: 0 none, 1 current listings only, 2 price history, 3 estimated sales. */
     public record Market(float price, int sales, int source) {}
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder().create();
     private final Path file = FabricLoader.getInstance().getConfigDir().resolve("lsstocks-market.json");
 
     public Data data = new Data();
@@ -145,6 +149,20 @@ public class MarketStore {
     public long lastScanTime;
     public int lastScanCount;
     public List<String> lastSample = new ArrayList<>();
+    /** Full detail of the last items seen (name, lore, hidden data) so odd items can be diagnosed. */
+    public List<String> lastDump = new ArrayList<>();
+
+    /** Writes lastDump to config/lsstocks-items.txt. Returns the file path or null. */
+    public String writeDump() {
+        if (lastDump.isEmpty()) return null;
+        try {
+            Path out = FabricLoader.getInstance().getConfigDir().resolve("lsstocks-items.txt");
+            Files.writeString(out, String.join("\n", lastDump));
+            return out.toString();
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
 
     public void load() {
         try {
@@ -158,8 +176,10 @@ public class MarketStore {
                     if (d.ahCommand == null) d.ahCommand = "ah";
                     if (d.orderCommand == null) d.orderCommand = "orders";
                     if (d.nextKeywords == null) d.nextKeywords = "next";
+                    if (d.instantWords == null) d.instantWords = "buy now, buy it now, instant, buyout, buy out, buy price";
+                    if (d.bidWords == null) d.bidWords = "bid";
                     if (d.serverFilter == null) d.serverFilter = "lifesteal";
-                    if (d.scanDelayMs < 300) d.scanDelayMs = 900;
+                    if (d.scanDelayMs < 300) d.scanDelayMs = 500;
                     if (d.autoMinutes < 1) d.autoMinutes = 1;
                     if (d.configVersion < 2) {
                         d.autoMinutes = 1;
@@ -170,6 +190,11 @@ public class MarketStore {
                         d.autoSeconds = 30;
                         d.scanDelayMs = 500;
                         d.configVersion = 3;
+                    }
+                    if (d.configVersion < 4) {
+                        // Older versions could record bid prices as if they were buy-now prices.
+                        d.items.clear();
+                        d.configVersion = 4;
                     }
                     if (d.autoSeconds < 10) d.autoSeconds = 30;
                     if (d.popupSeconds < 2) d.popupSeconds = 8;
@@ -187,14 +212,49 @@ public class MarketStore {
     }
 
     public void maybeSave() {
-        if (dirty && System.currentTimeMillis() - lastSave > 15_000L) saveNow();
+        if (dirty && System.currentTimeMillis() - lastSave > 60_000L) saveNow();
     }
 
+    private static final java.util.concurrent.ExecutorService WRITER =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "lsstocks-writer");
+                t.setDaemon(true);
+                return t;
+            });
+
+    /** Serializes now (cheap) and writes the file on a background thread so the game never stalls. */
     public void saveNow() {
+        final String json;
         try {
-            Files.writeString(file, GSON.toJson(data));
-            dirty = false;
-            lastSave = System.currentTimeMillis();
+            json = GSON.toJson(data);
+        } catch (RuntimeException e) {
+            StocksClient.LOGGER.warn("Could not save market data", e);
+            return;
+        }
+        dirty = false;
+        lastSave = System.currentTimeMillis();
+        WRITER.execute(() -> writeFile(json));
+    }
+
+    /** Same, but waits until the file is written (used when the game closes). */
+    public void saveBlocking() {
+        try {
+            writeFile(GSON.toJson(data));
+        } catch (RuntimeException e) {
+            StocksClient.LOGGER.warn("Could not save market data", e);
+        }
+    }
+
+    private void writeFile(String json) {
+        try {
+            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+            Files.writeString(tmp, json);
+            try {
+                Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException atomicFail) {
+                Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException | RuntimeException e) {
             StocksClient.LOGGER.warn("Could not save market data", e);
         }
@@ -237,10 +297,45 @@ public class MarketStore {
             }
         }
         series.add(new Point(now, price, full));
-        while (series.size() > MAX_POINTS) series.remove(0);
+        if (series.size() > MAX_POINTS) compact(series, now);
         markDirty();
         version++;
         return prev;
+    }
+
+    /**
+     * Keeps history useful for days: the last 3 hours stay detailed, the last 2 days are thinned to
+     * one reading per 10 minutes, and anything older to one per hour.
+     */
+    private static void compact(List<Point> s, long now) {
+        List<Point> out = new ArrayList<>(s.size() / 2);
+        long curBucket = Long.MIN_VALUE;
+        Point keep = null;
+        for (Point p : s) {
+            long age = now - p.t;
+            if (age < 3 * 3600_000L) {
+                if (keep != null) {
+                    out.add(keep);
+                    keep = null;
+                }
+                out.add(p);
+                continue;
+            }
+            long size = age < 48 * 3600_000L ? 600_000L : 3_600_000L;
+            long bucket = (p.t / size) * 10 + (size == 600_000L ? 1 : 2);
+            if (bucket != curBucket) {
+                if (keep != null) out.add(keep);
+                curBucket = bucket;
+                keep = p;
+            } else if (p.full || !keep.full) {
+                keep = p;
+            }
+        }
+        if (keep != null) out.add(keep);
+        // Still too long (very old data): drop the oldest.
+        while (out.size() > MAX_POINTS) out.remove(0);
+        s.clear();
+        s.addAll(out);
     }
 
     public void clear() {
@@ -272,14 +367,23 @@ public class MarketStore {
             for (Point p : s) if (p.full) base.add(p);
         }
         if (base.size() < 5) return base;
-        // Drop wild spikes (e.g. the only listing left being absurdly overpriced).
-        float[] vals = new float[base.size()];
-        for (int i = 0; i < vals.length; i++) vals[i] = base.get(i).p;
-        java.util.Arrays.sort(vals);
-        float med = vals[vals.length / 2];
-        if (med <= 0) return base;
+        // Drop one-off spikes by comparing each reading with its neighbours (so a real trend is kept).
         List<Point> out = new ArrayList<>(base.size());
-        for (Point p : base) if (p.p <= med * 2.5f && p.p >= med / 2.5f) out.add(p);
+        int n = base.size();
+        for (int i = 0; i < n; i++) {
+            Point p = base.get(i);
+            if (i == n - 1) {
+                out.add(p);
+                continue;
+            }
+            int lo = Math.max(0, i - 3);
+            int hi = Math.min(n - 1, i + 3);
+            float[] w = new float[hi - lo + 1];
+            for (int k = lo; k <= hi; k++) w[k - lo] = base.get(k).p;
+            java.util.Arrays.sort(w);
+            float med = w[w.length / 2];
+            if (med <= 0 || (p.p <= med * 2.5f && p.p >= med / 2.5f)) out.add(p);
+        }
         return out.size() >= 2 ? out : base;
     }
 

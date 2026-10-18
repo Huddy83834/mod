@@ -30,7 +30,7 @@ public class StocksClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         STORE.load();
-        Runtime.getRuntime().addShutdownHook(new Thread(STORE::saveNow));
+        Runtime.getRuntime().addShutdownHook(new Thread(STORE::saveBlocking));
         Popups.register();
 
         KeyMapping.Category category = KeyMapping.Category.register(

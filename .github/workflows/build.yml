@@ -33,4 +33,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: lifesteal-stocks-jar
-          path: lifesteal-stocks-ci/build/libs/lifesteal-stocks-1.6.0.jar
+          path: lifesteal-stocks-ci/build/libs/lifesteal-stocks-1.7.0.jar

@@ -50,24 +50,83 @@ public final class Scanner {
     private static final java.util.regex.Pattern SELLER =
             java.util.regex.Pattern.compile("(?i)(?:seller|listed by|sold by|owner)\\s*:?\\s*([A-Za-z0-9_]{3,16})");
 
-    /** Items merged across all pages of the current full update. */
-    private static final Map<String, Agg> session = new HashMap<>();
+    /**
+     * What each page of the current full update looked like. A page is stored by number and simply
+     * replaced if it is read again (items can arrive over several ticks), so nothing is counted twice.
+     */
+    private static final Map<Integer, Map<String, Agg>> pageData = new java.util.TreeMap<>();
+    private static int lastAskTotal;
+    private static int lastBidTotal;
+    private static int lowAsk;
+    private static int lowBid;
 
     public static void beginSession() {
-        session.clear();
+        pageData.clear();
         lastSignature = "";
     }
 
-    public static int sessionSize() {
-        return session.size();
+    /** Combines the stored pages into one entry per item. */
+    private static Map<String, Agg> mergedSession(boolean bid) {
+        Map<String, Agg> session = new HashMap<>();
+        for (Map<String, Agg> pg : pageData.values()) {
+            for (Agg a : pg.values()) {
+                Agg s = session.computeIfAbsent(a.id, k -> {
+                    Agg n = new Agg();
+                    n.id = a.id;
+                    n.base = a.base;
+                    n.name = a.name;
+                    return n;
+                });
+                s.count += a.count;
+                s.listings.addAll(a.listings);
+                if (Float.isNaN(s.best) || (bid ? a.best > s.best : a.best < s.best)) {
+                    s.best = a.best;
+                    s.bestPage = a.bestPage;
+                }
+            }
+        }
+        return session;
     }
 
     // ------------------------------------------------------------------ item identity
 
     private record Variant(String id, String base, String name) {}
 
-    private static final java.util.regex.Pattern ENCH_LINE = java.util.regex.Pattern.compile(
-            "^[A-Za-z][A-Za-z' \\-]{2,30} (?:I|II|III|IV|V|VI|VII|VIII|IX|X|[0-9]{1,2})$");
+    /** "Lifesteal II", "Sharpness 5", "Soul Reaper IV" ... one enchant after splitting a line. */
+    private static final java.util.regex.Pattern ENCH_PART = java.util.regex.Pattern.compile(
+            "^[\\p{L}][\\p{L}' \\-]{1,30}?\\s+(?:[IVXLivxl]{1,6}|[0-9]{1,2})$");
+    private static final java.util.regex.Pattern SPLIT = java.util.regex.Pattern.compile("\\s*[,;|\\u2022\\u00B7/&]\\s*");
+    private static final java.util.regex.Pattern NOISE = java.util.regex.Pattern.compile(
+            "(?i)\\b(click|shift|expire|listed|seller|price|cost|bid|buy|sell|order|page|ago|remaining|stock|"
+                    + "quantity|amount|owner|level|stack|durability|damage|speed|tier|time|left|total|each|coins?)\\b");
+    private static final java.util.regex.Pattern DATA_ENCH = java.util.regex.Pattern.compile(
+            "(?i)\"?([a-z0-9_:.\\-]*(?:enchant|ench)[a-z0-9_:.\\-]*)\"?\\s*[:=]\\s*(\\{[^{}]*\\}|\\[[^\\[\\]]*\\]|\"[^\"]*\"|[^,}\\]]+)");
+
+    /** Finds enchant-looking text in lore lines, e.g. server-made enchants. */
+    private static void loreEnchants(List<Component> lore, MarketStore store, List<String> out) {
+        for (Component line : lore) {
+            String t = line.getString().trim();
+            if (t.length() < 4 || t.length() > 80 || t.contains(":")) continue;
+            if (store.pattern().matcher(t).find() || NOISE.matcher(t).find()) continue;
+            for (String part : SPLIT.split(t)) {
+                String q = part.trim();
+                if (ENCH_PART.matcher(q).matches() && !out.contains(q) && out.size() < 10) out.add(q);
+            }
+        }
+    }
+
+    /** Enchant info stored in the item's hidden data (some plugins keep custom enchants there). */
+    private static void dataEnchants(ItemStack stack, List<String> out) {
+        Object cd = stack.get(DataComponents.CUSTOM_DATA);
+        if (cd == null) return;
+        Matcher m = DATA_ENCH.matcher(String.valueOf(cd));
+        while (m.find() && out.size() < 10) {
+            String body = m.group(2).replace("\"", "").replace("'", "").trim();
+            if (body.length() > 80) body = body.substring(0, 80);
+            String e = body.isEmpty() ? m.group(1) : body;
+            if (!out.contains(e)) out.add(e);
+        }
+    }
 
     /** Works out which item a stack really is: custom name, enchants (vanilla and server-made), dye, skin. */
     private static Variant variantOf(ItemStack stack, MarketStore store, List<Component> lore) {
@@ -89,12 +148,9 @@ public final class Scanner {
                 ench.add(Enchantment.getFullname(e.getKey(), e.getIntValue()).getString());
             }
         }
-        // Server-made enchants are usually just lines of lore, like "Lifesteal II".
-        for (Component line : lore) {
-            String t = line.getString().trim();
-            if (t.length() < 4 || t.contains(":") || store.pattern().matcher(t).find()) continue;
-            if (ENCH_LINE.matcher(t).matches() && !ench.contains(t) && ench.size() < 8) ench.add(t);
-        }
+        // Server-made enchants: lines of lore like "Lifesteal II", or data stored on the item.
+        loreEnchants(lore, store, ench);
+        dataEnchants(stack, ench);
         Collections.sort(ench);
 
         Object dye = stack.get(DataComponents.DYED_COLOR);
@@ -143,12 +199,20 @@ public final class Scanner {
         boolean isBid = MarketStore.matchesAny(lower, store.data.orderKeywords);
         boolean isAsk = !isBid && MarketStore.matchesAny(lower, store.data.ahKeywords);
 
+        if (!isBid && !isAsk) {
+            // Some other chest or menu: don't spend time reading it.
+            store.lastTitle = title;
+            store.lastKind = "not recognised";
+            return;
+        }
+
         AbstractContainerMenu menu = screen.getMenu();
         Map<String, Agg> found = new HashMap<>();
         List<String> sample = new ArrayList<>();
         StringBuilder sig = new StringBuilder(title);
         int listings = 0;
         int page = Crawler.page();
+        List<String> dump = new ArrayList<>();
 
         for (Slot slot : menu.slots) {
             if (slot.container == mc.player.getInventory()) continue;
@@ -158,6 +222,8 @@ public final class Scanner {
             List<Component> lines = itemLore == null ? List.of() : itemLore.lines();
 
             Double price = null;
+            Double instant = null;
+            Double plain = null;
             String seller = "";
             for (Component line : lines) {
                 String text = line.getString();
@@ -168,16 +234,37 @@ public final class Scanner {
                 if (sample.size() < 10 && !text.isBlank()) {
                     sample.add(stack.getHoverName().getString() + " :: " + text);
                 }
-                if (price == null) {
-                    Matcher m = store.pattern().matcher(text);
-                    if (m.find()) price = parse(m.group(1), m.groupCount() >= 2 ? m.group(2) : null);
+                Matcher m = store.pattern().matcher(text);
+                if (m.find()) {
+                    double val = parse(m.group(1), m.groupCount() >= 2 ? m.group(2) : null);
+                    String low = text.toLowerCase(Locale.ROOT);
+                    if (isBid) {
+                        // Orders: the first price on the item.
+                        if (price == null) price = val;
+                    } else if (MarketStore.matchesAny(low, store.data.instantWords)) {
+                        if (instant == null) instant = val; // "Buy Now" price
+                    } else if (!MarketStore.matchesAny(low, store.data.bidWords)) {
+                        if (plain == null) plain = val; // an ordinary "Price:" line
+                    }
+                    // lines that only show a bid ("Current Bid: ...") are ignored
                 }
             }
+            if (!isBid) price = instant != null ? instant : plain;
             sig.append('|').append(slot.index).append(stack.getCount()).append(price);
             if (price == null) continue;
 
             double unit = store.data.priceIsPerStack ? price / Math.max(1, stack.getCount()) : price;
             Variant v = variantOf(stack, store, lines);
+            if (dump.size() < 40) {
+                StringBuilder d = new StringBuilder();
+                d.append("ITEM: ").append(stack.getHoverName().getString()).append(" x").append(stack.getCount())
+                        .append(" (").append(v.base()).append(")\n");
+                d.append("  READ AS: ").append(v.name()).append('\n');
+                for (Component l : lines) d.append("  LORE: ").append(l.getString()).append('\n');
+                String comps = String.valueOf(stack.getComponents());
+                d.append("  DATA: ").append(comps.length() > 1500 ? comps.substring(0, 1500) + "..." : comps).append('\n');
+                dump.add(d.toString());
+            }
             Agg a = found.computeIfAbsent(v.id(), k -> {
                 Agg n = new Agg();
                 n.id = v.id();
@@ -199,6 +286,7 @@ public final class Scanner {
         store.lastTitle = title;
         store.lastKind = isBid ? "Orders" : isAsk ? "Auction House" : "not recognised";
         store.lastSample = sample;
+        if (!dump.isEmpty()) store.lastDump = dump;
 
         String signature = sig.toString();
         if (signature.equals(lastSignature)) return;
@@ -212,22 +300,7 @@ public final class Scanner {
         }
 
         if (Crawler.collecting()) {
-            // Merge this page into the full update.
-            for (Agg a : found.values()) {
-                Agg s = session.computeIfAbsent(a.id, k -> {
-                    Agg n = new Agg();
-                    n.id = a.id;
-                    n.base = a.base;
-                    n.name = a.name;
-                    return n;
-                });
-                s.count += a.count;
-                s.listings.addAll(a.listings);
-                if (Float.isNaN(s.best) || (isBid ? a.best > s.best : a.best < s.best)) {
-                    s.best = a.best;
-                    s.bestPage = a.bestPage;
-                }
-            }
+            pageData.put(page, found);
             return;
         }
 
@@ -252,6 +325,34 @@ public final class Scanner {
     /** Saves a finished (or stopped) full update as one reading per item. */
     public static void commit(Minecraft mc, MarketStore store, boolean bid, boolean complete) {
         long now = System.currentTimeMillis();
+        Map<String, Agg> session = mergedSession(bid);
+        int total = 0;
+        for (Agg a : session.values()) total += a.count;
+
+        // A read that found far fewer listings than last time probably missed pages (lag, a slow page
+        // load). Keep its prices, but don't treat what it "didn't see" as sold.
+        boolean credible = complete;
+        if (complete) {
+            int prev = bid ? lastBidTotal : lastAskTotal;
+            int low = bid ? lowBid : lowAsk;
+            if (prev > 0 && total < prev * 0.6) {
+                if (low < 2) {
+                    credible = false;
+                    low++;
+                } else {
+                    low = 0; // it keeps coming back small, so the market really did shrink
+                }
+            } else {
+                low = 0;
+            }
+            if (credible) {
+                if (bid) lastBidTotal = total;
+                else lastAskTotal = total;
+            }
+            if (bid) lowBid = low;
+            else lowAsk = low;
+        }
+
         List<MarketStore.Deal> fresh = new ArrayList<>();
         for (Agg a : session.values()) {
             MarketStore.Rec r = store.rec(a.id, a.name);
@@ -260,32 +361,34 @@ public final class Scanner {
             if (bid) {
                 r.bidListings = a.count;
                 r.bidPage = a.bestPage;
-                store.addSample(r.bid, a.best, now, complete);
+                store.addSample(r.bid, a.best, now, credible);
             } else {
                 r.askListings = a.count;
                 r.askPage = a.bestPage;
-                store.addSample(r.ask, a.best, now, complete);
+                store.addSample(r.ask, a.best, now, credible);
                 if (complete) {
-                    inferSales(r, a.listings, now);
-                    MarketStore.Market m = store.market(r);
-                    if (m.source() >= 2 && !Float.isNaN(m.price())) store.addSample(r.mkt, m.price(), now, true);
+                    inferSales(r, a.listings, now, credible);
+                    if (credible) {
+                        MarketStore.Market m = store.market(r);
+                        if (m.source() >= 2 && !Float.isNaN(m.price())) store.addSample(r.mkt, m.price(), now, true);
+                    }
                 }
             }
             collectDeal(store, r, now, fresh);
         }
-        if (complete) {
+        if (credible) {
             // Anything we knew about that is no longer listed has sold out (or was taken down).
             for (MarketStore.Rec r : store.data.items.values()) {
                 if (session.containsKey(r.id)) continue;
                 if (bid) {
                     r.bidListings = 0;
                 } else {
-                    if (r.askListings > 0) inferSales(r, List.of(), now);
+                    if (r.askListings > 0) inferSales(r, List.of(), now, true);
                     r.askListings = 0;
                 }
             }
         }
-        session.clear();
+        pageData.clear();
         store.version++;
         store.markDirty();
         Alerts.notify(mc, fresh);
@@ -297,11 +400,11 @@ public final class Scanner {
      * there stops it, because anything pricier that vanished was most likely cancelled or expired.
      * An overpriced listing that just sits there never counts as a sale.
      */
-    private static void inferSales(MarketStore.Rec r, List<Lst> now, long t) {
+    private static void inferSales(MarketStore.Rec r, List<Lst> now, long t, boolean countSales) {
         float[] pu = r.askUnits;
         long[] pk = r.askKeys;
         int[] pq = r.askQty;
-        if (pk != null && pk.length > 0) {
+        if (countSales && pk != null && pk.length > 0) {
             java.util.Set<Long> current = new java.util.HashSet<>();
             for (Lst l : now) current.add(l.key());
             int added = 0;
@@ -314,7 +417,7 @@ public final class Scanner {
         }
         List<Lst> sorted = new ArrayList<>(now);
         sorted.sort((x, y) -> Float.compare(x.unit(), y.unit()));
-        int n = Math.min(60, sorted.size());
+        int n = Math.min(40, sorted.size());
         r.askUnits = new float[n];
         r.askKeys = new long[n];
         r.askQty = new int[n];

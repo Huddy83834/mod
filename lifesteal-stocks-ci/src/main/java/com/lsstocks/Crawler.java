@@ -236,7 +236,7 @@ public final class Crawler {
                 if (!pageSig(cs.getMenu(), mc).equals(sigBefore)) {
                     state = State.PAGE_WAIT;
                     ticks = 0;
-                } else if (ticks > 80) {
+                } else if (ticks > 40) {
                     // The page never changed: that was the last page.
                     pages--;
                     if (mode == Mode.GOTO) {
