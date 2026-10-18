@@ -61,6 +61,10 @@ public class ClaimAlertClient implements ClientModInitializer {
     private static boolean tabPrimed = false;
     private static long lastAlertAt = 0L;
     private static String lastSeenDump = "";
+    private static boolean reported;
+    private static String lastError = "";
+    private static int rowsRead;
+    private static String zoneText = "";
 
     // The tab list header/footer are private fields, so they are found by type.
     private static Field tabListField;
@@ -89,6 +93,7 @@ public class ClaimAlertClient implements ClientModInitializer {
             if (client.player == null) {
                 inEnemy = false;
                 tabPrimed = false;
+                reported = false;
                 return;
             }
             if (client.player.tickCount % 5 == 0) checkTabList(client);
@@ -207,11 +212,21 @@ public class ClaimAlertClient implements ClientModInitializer {
                     }
                 }
             }
-        } catch (Exception | LinkageError ignored) {
-            // entries are optional
+        } catch (Exception | LinkageError e) {
+            lastError = String.valueOf(e);
         }
 
         saveSeen(lines);
+        rowsRead = lines.size();
+        for (int i = 0; i < lines.size() - 1; i++) {
+            if (lines.get(i).trim().equalsIgnoreCase("location")) zoneText = lines.get(i + 1).trim();
+        }
+        if (!reported && mc.player.tickCount > 160) {
+            reported = true;
+            mc.player.sendSystemMessage(Component.literal("[Claim Alert] running. Read " + rowsRead
+                    + " tab lines" + (zoneText.isEmpty() ? ", no Location row found yet." : ", zone: " + zoneText)
+                    + (lastError.isEmpty() ? "" : " (problem: " + lastError + ")")).withStyle(ChatFormatting.GRAY));
+        }
 
         boolean now = false;
         for (int i = 0; i < lines.size() - 1; i++) {
@@ -276,13 +291,23 @@ public class ClaimAlertClient implements ClientModInitializer {
 
     // ------------------------------------------------------------------ deciding
 
+    /** True if the phrase appears as whole words ("my claim" must not match inside "ene-my claim"). */
+    private static boolean hasPhrase(String lower, String phrase) {
+        String p = phrase.trim().toLowerCase(Locale.ROOT);
+        if (p.isEmpty()) return false;
+        return java.util.regex.Pattern
+                .compile("(?<![\\p{L}])" + java.util.regex.Pattern.quote(p) + "(?![\\p{L}])")
+                .matcher(lower).find();
+    }
+
     private static boolean isEnemyLine(String lower) {
         if (lower.isBlank()) return false;
-        for (String s : config.safePhrases) {
-            if (!s.isBlank() && lower.contains(s.toLowerCase(Locale.ROOT))) return false;
-        }
+        // Explicit enemy wording always wins.
         for (String s : config.enemyPhrases) {
-            if (!s.isBlank() && lower.contains(s.toLowerCase(Locale.ROOT))) return true;
+            if (hasPhrase(lower, s)) return true;
+        }
+        for (String s : config.safePhrases) {
+            if (hasPhrase(lower, s)) return false;
         }
         if (lower.contains("enemy") || lower.contains("hostile")) {
             return lower.contains("claim") || lower.contains("territory") || lower.contains("land")
