@@ -1,0 +1,39 @@
+name: build-claimalert
+
+on:
+  push:
+    paths:
+      - 'claimalert-ci/**'
+      - '.github/workflows/claimalert.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: claimalert-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.5.1
+      - name: Build
+        shell: bash
+        run: |
+          set +e
+          gradle build --no-daemon 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            msg=$( (grep -B1 -A3 -E "error:|What went wrong|Could not|FAILED" build.log | head -80) | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
+            echo "::error title=Build errors::${msg}"
+          fi
+          exit $code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claimalert-jar
+          path: claimalert-ci/build/libs/claimalert-1.0.0.jar
