@@ -17,6 +17,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -187,9 +188,23 @@ public class ClaimAlertClient implements ClientModInitializer {
 
         try {
             if (config.readTabEntries && mc.getConnection() != null) {
+                Object overlay = overlayOf(mc);
                 for (PlayerInfo info : mc.getConnection().getOnlinePlayers()) {
-                    Component name = info.getTabListDisplayName();
-                    if (name != null) addLines(lines, name.getString());
+                    // Exactly what the tab list draws for this row (display name, or team prefix + name + suffix).
+                    String shown = null;
+                    if (overlay != null) shown = nameForDisplay(overlay, info);
+                    if (shown != null) addLines(lines, shown);
+
+                    Component custom = info.getTabListDisplayName();
+                    if (custom != null) addLines(lines, custom.getString());
+
+                    // Servers often build fake rows from scoreboard team prefix/suffix.
+                    if (info.getTeam() != null) {
+                        StringBuilder sb = new StringBuilder();
+                        sb.append(info.getTeam().getPlayerPrefix().getString());
+                        sb.append(info.getTeam().getPlayerSuffix().getString());
+                        addLines(lines, sb.toString());
+                    }
                 }
             }
         } catch (Exception | LinkageError ignored) {
@@ -199,6 +214,12 @@ public class ClaimAlertClient implements ClientModInitializer {
         saveSeen(lines);
 
         boolean now = false;
+        for (int i = 0; i < lines.size() - 1; i++) {
+            if (lines.get(i).trim().equalsIgnoreCase("location")) {
+                String zone = lines.get(i + 1).toLowerCase(Locale.ROOT);
+                if (zone.contains("enemy") && !zone.contains("wilderness")) now = true;
+            }
+        }
         for (String line : lines) {
             if (isEnemyLine(line.toLowerCase(Locale.ROOT))) {
                 now = true;
@@ -213,6 +234,36 @@ public class ClaimAlertClient implements ClientModInitializer {
         }
         inEnemy = now;
         tabPrimed = true;
+    }
+
+    private static Method nameMethod;
+
+    private static Object overlayOf(Minecraft mc) {
+        try {
+            if (tabListField == null) return null;
+            return tabListField.get(mc.gui);
+        } catch (Exception | LinkageError e) {
+            return null;
+        }
+    }
+
+    private static String nameForDisplay(Object overlay, PlayerInfo info) {
+        try {
+            if (nameMethod == null) {
+                for (Method m : overlay.getClass().getDeclaredMethods()) {
+                    if (m.getName().equals("getNameForDisplay") && m.getParameterCount() == 1) {
+                        m.setAccessible(true);
+                        nameMethod = m;
+                        break;
+                    }
+                }
+            }
+            if (nameMethod == null) return null;
+            Object r = nameMethod.invoke(overlay, info);
+            return r instanceof Component c ? c.getString() : null;
+        } catch (Exception | LinkageError e) {
+            return null;
+        }
     }
 
     private static void addLines(List<String> out, String text) {
@@ -265,21 +316,16 @@ public class ClaimAlertClient implements ClientModInitializer {
 
     /** Saves every claim-related line so the matching can be tuned to the server's wording. */
     private static void saveSeen(List<String> lines) {
-        Set<String> interesting = new LinkedHashSet<>();
+        Set<String> all = new LinkedHashSet<>();
         for (String l : lines) {
-            String lower = l.toLowerCase(Locale.ROOT);
-            if (lower.contains("claim") || lower.contains("territory") || lower.contains("zone")
-                    || lower.contains("wilderness") || lower.contains("enemy") || lower.contains("owner")
-                    || lower.contains("faction") || lower.contains("land") || lower.contains("chunk")) {
-                interesting.add(l);
-            }
+            if (all.size() < 120) all.add(l);
         }
-        String dump = String.join("\n", interesting);
+        String dump = String.join("\n", all);
         if (dump.equals(lastSeenDump) || dump.isEmpty()) return;
         lastSeenDump = dump;
         try {
             Files.writeString(FabricLoader.getInstance().getConfigDir().resolve("claimalert-seen.txt"),
-                    "Claim-related tab list lines seen most recently:\n\n" + dump + "\n");
+                    "Every tab list line the mod can see right now:\n\n" + dump + "\n");
         } catch (Exception ignored) {
             // not important
         }

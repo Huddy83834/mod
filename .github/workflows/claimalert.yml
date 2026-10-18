@@ -36,4 +36,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: claimalert-jar
-          path: claimalert-ci/build/libs/claimalert-1.1.0.jar
+          path: claimalert-ci/build/libs/claimalert-1.2.0.jar
