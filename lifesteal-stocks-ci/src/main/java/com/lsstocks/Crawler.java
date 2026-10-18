@@ -259,7 +259,7 @@ public final class Crawler {
         if (mc.player.tickCount < 1200 || mc.player.isDeadOrDying()) return;
         long now = System.currentTimeMillis();
         if (now - lastHurt < 30_000L) return;
-        if (now < store.data.lastFullUpdate + store.data.autoMinutes * 60_000L) return;
+        if (now < store.data.lastFullUpdate + store.data.autoSeconds * 1000L) return;
 
         String filter = store.data.serverFilter.trim().toLowerCase(Locale.ROOT);
         if (!filter.isEmpty()) {

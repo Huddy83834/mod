@@ -972,7 +972,7 @@ public class MarketScreen extends Screen {
     // ------------------------------------------------------------------ chart
 
     private List<Pt> windowOf(List<Point> raw, long t0, long t1) {
-        List<Point> s = MarketStore.view(raw);
+        List<Point> s = smooth(MarketStore.view(raw));
         List<Pt> out = new ArrayList<>();
         if (s.isEmpty()) return out;
         Point before = null;
@@ -984,6 +984,22 @@ public class MarketScreen extends Screen {
         if (!out.isEmpty()) {
             Pt last = out.get(out.size() - 1);
             if (last.t() < t1) out.add(new Pt(t1, last.p()));
+        }
+        return out;
+    }
+
+    /** Rolling median of 5 so one odd reading can't make the line jump. */
+    private static List<Point> smooth(List<Point> in) {
+        if (in.size() < 5) return in;
+        List<Point> out = new ArrayList<>(in.size());
+        for (int i = 0; i < in.size(); i++) {
+            int a = Math.max(0, i - 2);
+            int b = Math.min(in.size() - 1, i + 2);
+            float[] w = new float[b - a + 1];
+            for (int k = a; k <= b; k++) w[k - a] = in.get(k).p;
+            java.util.Arrays.sort(w);
+            Point o = in.get(i);
+            out.add(new Point(o.t, w[w.length / 2], o.full));
         }
         return out;
     }
@@ -1219,7 +1235,7 @@ public class MarketScreen extends Screen {
         if (Crawler.running()) {
             right = "Updating now...";
         } else if (store.data.autoUpdate) {
-            long next = store.data.lastFullUpdate + store.data.autoMinutes * 60_000L;
+            long next = store.data.lastFullUpdate + store.data.autoSeconds * 1000L;
             right = now >= next ? "Auto-update due" : "Next auto-update in " + MarketStore.span(next - now);
         } else {
             right = "Auto-update off";
@@ -1305,7 +1321,7 @@ public class MarketScreen extends Screen {
         int sx = px + 14;
         int cols = L.cols();
 
-        int[] autoMins = {1, 2, 5, 10, 15, 30, 60};
+        int[] autoMins = {15, 30, 60, 120, 300, 600};
         int[] drops = {5, 10, 15, 20, 30, 40, 50};
         int[] flips = {10, 15, 20, 30, 50, 100};
         int[] mins = {0, 10, 100, 1000, 10000, 100000};
@@ -1315,7 +1331,7 @@ public class MarketScreen extends Screen {
         bold(g, "UPDATING", sx, L.chipsY1 - 14, C_ACCENT);
         String[] l1 = {
                 "Update by itself: " + (store.data.autoUpdate ? "ON" : "OFF"),
-                "Update every: " + store.data.autoMinutes + " min",
+                "Update every: " + store.data.autoSeconds + " sec",
                 "Time per page: " + store.data.scanDelayMs + " ms"};
         String[] h1 = {
                 "Reads the Auction House and Orders on its own. Only when no menu is open and you haven't just been hurt.",
@@ -1323,7 +1339,7 @@ public class MarketScreen extends Screen {
                 "How long it waits on each page before turning it. Slower is gentler on the server."};
         Runnable[] a1 = {
                 () -> store.data.autoUpdate = !store.data.autoUpdate,
-                () -> store.data.autoMinutes = cycle(store.data.autoMinutes, autoMins),
+                () -> store.data.autoSeconds = cycle(store.data.autoSeconds, autoMins),
                 () -> {
                     int idx = 0;
                     for (int i = 0; i < DELAYS.length; i++) if (DELAYS[i] == store.data.scanDelayMs) idx = i;

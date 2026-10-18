@@ -96,8 +96,10 @@ public class MarketStore {
         // Automatic updating
         public boolean autoUpdate = true;
         public int autoMinutes = 1;
+        /** Seconds between automatic updates. */
+        public int autoSeconds = 30;
         /** Bumped when defaults change, so old saved settings can be migrated once. */
-        public int configVersion = 2;
+        public int configVersion = 3;
         /** Auto-update only runs on servers whose address contains this (empty = any). */
         public String serverFilter = "lifesteal";
         public long lastFullUpdate = 0L;
@@ -164,6 +166,12 @@ public class MarketStore {
                         d.avgWindow = 2;
                         d.configVersion = 2;
                     }
+                    if (d.configVersion < 3) {
+                        d.autoSeconds = 30;
+                        d.scanDelayMs = 500;
+                        d.configVersion = 3;
+                    }
+                    if (d.autoSeconds < 10) d.autoSeconds = 30;
                     if (d.popupSeconds < 2) d.popupSeconds = 8;
                     data = d;
                 }
@@ -271,7 +279,7 @@ public class MarketStore {
         float med = vals[vals.length / 2];
         if (med <= 0) return base;
         List<Point> out = new ArrayList<>(base.size());
-        for (Point p : base) if (p.p <= med * 4f && p.p >= med / 4f) out.add(p);
+        for (Point p : base) if (p.p <= med * 2.5f && p.p >= med / 2.5f) out.add(p);
         return out.size() >= 2 ? out : base;
     }
 

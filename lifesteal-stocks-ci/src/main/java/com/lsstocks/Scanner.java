@@ -66,34 +66,63 @@ public final class Scanner {
 
     private record Variant(String id, String base, String name) {}
 
-    /** Works out which item a stack is, including custom-named items and enchanted books. */
+    private static final java.util.regex.Pattern ENCH_LINE = java.util.regex.Pattern.compile(
+            "^[A-Za-z][A-Za-z' \\-]{2,30} (?:I|II|III|IV|V|VI|VII|VIII|IX|X|[0-9]{1,2})$");
+
+    /** Works out which item a stack really is: custom name, enchants (vanilla and server-made), dye, skin. */
     private static Variant variantOf(ItemStack stack, MarketStore store, List<Component> lore) {
         String base = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
         String defaultName = new ItemStack(stack.getItem()).getHoverName().getString();
         StringBuilder key = new StringBuilder(base);
         String name = defaultName;
 
+        List<String> ench = new ArrayList<>();
         ItemEnchantments stored = stack.get(DataComponents.STORED_ENCHANTMENTS);
-        Component custom = stack.get(DataComponents.CUSTOM_NAME);
         if (stored != null && !stored.isEmpty()) {
-            List<String> parts = new ArrayList<>();
             for (Object2IntMap.Entry<Holder<Enchantment>> e : stored.entrySet()) {
-                parts.add(Enchantment.getFullname(e.getKey(), e.getIntValue()).getString());
+                ench.add(Enchantment.getFullname(e.getKey(), e.getIntValue()).getString());
             }
-            Collections.sort(parts);
-            String joined = String.join(", ", parts);
-            key.append('|').append(joined.toLowerCase(Locale.ROOT));
-            name = "Book: " + joined;
-        } else if (custom != null && !custom.getString().isBlank()) {
-            String cn = custom.getString().trim();
-            key.append('|').append(cn.toLowerCase(Locale.ROOT));
-            name = cn;
-        } else if (store.data.useLore) {
+        }
+        ItemEnchantments applied = stack.get(DataComponents.ENCHANTMENTS);
+        if (applied != null && !applied.isEmpty()) {
+            for (Object2IntMap.Entry<Holder<Enchantment>> e : applied.entrySet()) {
+                ench.add(Enchantment.getFullname(e.getKey(), e.getIntValue()).getString());
+            }
+        }
+        // Server-made enchants are usually just lines of lore, like "Lifesteal II".
+        for (Component line : lore) {
+            String t = line.getString().trim();
+            if (t.length() < 4 || t.contains(":") || store.pattern().matcher(t).find()) continue;
+            if (ENCH_LINE.matcher(t).matches() && !ench.contains(t) && ench.size() < 8) ench.add(t);
+        }
+        Collections.sort(ench);
+
+        Object dye = stack.get(DataComponents.DYED_COLOR);
+        Object model = stack.get(DataComponents.CUSTOM_MODEL_DATA);
+        Object itemModel = stack.get(DataComponents.ITEM_MODEL);
+        Component custom = stack.get(DataComponents.CUSTOM_NAME);
+
+        if (custom != null && !custom.getString().isBlank()) {
+            name = custom.getString().trim();
+            key.append("|n:").append(name.toLowerCase(Locale.ROOT));
+        }
+        if (!ench.isEmpty()) {
+            String joined = String.join(", ", ench);
+            key.append("|e:").append(joined.toLowerCase(Locale.ROOT));
+            boolean book = stack.getItem() == net.minecraft.world.item.Items.ENCHANTED_BOOK;
+            if (book) name = "Book: " + joined;
+            else name = name + " [" + joined + "]";
+        }
+        if (dye != null) key.append("|d:").append(dye);
+        if (model != null) key.append("|m:").append(model);
+        if (itemModel != null && !itemModel.toString().equals(base)) key.append("|i:").append(itemModel);
+
+        if (store.data.useLore && ench.isEmpty()) {
             for (Component line : lore) {
                 String t = line.getString().trim();
                 if (t.isEmpty() || t.contains(":") || store.pattern().matcher(t).find()) continue;
                 key.append('|').append(t.toLowerCase(Locale.ROOT));
-                name = defaultName + " (" + t + ")";
+                name = name + " (" + t + ")";
                 break;
             }
         }
