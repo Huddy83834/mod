@@ -17,9 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client-only. Reads Auction House / Orders pages you open, keeps price history,
- * and shows it in a market screen (keybind K, or the "LS Market" button on the
- * pause and title screens).
+ * Client-only. Keeps the Auction House and Orders prices up to date, tracks history, finds deals,
+ * and shows it all in a market screen (keybind K, or the "LS Market" button on the pause and
+ * title screens).
  */
 public class StocksClient implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("lsstocks");
@@ -31,6 +31,7 @@ public class StocksClient implements ClientModInitializer {
     public void onInitializeClient() {
         STORE.load();
         Runtime.getRuntime().addShutdownHook(new Thread(STORE::saveNow));
+        Popups.register();
 
         KeyMapping.Category category = KeyMapping.Category.register(
                 Identifier.fromNamespaceAndPath("lsstocks", "main"));
