@@ -95,7 +95,7 @@ public class MarketStore {
         public String instantWords = "buy now, buy it now, instant, buyout, buy out, buy price";
         /** Lines containing these are bids and are never used as the price. */
         public String bidWords = "bid";
-        public int scanDelayMs = 900;
+        public int scanDelayMs = 100;
 
         // Automatic updating
         public boolean autoUpdate = true;
@@ -103,7 +103,7 @@ public class MarketStore {
         /** Seconds between automatic updates. */
         public int autoSeconds = 30;
         /** Bumped when defaults change, so old saved settings can be migrated once. */
-        public int configVersion = 4;
+        public int configVersion = 5;
         /** Auto-update only runs on servers whose address contains this (empty = any). */
         public String serverFilter = "lifesteal";
         public long lastFullUpdate = 0L;
@@ -179,7 +179,7 @@ public class MarketStore {
                     if (d.instantWords == null) d.instantWords = "buy now, buy it now, instant, buyout, buy out, buy price";
                     if (d.bidWords == null) d.bidWords = "bid";
                     if (d.serverFilter == null) d.serverFilter = "lifesteal";
-                    if (d.scanDelayMs < 300) d.scanDelayMs = 500;
+                    if (d.scanDelayMs < 50) d.scanDelayMs = 100;
                     if (d.autoMinutes < 1) d.autoMinutes = 1;
                     if (d.configVersion < 2) {
                         d.autoMinutes = 1;
@@ -195,6 +195,10 @@ public class MarketStore {
                         // Older versions could record bid prices as if they were buy-now prices.
                         d.items.clear();
                         d.configVersion = 4;
+                    }
+                    if (d.configVersion < 5) {
+                        d.scanDelayMs = 100;
+                        d.configVersion = 5;
                     }
                     if (d.autoSeconds < 10) d.autoSeconds = 30;
                     if (d.popupSeconds < 2) d.popupSeconds = 8;

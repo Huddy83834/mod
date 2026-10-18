@@ -55,6 +55,8 @@ public final class Scanner {
      * replaced if it is read again (items can arrive over several ticks), so nothing is counted twice.
      */
     private static final Map<Integer, Map<String, Agg>> pageData = new java.util.TreeMap<>();
+    /** How many listings the most recent full read found (0 means the window was not understood). */
+    public static int lastCommitTotal;
     private static int lastAskTotal;
     private static int lastBidTotal;
     private static int lowAsk;
@@ -196,8 +198,9 @@ public final class Scanner {
 
         String title = screen.getTitle().getString();
         String lower = title.toLowerCase(Locale.ROOT);
-        boolean isBid = MarketStore.matchesAny(lower, store.data.orderKeywords);
-        boolean isAsk = !isBid && MarketStore.matchesAny(lower, store.data.ahKeywords);
+        boolean forced = Crawler.collecting();
+        boolean isBid = forced ? Crawler.phaseIsBid() : MarketStore.matchesAny(lower, store.data.orderKeywords);
+        boolean isAsk = forced ? !isBid : (!isBid && MarketStore.matchesAny(lower, store.data.ahKeywords));
 
         if (!isBid && !isAsk) {
             // Some other chest or menu: don't spend time reading it.
@@ -328,6 +331,7 @@ public final class Scanner {
         Map<String, Agg> session = mergedSession(bid);
         int total = 0;
         for (Agg a : session.values()) total += a.count;
+        lastCommitTotal = total;
 
         // A read that found far fewer listings than last time probably missed pages (lag, a slow page
         // load). Keep its prices, but don't treat what it "didn't see" as sold.

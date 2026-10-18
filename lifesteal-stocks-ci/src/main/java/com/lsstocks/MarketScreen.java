@@ -42,7 +42,7 @@ public class MarketScreen extends Screen {
 
     private static final int ROW_H = 26;
     private static final int LIST_HEAD = 16;
-    private static final int[] DELAYS = {500, 900, 1500, 2500};
+    private static final int[] DELAYS = {50, 100, 250, 500, 1000};
 
     private enum Tab {
         ALL("Search", "Search every item and see what it costs"),
@@ -1335,11 +1335,11 @@ public class MarketScreen extends Screen {
         String[] l1 = {
                 "Update by itself: " + (store.data.autoUpdate ? "ON" : "OFF"),
                 "Update every: " + store.data.autoSeconds + " sec",
-                "Time per page: " + store.data.scanDelayMs + " ms"};
+                "Wait per page: " + store.data.scanDelayMs + " ms"};
         String[] h1 = {
                 "Reads the Auction House and Orders on its own. Only when no menu is open and you haven't just been hurt.",
                 "How long to wait between updates. Each update takes as long as it takes to turn every page.",
-                "How long it waits on each page before turning it. Slower is gentler on the server."};
+                "How long it waits on each page before turning it. 50 ms is the fastest. If the server says you are clicking too fast, raise it."};
         Runnable[] a1 = {
                 () -> store.data.autoUpdate = !store.data.autoUpdate,
                 () -> store.data.autoSeconds = cycle(store.data.autoSeconds, autoMins),

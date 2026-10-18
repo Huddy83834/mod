@@ -45,6 +45,9 @@ public final class Crawler {
     private static int gotoPage;
     private static String sigBefore = "";
     private static long lastHurt;
+    private static String openedCmd = "";
+    private static boolean usedFallback;
+    private static final List<String> fallback = new ArrayList<>();
 
     private Crawler() {}
 
@@ -62,6 +65,11 @@ public final class Crawler {
     /** 1-based number of the page currently on screen. */
     public static int page() {
         return pages + 1;
+    }
+
+    /** True while the Orders half of an update is running (so the scanner doesn't depend on the window title). */
+    public static boolean phaseIsBid() {
+        return phaseBid;
     }
 
     public static String status() {
@@ -128,6 +136,11 @@ public final class Crawler {
             return;
         }
         Scanner.beginSession();
+        fallback.clear();
+        usedFallback = false;
+        String[] alts = ah ? new String[] {"auction", "auctionhouse", "ah"} : new String[] {"order", "orders", "buyorders", "bo"};
+        for (String a : alts) if (!a.equalsIgnoreCase(cmd.startsWith("/") ? cmd.substring(1) : cmd)) fallback.add(a);
+        openedCmd = cmd.startsWith("/") ? cmd.substring(1) : cmd;
         sendCommand(mc, cmd);
         state = State.WAIT_OPEN;
         ticks = 0;
@@ -138,8 +151,13 @@ public final class Crawler {
 
     private static void endPhase(Minecraft mc, MarketStore store, boolean complete) {
         if (mode == Mode.FULL) {
+            String title = mc.gui.screen() instanceof AbstractContainerScreen<?> c ? c.getTitle().getString() : "";
             Scanner.commit(mc, store, phaseBid, complete);
             totalPages += pages + 1;
+            if (Scanner.lastCommitTotal == 0) {
+                Popups.info("Nothing read in " + currentName,
+                        "Window \"" + title + "\". Use Settings > Save item details.");
+            }
         }
         if (mc.gui.screen() instanceof AbstractContainerScreen<?>) mc.player.closeContainer();
         state = State.GAP;
@@ -186,19 +204,34 @@ public final class Crawler {
         }
 
         AbstractContainerScreen<?> cs = mc.gui.screen() instanceof AbstractContainerScreen<?> c ? c : null;
-        int delayTicks = Math.max(6, store.data.scanDelayMs / 50);
+        int delayTicks = Math.max(1, store.data.scanDelayMs / 50);
         ticks++;
 
         switch (state) {
             case GAP -> {
-                if (ticks >= 15) startNext(mc, store);
+                if (ticks >= 3) startNext(mc, store);
             }
             case WAIT_OPEN -> {
-                if (cs != null && isMarketTitle(store, cs.getTitle().getString())) {
+                if (cs != null) {
+                    // Accept whatever menu the command opened, so a different window title can't block the update.
+                    if (mode == Mode.FULL && usedFallback) {
+                        usedFallback = false;
+                        // a fallback command worked: remember it
+                        if (phaseBid) store.data.orderCommand = openedCmd;
+                        else store.data.ahCommand = openedCmd;
+                        store.markDirty();
+                    }
                     state = State.PAGE_WAIT;
                     ticks = 0;
-                } else if (ticks > 100) {
-                    abort(mc, store, "Could not open the " + currentName + ". Check its command in Settings.");
+                } else if (ticks > 50) {
+                    if (mode == Mode.FULL && !fallback.isEmpty()) {
+                        openedCmd = fallback.remove(0);
+                        usedFallback = true;
+                        sendCommand(mc, openedCmd);
+                        ticks = 0;
+                    } else {
+                        abort(mc, store, "Could not open the " + currentName + ". Check its command in Settings.");
+                    }
                 }
             }
             case PAGE_WAIT -> {
@@ -236,7 +269,7 @@ public final class Crawler {
                 if (!pageSig(cs.getMenu(), mc).equals(sigBefore)) {
                     state = State.PAGE_WAIT;
                     ticks = 0;
-                } else if (ticks > 40) {
+                } else if (ticks > 24) {
                     // The page never changed: that was the last page.
                     pages--;
                     if (mode == Mode.GOTO) {
