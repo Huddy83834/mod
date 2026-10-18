@@ -12,12 +12,14 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class MarketScreen extends Screen {
@@ -34,9 +36,10 @@ public class MarketScreen extends Screen {
     private static final int C_BID = 0xFFFFA726;
 
     private static final int ROW_H = 24;
+    private static final int[] DELAYS = {500, 900, 1500, 2500};
 
     private enum Tab {
-        AH("Auction House"), ORDERS("Orders"), FLIPS("Flips"), WATCH("Watchlist"), SETTINGS("Settings");
+        ALL("All Items"), AH("Auction House"), ORDERS("Orders"), FLIPS("Flips"), WATCH("Watchlist"), SETTINGS("Settings");
         final String label;
 
         Tab(String label) {
@@ -53,14 +56,34 @@ public class MarketScreen extends Screen {
         }
     }
 
-    private record Row(Rec rec, double price, double change, int listings) {}
+    private record Row(String id, String name, Rec rec, double price, double change, int listings) {}
+
+    /** Every item in the game, built once, so search works even for items with no data yet. */
+    private record Entry(String id, String name, String lower) {}
+
+    private static List<Entry> catalog;
+
+    private static synchronized List<Entry> catalog() {
+        if (catalog == null) {
+            List<Entry> list = new ArrayList<>();
+            for (Item item : BuiltInRegistries.ITEM) {
+                String id = BuiltInRegistries.ITEM.getKey(item).toString();
+                if (id.equals("minecraft:air")) continue;
+                String name = new ItemStack(item).getHoverName().getString();
+                list.add(new Entry(id, name, name.toLowerCase(Locale.ROOT)));
+            }
+            list.sort(Comparator.comparing(Entry::lower));
+            catalog = list;
+        }
+        return catalog;
+    }
 
     private final Screen parent;
     private final MarketStore store = StocksClient.STORE;
     private final List<Row> rows = new ArrayList<>();
     private final Map<String, ItemStack> icons = new HashMap<>();
 
-    private Tab tab = Tab.AH;
+    private Tab tab = Tab.ALL;
     private Sort sort = Sort.PRICE;
     private String query = "";
     private String selectedId = null;
@@ -100,6 +123,26 @@ public class MarketScreen extends Screen {
         detW = px + pw - 8 - detX;
         detH = listH;
 
+        boolean online = Minecraft.getInstance().player != null;
+
+        // top-right action buttons
+        int bx = px + pw - 8;
+        bx -= 84;
+        Button scanAll = Button.builder(Component.literal("Scan all"), b -> Crawler.start(Minecraft.getInstance(), store))
+                .bounds(bx, py + 4, 84, 18).build();
+        scanAll.active = online;
+        addRenderableWidget(scanAll);
+        bx -= 4 + 92;
+        Button openOrders = Button.builder(Component.literal("Open Orders"), b -> runCommand(store.data.orderCommand))
+                .bounds(bx, py + 4, 92, 18).build();
+        openOrders.active = online;
+        addRenderableWidget(openOrders);
+        bx -= 4 + 76;
+        Button openAh = Button.builder(Component.literal("Open AH"), b -> runCommand(store.data.ahCommand))
+                .bounds(bx, py + 4, 76, 18).build();
+        openAh.active = online;
+        addRenderableWidget(openAh);
+
         // tabs
         int x = px + 8;
         int y = py + 24;
@@ -113,7 +156,6 @@ public class MarketScreen extends Screen {
                 scroll = 0;
                 confirmClear = false;
                 rebuildWidgets();
-                rebuild();
             }).bounds(x, y, w, 20).build());
             x += w + 4;
         }
@@ -122,8 +164,8 @@ public class MarketScreen extends Screen {
             initSettings();
         } else {
             int cy = py + 50;
-            EditBox search = new EditBox(this.font, px + 8, cy, 170, 20, Component.literal("Search"));
-            search.setHint(Component.literal("Search items..."));
+            EditBox search = new EditBox(this.font, px + 8, cy, 240, 20, Component.literal("Search"));
+            search.setHint(Component.literal(tab == Tab.ALL ? "Search every item and its price..." : "Search items..."));
             search.setValue(query);
             search.setResponder(s -> {
                 query = s;
@@ -131,68 +173,84 @@ public class MarketScreen extends Screen {
                 rebuild();
             });
             addRenderableWidget(search);
+            setInitialFocus(search);
 
             addRenderableWidget(Button.builder(Component.literal("Sort: " + sort.label), b -> {
                 sort = Sort.values()[(sort.ordinal() + 1) % Sort.values().length];
                 b.setMessage(Component.literal("Sort: " + sort.label));
                 scroll = 0;
                 rebuild();
-            }).bounds(px + 184, cy, 96, 20).build());
+            }).bounds(px + 254, cy, 96, 20).build());
 
             Rec sel = selected();
             boolean watched = sel != null && sel.watched;
             addRenderableWidget(Button.builder(
                     Component.literal(watched ? "★ Watching" : "☆ Watch selected"), b -> {
-                        Rec r = selected();
+                        Row r = selectedRow();
                         if (r != null) {
-                            r.watched = !r.watched;
+                            Rec rec = store.rec(r.id(), r.name());
+                            rec.watched = !rec.watched;
                             store.markDirty();
                             rebuildWidgets();
-                            rebuild();
                         }
-                    }).bounds(px + 286, cy, 120, 20).build());
+                    }).bounds(px + 356, cy, 120, 20).build());
         }
         rebuild();
     }
 
-    private EditBox regexBox;
+    private void runCommand(String cmd) {
+        String c = cmd.trim();
+        if (c.startsWith("/")) c = c.substring(1);
+        Minecraft mc = Minecraft.getInstance();
+        if (c.isEmpty() || mc.player == null) return;
+        mc.gui.setScreen(null);
+        mc.player.connection.sendCommand(c);
+    }
+
+    private EditBox box(int x, int y, int w, String value, int max, java.util.function.Consumer<String> onChange) {
+        EditBox e = new EditBox(this.font, x, y, w, 18, Component.literal("field"));
+        e.setMaxLength(max);
+        e.setValue(value);
+        e.setResponder(onChange::accept);
+        addRenderableWidget(e);
+        return e;
+    }
 
     private void initSettings() {
-        int sx = px + 16;
+        int colW = Math.min(330, (pw - 48) / 2);
+        int lx = px + 16;
+        int rx = lx + colW + 16;
         int sy = bodyY + 12;
-        int fw = Math.min(460, pw - 32);
 
-        regexBox = new EditBox(this.font, sx, sy + 12, fw, 18, Component.literal("Price pattern"));
-        regexBox.setMaxLength(400);
-        regexBox.setValue(store.data.priceRegex);
-        regexBox.setResponder(s -> store.setRegex(s));
-        addRenderableWidget(regexBox);
-
-        EditBox ah = new EditBox(this.font, sx, sy + 48, fw, 18, Component.literal("AH keywords"));
-        ah.setMaxLength(200);
-        ah.setValue(store.data.ahKeywords);
-        ah.setResponder(s -> {
+        box(lx, sy + 12, colW, store.data.priceRegex, 400, s -> store.setRegex(s));
+        box(lx, sy + 46, colW, store.data.ahKeywords, 200, s -> {
             store.data.ahKeywords = s;
             store.markDirty();
         });
-        addRenderableWidget(ah);
-
-        EditBox ord = new EditBox(this.font, sx, sy + 84, fw, 18, Component.literal("Order keywords"));
-        ord.setMaxLength(200);
-        ord.setValue(store.data.orderKeywords);
-        ord.setResponder(s -> {
+        box(lx, sy + 80, colW, store.data.orderKeywords, 200, s -> {
             store.data.orderKeywords = s;
             store.markDirty();
         });
-        addRenderableWidget(ord);
+        box(rx, sy + 12, colW, store.data.ahCommand, 100, s -> {
+            store.data.ahCommand = s;
+            store.markDirty();
+        });
+        box(rx, sy + 46, colW, store.data.orderCommand, 100, s -> {
+            store.data.orderCommand = s;
+            store.markDirty();
+        });
+        box(rx, sy + 80, colW, store.data.nextKeywords, 100, s -> {
+            store.data.nextKeywords = s;
+            store.markDirty();
+        });
 
-        int by = sy + 112;
+        int by = sy + 108;
         addRenderableWidget(Button.builder(
                 Component.literal("Auto-scan: " + (store.data.autoScan ? "ON" : "OFF")), b -> {
                     store.data.autoScan = !store.data.autoScan;
                     store.markDirty();
                     b.setMessage(Component.literal("Auto-scan: " + (store.data.autoScan ? "ON" : "OFF")));
-                }).bounds(sx, by, 130, 20).build());
+                }).bounds(lx, by, 120, 20).build());
 
         addRenderableWidget(Button.builder(
                 Component.literal("Listed price: " + (store.data.priceIsPerStack ? "per stack" : "per item")), b -> {
@@ -200,7 +258,16 @@ public class MarketScreen extends Screen {
                     store.markDirty();
                     b.setMessage(Component.literal(
                             "Listed price: " + (store.data.priceIsPerStack ? "per stack" : "per item")));
-                }).bounds(sx + 136, by, 150, 20).build());
+                }).bounds(lx + 126, by, 150, 20).build());
+
+        addRenderableWidget(Button.builder(
+                Component.literal("Scan speed: " + store.data.scanDelayMs + " ms/page"), b -> {
+                    int idx = 0;
+                    for (int i = 0; i < DELAYS.length; i++) if (DELAYS[i] == store.data.scanDelayMs) idx = i;
+                    store.data.scanDelayMs = DELAYS[(idx + 1) % DELAYS.length];
+                    store.markDirty();
+                    b.setMessage(Component.literal("Scan speed: " + store.data.scanDelayMs + " ms/page"));
+                }).bounds(lx + 282, by, 150, 20).build());
 
         addRenderableWidget(Button.builder(
                 Component.literal(confirmClear ? "Click again to wipe" : "Clear all data"), b -> {
@@ -213,7 +280,7 @@ public class MarketScreen extends Screen {
                         selectedId = null;
                         b.setMessage(Component.literal("Cleared"));
                     }
-                }).bounds(sx + 292, by, 130, 20).build());
+                }).bounds(lx + 438, by, 120, 20).build());
     }
 
     @Override
@@ -232,59 +299,92 @@ public class MarketScreen extends Screen {
 
     // ------------------------------------------------------------------ data
 
+    private Row selectedRow() {
+        if (selectedId == null) return null;
+        for (Row r : rows) if (r.id().equals(selectedId)) return r;
+        return null;
+    }
+
     private Rec selected() {
         return selectedId == null ? null : store.data.items.get(selectedId);
     }
 
+    private static boolean hasData(Rec r) {
+        return r != null && (!r.ask.isEmpty() || !r.bid.isEmpty());
+    }
+
+    private Row simpleRow(String id, String name, Rec r) {
+        if (!hasData(r)) return new Row(id, name, r, Double.NaN, Double.NaN, 0);
+        boolean useAsk = !r.ask.isEmpty();
+        List<Point> s = useAsk ? r.ask : r.bid;
+        return new Row(id, name, r, MarketStore.latest(s), MarketStore.changePct(s), useAsk ? r.askListings : r.bidListings);
+    }
+
     private void rebuild() {
         rows.clear();
-        String q = query.toLowerCase();
-        for (Rec r : store.data.items.values()) {
-            if (!q.isEmpty() && !(r.name.toLowerCase().contains(q) || r.id.contains(q))) continue;
-            float ask = MarketStore.latest(r.ask);
-            float bid = MarketStore.latest(r.bid);
-            switch (tab) {
-                case AH -> {
-                    if (r.ask.isEmpty()) continue;
-                    rows.add(new Row(r, ask, MarketStore.changePct(r.ask), r.askListings));
+        String q = query.toLowerCase(Locale.ROOT).trim();
+
+        if (tab == Tab.ALL) {
+            if (q.isEmpty()) {
+                for (Rec r : store.data.items.values()) {
+                    if (hasData(r)) rows.add(simpleRow(r.id, r.name, r));
                 }
-                case ORDERS -> {
-                    if (r.bid.isEmpty()) continue;
-                    rows.add(new Row(r, bid, MarketStore.changePct(r.bid), r.bidListings));
+            } else {
+                int n = 0;
+                for (Entry e : catalog()) {
+                    if (!e.lower().contains(q) && !e.id().contains(q)) continue;
+                    rows.add(simpleRow(e.id(), e.name(), store.data.items.get(e.id())));
+                    if (++n >= 500) break;
                 }
-                case FLIPS -> {
-                    if (r.ask.isEmpty() || r.bid.isEmpty()) continue;
-                    double margin = bid - ask;
-                    double pct = ask > 0 ? margin / ask * 100.0 : 0;
-                    rows.add(new Row(r, margin, pct, r.askListings));
-                }
-                case WATCH -> {
-                    if (!r.watched) continue;
-                    boolean useAsk = !r.ask.isEmpty();
-                    rows.add(new Row(r, useAsk ? ask : bid,
-                            MarketStore.changePct(useAsk ? r.ask : r.bid), useAsk ? r.askListings : r.bidListings));
-                }
-                default -> {
+            }
+        } else {
+            for (Rec r : store.data.items.values()) {
+                if (!q.isEmpty() && !(r.name.toLowerCase(Locale.ROOT).contains(q) || r.id.contains(q))) continue;
+                float ask = MarketStore.latest(r.ask);
+                float bid = MarketStore.latest(r.bid);
+                switch (tab) {
+                    case AH -> {
+                        if (r.ask.isEmpty()) continue;
+                        rows.add(new Row(r.id, r.name, r, ask, MarketStore.changePct(r.ask), r.askListings));
+                    }
+                    case ORDERS -> {
+                        if (r.bid.isEmpty()) continue;
+                        rows.add(new Row(r.id, r.name, r, bid, MarketStore.changePct(r.bid), r.bidListings));
+                    }
+                    case FLIPS -> {
+                        if (r.ask.isEmpty() || r.bid.isEmpty()) continue;
+                        double margin = bid - ask;
+                        double pct = ask > 0 ? margin / ask * 100.0 : 0;
+                        rows.add(new Row(r.id, r.name, r, margin, pct, r.askListings));
+                    }
+                    case WATCH -> {
+                        if (!r.watched) continue;
+                        rows.add(simpleRow(r.id, r.name, r));
+                    }
+                    default -> {
+                    }
                 }
             }
         }
+
+        Comparator<Row> byName = Comparator.comparing((Row r) -> r.name().toLowerCase(Locale.ROOT));
         Comparator<Row> cmp = switch (sort) {
-            case PRICE -> Comparator.comparingDouble((Row r) -> r.price).reversed();
-            case GAINERS -> Comparator.comparingDouble((Row r) -> nz(r.change, -1e9)).reversed();
-            case LOSERS -> Comparator.comparingDouble((Row r) -> nz(r.change, 1e9));
-            case NAME -> Comparator.comparing((Row r) -> r.rec.name.toLowerCase());
-            case RECENT -> Comparator.comparingLong((Row r) -> r.rec.updated).reversed();
+            case PRICE -> Comparator.comparingDouble((Row r) -> nz(r.price(), -1e18)).reversed().thenComparing(byName);
+            case GAINERS -> Comparator.comparingDouble((Row r) -> nz(r.change(), -1e9)).reversed().thenComparing(byName);
+            case LOSERS -> Comparator.comparingDouble((Row r) -> nz(r.change(), 1e9)).thenComparing(byName);
+            case NAME -> byName;
+            case RECENT -> Comparator.comparingLong((Row r) -> r.rec() == null ? 0L : r.rec().updated).reversed().thenComparing(byName);
         };
         rows.sort(cmp);
 
         boolean found = false;
         for (Row r : rows) {
-            if (r.rec.id.equals(selectedId)) {
+            if (r.id().equals(selectedId)) {
                 found = true;
                 break;
             }
         }
-        if (!found) selectedId = rows.isEmpty() ? null : rows.get(0).rec.id;
+        if (!found) selectedId = rows.isEmpty() ? null : rows.get(0).id();
         int maxScroll = Math.max(0, rows.size() - visibleRows());
         scroll = Math.max(0, Math.min(scroll, maxScroll));
     }
@@ -312,7 +412,7 @@ public class MarketScreen extends Screen {
             if (mx >= listX && mx < listX + listW && my >= listY && my < listY + visibleRows() * ROW_H) {
                 int idx = scroll + (int) ((my - listY) / ROW_H);
                 if (idx >= 0 && idx < rows.size()) {
-                    selectedId = rows.get(idx).rec.id;
+                    selectedId = rows.get(idx).id();
                     rebuildWidgets();
                     return true;
                 }
@@ -339,11 +439,8 @@ public class MarketScreen extends Screen {
         mouseXNow = mouseX;
         mouseYNow = mouseY;
 
-        // header
         g.text(this.font, Component.literal("LS MARKET").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
                 px + 10, py + 8, C_ACCENT, true);
-        String sub = "Prices read from the Auction House and Orders as you browse them";
-        g.text(this.font, sub, px + 10 + this.font.width("LS MARKET") + 12, py + 8, C_DIM, false);
         g.fill(px + 8, py + 76, px + pw - 8, py + 77, C_ACCENT);
 
         if (tab == Tab.SETTINGS) {
@@ -360,12 +457,16 @@ public class MarketScreen extends Screen {
         boolean online = Minecraft.getInstance().level != null;
         String status = online ? "● Live" : "● Offline - showing saved data";
         g.text(this.font, status, px + 10, fy, online ? C_UP : C_BID, false);
+        int items = 0;
+        for (Rec r : store.data.items.values()) if (hasData(r)) items++;
+        String mid = items + " items with prices";
+        g.text(this.font, mid, px + 10 + this.font.width(status) + 16, fy, C_DIM, false);
         String right;
         if (store.lastScanTime > 0) {
             right = "Last scan: " + store.lastKind + " · " + store.lastScanCount + " listings · "
                     + MarketStore.ago(store.lastScanTime);
         } else {
-            right = "No scans yet. Open the Auction House or Orders.";
+            right = "No scans yet. Use Scan all, or open the Auction House.";
         }
         g.text(this.font, right, px + pw - 10 - this.font.width(right), fy, C_DIM, false);
     }
@@ -373,12 +474,15 @@ public class MarketScreen extends Screen {
     private void drawList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         panel(g, listX, listY, listW, listH, C_PANEL);
         if (rows.isEmpty()) {
-            String[] msg = tab == Tab.FLIPS
-                    ? new String[] {"No flips yet.", "A flip needs prices from both the", "Auction House and Orders."}
-                    : tab == Tab.WATCH
-                            ? new String[] {"Nothing on your watchlist.", "Select an item and press Watch."}
-                            : new String[] {"No data yet.", "Open the " + (tab == Tab.ORDERS ? "Orders" : "Auction House"),
-                                    "and let the pages load."};
+            String[] msg = switch (tab) {
+                case FLIPS -> new String[] {"No flips yet.", "A flip needs prices from both the", "Auction House and Orders."};
+                case WATCH -> new String[] {"Nothing on your watchlist.", "Select an item and press Watch."};
+                case ALL -> query.isEmpty()
+                        ? new String[] {"Type an item name above to search", "every item and see its price.", "Use Scan all to collect prices."}
+                        : new String[] {"No items match that search."};
+                default -> new String[] {"No data yet.", "Press Scan all, or open the "
+                        + (tab == Tab.ORDERS ? "Orders" : "Auction House") + "."};
+            };
             int ty = listY + 18;
             for (String s : msg) {
                 g.text(this.font, s, listX + listW / 2 - this.font.width(s) / 2, ty, C_DIM, false);
@@ -399,7 +503,7 @@ public class MarketScreen extends Screen {
             if (idx >= rows.size()) break;
             Row row = rows.get(idx);
             int ry = listY + i * ROW_H;
-            boolean sel = row.rec.id.equals(selectedId);
+            boolean sel = row.id().equals(selectedId);
             boolean hover = mouseX >= listX && mouseX < listX + listW && mouseY >= ry && mouseY < ry + ROW_H;
 
             if (sel) {
@@ -411,25 +515,29 @@ public class MarketScreen extends Screen {
                 g.fill(listX + 1, ry, listX + listW - 1, ry + ROW_H, 0x10FFFFFF);
             }
 
-            g.item(icon(row.rec.id), listX + 8, ry + 4);
+            g.item(icon(row.id()), listX + 8, ry + 4);
             int nameX = listX + 30;
             int nameMax = priceRight - 56 - nameX;
-            g.text(this.font, fit(row.rec.name, nameMax), nameX, ry + 4, C_TEXT, true);
-            String sub = row.listings > 0 ? row.listings + " seen" : row.rec.id.replace("minecraft:", "");
+            boolean data = !Double.isNaN(row.price());
+            g.text(this.font, fit(row.name(), nameMax), nameX, ry + 4, data ? C_TEXT : C_DIM, true);
+            String sub = row.listings() > 0 ? row.listings() + " seen" : row.id().replace("minecraft:", "");
             g.text(this.font, fit(sub, nameMax), nameX, ry + 14, C_DIM, false);
 
-            String price = MarketStore.fmt(row.price);
-            g.text(this.font, price, priceRight - this.font.width(price) + 44, ry + 8, C_TEXT, true);
-
-            String ch = Double.isNaN(row.change) ? "-" : String.format("%+.1f%%", row.change);
-            int chColor = Double.isNaN(row.change) ? C_DIM : row.change >= 0 ? C_UP : C_DOWN;
-            g.text(this.font, ch, changeRight - this.font.width(ch), ry + 8, chColor, false);
-
-            List<Point> series = tab == Tab.ORDERS ? row.rec.bid : row.rec.ask.isEmpty() ? row.rec.bid : row.rec.ask;
-            drawSpark(g, series, sparkX, ry + 5, sparkW, ROW_H - 10, chColor == C_DOWN ? C_DOWN : C_UP);
+            if (data) {
+                String price = MarketStore.fmt(row.price());
+                g.text(this.font, price, priceRight - this.font.width(price) + 44, ry + 8, C_TEXT, true);
+                String ch = Double.isNaN(row.change()) ? "-" : String.format("%+.1f%%", row.change());
+                int chColor = Double.isNaN(row.change()) ? C_DIM : row.change() >= 0 ? C_UP : C_DOWN;
+                g.text(this.font, ch, changeRight - this.font.width(ch), ry + 8, chColor, false);
+                Rec r = row.rec();
+                List<Point> series = tab == Tab.ORDERS ? r.bid : r.ask.isEmpty() ? r.bid : r.ask;
+                drawSpark(g, series, sparkX, ry + 5, sparkW, ROW_H - 10, chColor == C_DOWN ? C_DOWN : C_UP);
+            } else {
+                String none = "no data";
+                g.text(this.font, none, rightEdge - this.font.width(none), ry + 8, C_DIM, false);
+            }
         }
 
-        // scrollbar
         if (rows.size() > vis) {
             int trackX = listX + listW - 4;
             int thumbH = Math.max(14, listH * vis / rows.size());
@@ -441,31 +549,40 @@ public class MarketScreen extends Screen {
 
     private void drawDetail(GuiGraphicsExtractor g) {
         panel(g, detX, detY, detW, detH, C_PANEL_2);
-        Rec r = selected();
-        if (r == null) {
+        Row sr = selectedRow();
+        if (sr == null) {
             String s = "Select an item";
             g.text(this.font, s, detX + detW / 2 - this.font.width(s) / 2, detY + 24, C_DIM, false);
             return;
         }
+        Rec r = sr.rec();
 
-        g.item(icon(r.id), detX + 10, detY + 8);
-        g.text(this.font, Component.literal(r.name).withStyle(ChatFormatting.BOLD), detX + 32, detY + 8, C_TEXT, true);
-        g.text(this.font, r.id, detX + 32, detY + 20, C_DIM, false);
+        g.item(icon(sr.id()), detX + 10, detY + 8);
+        g.text(this.font, Component.literal(sr.name()).withStyle(ChatFormatting.BOLD), detX + 32, detY + 8, C_TEXT, true);
+        g.text(this.font, sr.id(), detX + 32, detY + 20, C_DIM, false);
+
+        if (!hasData(r)) {
+            int ty = detY + 48;
+            g.text(this.font, "No price data for this item yet.", detX + 10, ty, C_TEXT, false);
+            g.text(this.font, "Press Scan all, or open the Auction House / Orders and the", detX + 10, ty + 14, C_DIM, false);
+            g.text(this.font, "prices are recorded for you automatically.", detX + 10, ty + 26, C_DIM, false);
+            return;
+        }
 
         float ask = MarketStore.latest(r.ask);
         float bid = MarketStore.latest(r.bid);
         double chAsk = MarketStore.changePct(r.ask);
         double chBid = MarketStore.changePct(r.bid);
 
-        // stat tiles, two rows
         int tx = detX + 10;
         int ty = detY + 38;
         int tileW = Math.max(60, (detW - 20 - 3 * 6) / 4);
+        boolean both = !r.ask.isEmpty() && !r.bid.isEmpty();
         String[][] tiles = {
                 {"LOWEST ASK", MarketStore.fmt(ask), pct(chAsk)},
                 {"HIGHEST BID", MarketStore.fmt(bid), pct(chBid)},
-                {"FLIP MARGIN", (r.ask.isEmpty() || r.bid.isEmpty()) ? "-" : MarketStore.fmt(bid - ask),
-                        (r.ask.isEmpty() || r.bid.isEmpty() || ask <= 0) ? "" : String.format("%+.1f%%", (bid - ask) / ask * 100)},
+                {"FLIP MARGIN", both ? MarketStore.fmt(bid - ask) : "-",
+                        (both && ask > 0) ? String.format("%+.1f%%", (bid - ask) / ask * 100) : ""},
                 {"UPDATED", r.updated > 0 ? MarketStore.ago(r.updated) : "-", ""},
         };
         for (int i = 0; i < tiles.length; i++) {
@@ -480,14 +597,12 @@ public class MarketScreen extends Screen {
             }
         }
 
-        // range line
         int ry = ty + 42;
         String range = "Ask range " + MarketStore.fmt(MarketStore.low(r.ask)) + " - " + MarketStore.fmt(MarketStore.high(r.ask))
                 + "   avg " + MarketStore.fmt(MarketStore.avg(r.ask))
                 + "   |   Bid range " + MarketStore.fmt(MarketStore.low(r.bid)) + " - " + MarketStore.fmt(MarketStore.high(r.bid));
         g.text(this.font, fit(range, detW - 20), detX + 10, ry, C_DIM, false);
 
-        // chart
         int cx = detX + 48;
         int cy = ry + 18;
         int cw = detW - 48 - 14;
@@ -496,7 +611,6 @@ public class MarketScreen extends Screen {
             drawChart(g, r, cx, cy, cw, ch);
         }
 
-        // legend
         int ly = detY + detH - 16;
         g.fill(detX + 10, ly + 3, detX + 20, ly + 6, C_ASK);
         g.text(this.font, "Auction House ask", detX + 24, ly, C_DIM, false);
@@ -603,7 +717,7 @@ public class MarketScreen extends Screen {
             int b = y1 + (y2 - y1) * (cx + 1 - x1) / dx;
             int top = Math.min(a, b);
             int bottom = Math.max(a, b);
-            g.fill(cx, bottom + 1, cx + 1, floor, area);
+            if ((area >>> 24) != 0) g.fill(cx, bottom + 1, cx + 1, floor, area);
             g.fill(cx, top, cx + 1, bottom + 1, color);
         }
     }
@@ -634,29 +748,35 @@ public class MarketScreen extends Screen {
     }
 
     private void drawSettings(GuiGraphicsExtractor g) {
-        int sx = px + 16;
+        int colW = Math.min(330, (pw - 48) / 2);
+        int lx = px + 16;
+        int rx = lx + colW + 16;
         int sy = bodyY + 12;
-        g.text(this.font, "Price pattern (regex: group 1 = number, group 2 = optional k/m/b)", sx, sy, C_DIM, false);
-        if (!store.regexOk) {
-            g.text(this.font, "Invalid pattern, keeping the last good one", sx + 330, sy, C_DOWN, false);
-        }
-        g.text(this.font, "Auction House screen title contains (comma separated)", sx, sy + 36, C_DIM, false);
-        g.text(this.font, "Orders screen title contains (comma separated)", sx, sy + 72, C_DIM, false);
 
-        int cy = sy + 146;
-        g.text(this.font, Component.literal("What the scanner saw last").withStyle(ChatFormatting.BOLD), sx, cy, C_ACCENT, true);
+        g.text(this.font, "Price pattern (regex: group 1 = number, group 2 = k/m/b)", lx, sy, C_DIM, false);
+        if (!store.regexOk) {
+            g.text(this.font, "Invalid, keeping last good one", lx, sy + 32 - 10 + 0, C_DOWN, false);
+        }
+        g.text(this.font, "Auction House screen title contains", lx, sy + 34, C_DIM, false);
+        g.text(this.font, "Orders screen title contains", lx, sy + 68, C_DIM, false);
+        g.text(this.font, "Command that opens the Auction House", rx, sy, C_DIM, false);
+        g.text(this.font, "Command that opens Orders", rx, sy + 34, C_DIM, false);
+        g.text(this.font, "\"Next page\" button name contains", rx, sy + 68, C_DIM, false);
+
+        int cy = sy + 140;
+        g.text(this.font, Component.literal("What the scanner saw last").withStyle(ChatFormatting.BOLD), lx, cy, C_ACCENT, true);
         cy += 14;
         String seen = store.lastTitle.isEmpty() ? "No container screen opened yet"
                 : "Screen \"" + store.lastTitle + "\"  ->  " + store.lastKind;
-        g.text(this.font, fit(seen, pw - 40), sx, cy, C_TEXT, false);
+        g.text(this.font, fit(seen, pw - 40), lx, cy, C_TEXT, false);
         cy += 14;
         if (store.lastSample.isEmpty()) {
             g.text(this.font, "Open the Auction House or Orders; sample item lore lines show up here so you can match them.",
-                    sx, cy, C_DIM, false);
+                    lx, cy, C_DIM, false);
         } else {
             for (String line : store.lastSample) {
                 if (cy > py + ph - 30) break;
-                g.text(this.font, fit(line, pw - 40), sx, cy, C_DIM, false);
+                g.text(this.font, fit(line, pw - 40), lx, cy, C_DIM, false);
                 cy += 11;
             }
         }

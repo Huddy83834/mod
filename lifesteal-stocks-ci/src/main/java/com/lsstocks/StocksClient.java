@@ -45,6 +45,7 @@ public class StocksClient implements ClientModInitializer {
                 openMarket(client);
             }
             Scanner.tick(client, STORE);
+            Crawler.tick(client, STORE);
             STORE.maybeSave();
         });
 

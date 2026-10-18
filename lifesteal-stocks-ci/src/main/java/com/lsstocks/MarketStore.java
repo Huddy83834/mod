@@ -52,6 +52,13 @@ public class MarketStore {
         public boolean autoScan = true;
         /** True if the price shown on a listing is for the whole stack. */
         public boolean priceIsPerStack = true;
+        /** Commands the "Open AH" / "Open Orders" buttons send (one command per click). */
+        public String ahCommand = "ah";
+        public String orderCommand = "orders";
+        /** Name/lore keywords of the page-turning button used by "Scan all". */
+        public String nextKeywords = "next";
+        /** Delay between page turns during "Scan all". */
+        public int scanDelayMs = 900;
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -79,6 +86,10 @@ public class MarketStore {
                     if (d.priceRegex == null) d.priceRegex = DEFAULT_REGEX;
                     if (d.ahKeywords == null) d.ahKeywords = "auction, market";
                     if (d.orderKeywords == null) d.orderKeywords = "order";
+                    if (d.ahCommand == null) d.ahCommand = "ah";
+                    if (d.orderCommand == null) d.orderCommand = "orders";
+                    if (d.nextKeywords == null) d.nextKeywords = "next";
+                    if (d.scanDelayMs < 300) d.scanDelayMs = 900;
                     data = d;
                 }
             }
