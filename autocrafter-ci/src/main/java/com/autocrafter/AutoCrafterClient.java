@@ -29,6 +29,7 @@ public class AutoCrafterClient implements ClientModInitializer {
                 }
             }
             Crafter.tick(client);
+            CreativeEngine.tick(client);
         });
     }
 }

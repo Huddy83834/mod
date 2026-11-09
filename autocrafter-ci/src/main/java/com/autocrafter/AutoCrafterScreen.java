@@ -1,5 +1,7 @@
 package com.autocrafter;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -19,7 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.IntConsumer;
 
-/** The Auto Crafter window: your crafting layouts, a 3x3 grid editor and an item picker. */
+/** The Auto Crafter window: a recipe list, a 3x3 recipe editor and an item picker. */
 public class AutoCrafterScreen extends Screen {
     private static final int C_BG = 0xF00D1017;
     private static final int C_PANEL = 0xFF141822;
@@ -31,6 +33,10 @@ public class AutoCrafterScreen extends Screen {
     private static final int C_TEXT = 0xFFE8EAF0;
     private static final int C_DIM = 0xFF8B93A7;
     private static final int C_DIMMER = 0xFF596074;
+    private static final int C_BLUE = 0xFF4FC3F7;
+
+    private static final int RESULT = 9;
+    private static final double[] RATES = {0.5, 1, 2, 5, 10, 20};
 
     private record Hit(int x, int y, int w, int h, IntConsumer action) {}
 
@@ -56,7 +62,8 @@ public class AutoCrafterScreen extends Screen {
 
     private final List<Hit> hits = new ArrayList<>();
     private final Map<String, ItemStack> stacks = new HashMap<>();
-    private final int[][] slotRect = new int[RecipeDef.SLOTS][4];
+    private final int[][] slotRect = new int[10][4];
+    private final int[] listRect = new int[4];
 
     private EditBox nameBox;
     private EditBox searchBox;
@@ -70,6 +77,9 @@ public class AutoCrafterScreen extends Screen {
     private int mouseX, mouseY;
     private String tipName = null;
     private String tipId = null;
+
+    private String[] autoShown = null;
+
     private int px, py, pw, ph;
 
     public AutoCrafterScreen() {
@@ -100,7 +110,11 @@ public class AutoCrafterScreen extends Screen {
         });
         addRenderableWidget(searchBox);
 
-        sel = ClientRecipes.list().isEmpty() ? -1 : Math.max(0, Math.min(sel, ClientRecipes.list().size() - 1));
+        if (ClientRecipes.list().isEmpty()) {
+            sel = -1;
+        } else {
+            sel = Math.max(0, Math.min(sel, ClientRecipes.list().size() - 1));
+        }
         syncName();
         refilter("");
         updateBoxes();
@@ -108,12 +122,12 @@ public class AutoCrafterScreen extends Screen {
 
     @Override
     public boolean isPauseScreen() {
-        return false;
+        return false; // the world keeps running, so crafting continues while this is open
     }
 
     @Override
     public void removed() {
-        ClientRecipes.save();
+        if (dirty) ClientRecipes.changed();
         super.removed();
     }
 
@@ -124,7 +138,7 @@ public class AutoCrafterScreen extends Screen {
 
     private void changed() {
         dirty = false;
-        ClientRecipes.save();
+        ClientRecipes.changed();
     }
 
     private void syncName() {
@@ -133,9 +147,9 @@ public class AutoCrafterScreen extends Screen {
     }
 
     private void updateBoxes() {
-        boolean have = cur() != null;
-        nameBox.visible = have && !picker;
-        nameBox.active = have && !picker;
+        boolean haveRecipe = cur() != null;
+        nameBox.visible = haveRecipe && !picker;
+        nameBox.active = haveRecipe && !picker;
         searchBox.visible = picker;
         searchBox.active = picker;
     }
@@ -159,11 +173,21 @@ public class AutoCrafterScreen extends Screen {
         return st.isEmpty() ? null : st;
     }
 
-    // ------------------------------------------------------------------ actions
+    /** The result the server found for recipe idx when the player did not choose one: {id, count} or null. */
+    private String[] autoResult(int idx, RecipeDef r) {
+        return null; // the game decides what a layout makes; the client cannot know ahead of time
+    }
+
+    private String nameOf(String id) {
+        ItemStack s = stackOf(id);
+        return s == null ? "(none)" : s.getHoverName().getString();
+    }
+
+    // ------------------------------------------------------------------ recipe actions
 
     private void newRecipe() {
         List<RecipeDef> l = ClientRecipes.list();
-        if (l.size() >= 24) return;
+        if (l.size() >= 16) return;
         RecipeDef r = new RecipeDef();
         r.name = "Recipe " + (l.size() + 1);
         l.add(r);
@@ -183,6 +207,44 @@ public class AutoCrafterScreen extends Screen {
         syncName();
         changed();
         updateBoxes();
+    }
+
+    private String idAt(RecipeDef r, int s) {
+        return s == RESULT ? r.resultId : r.ingredients.get(s).id;
+    }
+
+    private int countAt(RecipeDef r, int s) {
+        return s == RESULT ? r.resultCount : r.ingredients.get(s).count;
+    }
+
+    private void setCount(RecipeDef r, int s, int n) {
+        if (s == RESULT) r.resultCount = Math.max(1, Math.min(4096, n));
+        else r.ingredients.get(s).count = Math.max(1, Math.min(2048, n));
+        changed();
+    }
+
+    private void setItem(RecipeDef r, int s, String id) {
+        if (s == RESULT) {
+            r.resultId = id;
+            if (r.resultCount < 1) r.resultCount = 1;
+        } else {
+            RecipeDef.Ing ing = r.ingredients.get(s);
+            ing.id = id;
+            if (ing.count < 1) ing.count = 1;
+        }
+        changed();
+    }
+
+    private void clearSlot(RecipeDef r, int s) {
+        if (s == RESULT) {
+            r.resultId = "";
+            r.resultCount = 1;
+        } else {
+            RecipeDef.Ing ing = r.ingredients.get(s);
+            ing.id = "";
+            ing.count = 1;
+        }
+        changed();
     }
 
     private void openPicker(int s) {
@@ -217,7 +279,7 @@ public class AutoCrafterScreen extends Screen {
             }
         }
         setFocused(null);
-        return picker;
+        return picker; // clicks outside the picker do nothing while it is open
     }
 
     @Override
@@ -228,8 +290,21 @@ public class AutoCrafterScreen extends Screen {
             pickScroll = Math.max(0, Math.min(Math.max(0, rows - pickRows()), pickScroll + dir));
             return true;
         }
-        int lx = px + 8;
-        if (mx >= lx && mx < lx + 116 && my >= py + 50 && my < py + ph) {
+        RecipeDef r = cur();
+        if (r != null) {
+            for (int s = 0; s <= RESULT; s++) {
+                int[] a = slotRect[s];
+                if (mx >= a[0] && mx < a[0] + a[2] && my >= a[1] && my < a[1] + a[3]) {
+                    if (!idAt(r, s).isEmpty()) {
+                        int step = shiftDown ? 10 : 1;
+                        setCount(r, s, countAt(r, s) - dir * step);
+                        slot = s;
+                    }
+                    return true;
+                }
+            }
+        }
+        if (mx >= listRect[0] && mx < listRect[0] + listRect[2] && my >= listRect[1] && my < listRect[1] + listRect[3]) {
             int max = Math.max(0, ClientRecipes.list().size() - listRows());
             listScroll = Math.max(0, Math.min(max, listScroll + dir));
             return true;
@@ -237,9 +312,18 @@ public class AutoCrafterScreen extends Screen {
         return super.mouseScrolled(mx, my, sx, sy);
     }
 
+    private boolean shiftDown = false;
+
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        if (event.key() == 340 || event.key() == 344) shiftDown = false;
+        return super.keyReleased(event);
+    }
+
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (event.key() == 256 && picker) {
+        if (event.key() == 340 || event.key() == 344) shiftDown = true;
+        if (event.key() == 256 && picker) { // Escape closes the picker first
             closePicker();
             return true;
         }
@@ -292,10 +376,15 @@ public class AutoCrafterScreen extends Screen {
         return out;
     }
 
+    private boolean hoverRect(int x, int y, int w, int h) {
+        return !picker && mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    }
+
     private int chipW(String label) {
         return this.font.width(label) + 14;
     }
 
+    /** A clickable button. Left-click runs the action with 0, right-click with 1. */
     private int chip(GuiGraphics g, int x, int y, String label, int accent, IntConsumer action) {
         int w = chipW(label);
         boolean hover = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + 16;
@@ -319,7 +408,7 @@ public class AutoCrafterScreen extends Screen {
     }
 
     private int listRows() {
-        return Math.max(1, (ph - 32 - 18 - 30) / 26);
+        return Math.max(1, (ph - 30 - 40) / 26);
     }
 
     // ------------------------------------------------------------------ main render
@@ -332,8 +421,8 @@ public class AutoCrafterScreen extends Screen {
         tipName = null;
         tipId = null;
 
-        pw = Math.min(this.width - 16, 440);
-        ph = Math.min(this.height - 16, 250);
+        pw = Math.min(this.width - 16, 470);
+        ph = Math.min(this.height - 16, 262);
         px = (this.width - pw) / 2;
         py = (this.height - ph) / 2;
 
@@ -346,11 +435,13 @@ public class AutoCrafterScreen extends Screen {
         drawList(g);
         drawEditor(g);
         if (picker) drawPicker(g);
+
         if (tipName != null) drawTip(g);
     }
 
     private void drawHeader(GuiGraphics g) {
         text(g, "AUTO CRAFTER", px + 12, py + 9, C_ACCENT);
+
         int right = px + pw - 10;
         right -= chipW("Close");
         chip(g, right, py + 5, "Close", 0, b -> {
@@ -359,7 +450,7 @@ public class AutoCrafterScreen extends Screen {
         });
 
         boolean on = ClientRecipes.DATA.autoCraft;
-        String label = on ? "Auto-craft at table: ON" : "Auto-craft at table: OFF";
+        String label = on ? "Auto-craft: ON" : "Auto-craft: OFF";
         right -= 8 + chipW(label);
         chip(g, right, py + 5, label, on ? C_GREEN : C_RED, b -> {
             if (picker) return;
@@ -367,13 +458,18 @@ public class AutoCrafterScreen extends Screen {
             changed();
         });
         if (!picker && mouseX >= right && mouseX < right + chipW(label) && mouseY >= py + 5 && mouseY < py + 21) {
-            tipName = "Auto-craft at table";
-            tipId = "Crafts everything the moment a crafting table opens";
+            tipName = "Master switch";
+            tipId = "Crafting table crafting and creative recipes";
         }
+        Minecraft mc = Minecraft.getInstance();
+        boolean creative = mc.player != null && mc.player.isCreative();
+        String mode = creative ? "Creative: all features" : "Survival: crafting table";
+        int mw = this.font.width(mode);
+        if (right - mw - 16 > px + 110) rtext(g, mode, right - 10, py + 9, creative ? C_GREEN : C_DIM);
         g.fill(px + 8, py + 26, px + pw - 8, py + 27, C_BORDER);
     }
 
-    // ------------------------------------------------------------------ list
+    // ------------------------------------------------------------------ recipe list
 
     private void drawList(GuiGraphics g) {
         int lx = px + 8;
@@ -386,6 +482,10 @@ public class AutoCrafterScreen extends Screen {
 
         List<RecipeDef> l = ClientRecipes.list();
         int rows = listRows();
+        listRect[0] = lx;
+        listRect[1] = ly + 18;
+        listRect[2] = lw;
+        listRect[3] = rows * 26;
         listScroll = Math.max(0, Math.min(listScroll, Math.max(0, l.size() - rows)));
         for (int i = 0; i < rows; i++) {
             int idx = listScroll + i;
@@ -400,16 +500,15 @@ public class AutoCrafterScreen extends Screen {
             } else if (hover) {
                 g.fill(lx + 1, ry, lx + lw - 1, ry + 25, 0x18FFFFFF);
             }
-            ItemStack icon = null;
-            for (String id : r.slots) {
-                icon = stackOf(id);
-                if (icon != null) break;
-            }
+            String[] auto = autoResult(idx, r);
+            ItemStack icon = stackOf(r.customResult() ? r.resultId : auto != null ? auto[0] : "");
             if (icon != null) g.renderItem(icon, lx + 7, ry + 4);
             else text(g, "?", lx + 12, ry + 9, C_DIMMER);
             text(g, fit(r.name, lw - 52), lx + 28, ry + 5, r.enabled ? C_TEXT : C_DIMMER);
-            text(g, r.finished() ? (r.enabled ? "on" : "off") : "empty", lx + 28, ry + 15, r.finished() ? C_DIM : C_RED);
-            g.fill(lx + lw - 12, ry + 9, lx + lw - 7, ry + 14, r.enabled && r.finished() ? C_GREEN : C_DIMMER);
+            boolean noMatch = false;
+            String sub = !r.finished() ? "no ingredients" : r.customResult() ? "custom" : "table recipe";
+            text(g, fit(sub, lw - 52), lx + 28, ry + 15, !r.finished() || noMatch ? C_RED : C_DIM);
+            g.fill(lx + lw - 12, ry + 9, lx + lw - 7, ry + 14, r.enabled && r.finished() && !noMatch ? C_GREEN : C_DIMMER);
             final int target = idx;
             hits.add(new Hit(lx, ry, lw, 26, b -> {
                 if (picker) return;
@@ -419,7 +518,20 @@ public class AutoCrafterScreen extends Screen {
                 updateBoxes();
             }));
         }
-        if (l.size() < 24) {
+        if (l.size() > rows) {
+            rtext(g, (listScroll + 1) + "-" + Math.min(l.size(), listScroll + rows) + " / " + l.size(), lx + lw - 8, ly + 6, C_DIMMER);
+        }
+        boolean tbl = ClientRecipes.DATA.tableOnly;
+        chip(g, lx + 8, ly + lh - 44, tbl ? "Table only: ON" : "Table only: OFF", tbl ? C_BLUE : 0, b -> {
+            if (picker) return;
+            ClientRecipes.DATA.tableOnly = !ClientRecipes.DATA.tableOnly;
+            changed();
+        });
+        if (hoverRect(lx + 8, ly + lh - 44, 100, 16)) {
+            tipName = "Table only";
+            tipId = tbl ? "Crafts only while a crafting table is open" : "Crafts all the time, anywhere";
+        }
+        if (l.size() < 16) {
             chip(g, lx + 8, ly + lh - 24, "+ New recipe", C_ACCENT, b -> {
                 if (!picker) newRecipe();
             });
@@ -429,70 +541,141 @@ public class AutoCrafterScreen extends Screen {
     // ------------------------------------------------------------------ editor
 
     private void drawEditor(GuiGraphics g) {
-        int ex = px + 116 + 8 + 14;
+        int ex = px + 116 + 8 + 12;
         int ey = py + 34;
         int ew = pw - (ex - px) - 10;
         RecipeDef r = cur();
 
         if (r == null) {
             String a = "No recipe yet";
-            String b = "Arrange items like a crafting table. The game's own";
-            String c = "recipe is used, so modded items work too.";
-            String d = "Press \"+ New recipe\" to start.";
-            text(g, a, ex + ew / 2 - this.font.width(a) / 2, ey + 40, C_TEXT);
-            text(g, b, ex + ew / 2 - this.font.width(b) / 2, ey + 58, C_DIM);
-            text(g, c, ex + ew / 2 - this.font.width(c) / 2, ey + 70, C_DIM);
-            text(g, d, ex + ew / 2 - this.font.width(d) / 2, ey + 88, C_DIM);
+            String b = "Make your own recipe for any item, even modded ones.";
+            String c = "Press \"+ New recipe\" to start.";
+            text(g, a, ex + ew / 2 - this.font.width(a) / 2, ey + 50, C_TEXT);
+            text(g, b, ex + ew / 2 - this.font.width(b) / 2, ey + 66, C_DIM);
+            text(g, c, ex + ew / 2 - this.font.width(c) / 2, ey + 80, C_DIM);
             return;
         }
 
+        // name + enabled
         nameBox.setX(ex);
         nameBox.setY(ey);
         nameBox.setWidth(Math.min(150, ew - 90));
         if (!picker) nameBox.render(g, mouseX, mouseY, 0f);
         String en = r.enabled ? "Enabled" : "Disabled";
-        chip(g, ex + ew - chipW(en), ey + 1, en, r.enabled ? C_GREEN : C_RED, b -> {
+        int enW = chipW(en);
+        chip(g, ex + ew - enW, ey + 1, en, r.enabled ? C_GREEN : C_RED, b -> {
             if (picker) return;
             r.enabled = !r.enabled;
             changed();
         });
 
-        int cell = 32;
+        // grid
+        int cell = 28;
         int gy = ey + 40;
-        text(g, "LAYOUT (like a crafting table)", ex, gy - 12, C_DIMMER);
+        text(g, "INGREDIENTS", ex, gy - 12, C_DIMMER);
         for (int i = 0; i < RecipeDef.SLOTS; i++) {
-            drawSlot(g, r, i, ex + (i % 3) * (cell + 2), gy + (i / 3) * (cell + 2), cell);
+            int cx = ex + (i % 3) * (cell + 2);
+            int cy = gy + (i / 3) * (cell + 2);
+            drawSlot(g, r, i, cx, cy, cell);
         }
 
-        int ox = ex + 3 * (cell + 2) + 18;
+        // arrow + result
+        int ax = ex + 3 * (cell + 2) + 8;
+        int ay = gy + (cell + 2) + cell / 2;
+        g.fill(ax, ay - 1, ax + 18, ay + 1, C_DIM);
+        g.fill(ax + 14, ay - 4, ax + 16, ay + 4, C_DIM);
+        g.fill(ax + 16, ay - 2, ax + 18, ay + 2, C_DIM);
+        int rs = 36;
+        int rx = ax + 28;
+        int ry = gy + (cell + 2) + cell / 2 - rs / 2;
+        autoShown = autoResult(sel, r);
+        text(g, r.customResult() ? "RESULT (creative)" : "RESULT (optional)", rx, gy - 12, C_DIMMER);
+        drawSlot(g, r, RESULT, rx, ry, rs);
+
+        // options
+        int ox = rx + rs + 18;
         int ow = ex + ew - ox;
-        if (ow > 90) {
-            chip(g, ox, gy, "Clear layout", 0, b -> {
-                if (picker) return;
-                for (int i = 0; i < RecipeDef.SLOTS; i++) r.slots.set(i, "");
+        if (ow > 100) {
+            int oy = gy - 2;
+            oy += optionRow(g, ox, oy, ow, "Auto-craft: " + (r.autoCraft ? "ON" : "OFF"), r.autoCraft ? C_GREEN : C_DIM, b -> {
+                r.autoCraft = !r.autoCraft;
                 changed();
             });
-            chip(g, ox, gy + 22, "Delete recipe", C_RED, b -> {
-                if (!picker) deleteRecipe();
+            oy += optionRow(g, ox, oy, ow, r.drop ? "Result: drop on ground" : "Result: to inventory", 0, b -> {
+                r.drop = !r.drop;
+                changed();
             });
-            int ty = gy + 50;
-            for (String line : wrap("Left-click a slot to choose an item. Right-click clears it.", ow, 4)) {
-                text(g, line, ox, ty, C_DIMMER);
-                ty += 11;
-            }
+            oy += optionRow(g, ox, oy, ow, "Flow (creative): " + (r.flow ? "ON" : "OFF"), r.flow ? C_BLUE : C_DIM, b -> {
+                r.flow = !r.flow;
+                changed();
+            });
+            oy += optionRow(g, ox, oy, ow, "Flow speed: " + rateLabel(r.flowRate) + " sets/s", r.flow ? 0 : C_DIMMER, b -> {
+                int idx = 0;
+                for (int i = 0; i < RATES.length; i++) if (Math.abs(RATES[i] - r.flowRate) < 0.001) idx = i;
+                idx = (idx + (b == 1 ? RATES.length - 1 : 1)) % RATES.length;
+                r.flowRate = RATES[idx];
+                changed();
+            });
+            optionRow(g, ox, oy, ow, "Delete recipe", C_RED, b -> deleteRecipe());
         }
 
-        int sy = gy + 3 * (cell + 2) + 8;
+        // amount controls for the selected slot
+        int cy = gy + 3 * (cell + 2) + 6;
+        if (slot >= 0 && !idAt(r, slot).isEmpty()) {
+            int x = ex;
+            String label = (slot == RESULT ? "Result" : "Slot " + (slot + 1)) + ": " + fit(nameOf(idAt(r, slot)), 110);
+            text(g, label, x, cy + 4, C_TEXT);
+            x = ex + 150;
+            final int s = slot;
+            x += chip(g, x, cy, "-10", 0, b -> setCount(r, s, countAt(r, s) - 10)) + 3;
+            x += chip(g, x, cy, "-1", 0, b -> setCount(r, s, countAt(r, s) - 1)) + 3;
+            String n = String.valueOf(countAt(r, s));
+            text(g, n, x + 4, cy + 4, C_ACCENT);
+            x += this.font.width(n) + 12;
+            x += chip(g, x, cy, "+1", 0, b -> setCount(r, s, countAt(r, s) + 1)) + 3;
+            chip(g, x, cy, "+10", 0, b -> setCount(r, s, countAt(r, s) + 10));
+        } else {
+            text(g, "Click a slot to pick an item. Scroll over it to change the amount.", ex, cy + 4, C_DIMMER);
+        }
+
+        // plain-language summary
+        int sy = cy + 24;
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<Item, Integer> e : r.needs().entrySet()) {
+            if (sb.length() > 0) sb.append(" + ");
+            sb.append(e.getValue()).append("x ").append(new ItemStack(e.getKey()).getHoverName().getString());
+        }
         List<String> lines = new ArrayList<>();
         if (!r.finished()) {
-            lines.addAll(wrap("Pick the items for each slot, exactly like on a crafting table.", ew, 2));
+            lines.addAll(wrap("Click the slots and pick your ingredients, like on a crafting table.", ew, 2));
+        } else if (r.customResult()) {
+            String sum = "Custom recipe: " + sb + "  =  " + r.resultCount + "x " + nameOf(r.resultId) + ". Needs creative mode.";
+            sum += r.drop ? " Result is dropped." : " Result goes to your inventory.";
+            if (r.flow) sum += " Ingredients arrive " + rateLabel(r.flowRate) + " set(s)/s.";
+            lines.addAll(wrap(sum, ew, 4));
         } else {
-            lines.addAll(wrap("Open a crafting table and it crafts this with everything you have. The game decides what it makes, so modded recipes work too.", ew, 3));
+            lines.addAll(wrap("Open a crafting table and it crafts this layout with everything you have (the game's own recipe, so custom server items work too)."
+                    + (r.drop ? " Results are dropped." : ""), ew, 4));
         }
-        for (int i = 0; i < lines.size(); i++) text(g, lines.get(i), ex, sy + i * 11, C_DIM);
+        int maxLines = Math.max(1, (py + ph - 20 - sy) / 11);
+        for (int i = 0; i < lines.size() && i < maxLines; i++) {
+            text(g, lines.get(i), ex, sy + i * 11, r.finished() ? C_DIM : C_RED);
+        }
 
-        String status = Crafter.message + "   (" + Crafter.batches + " batches crafted)";
-        text(g, fit(status, pw - 24), px + 12, py + ph - 14, C_ACCENT);
+        String foot = Crafter.message + "  (" + Crafter.batches + " table batches, " + CreativeEngine.crafted + " creative crafts)";
+        text(g, fit(foot, pw - 24), px + 12, py + ph - 14, C_DIMMER);
+    }
+
+    private String rateLabel(double v) {
+        return v == Math.floor(v) ? String.valueOf((int) v) : String.valueOf(v);
+    }
+
+    private int optionRow(GuiGraphics g, int x, int y, int w, String label, int accent, IntConsumer action) {
+        int cw = Math.min(w, this.font.width(label) + 14);
+        chip(g, x, y, label, accent, b -> {
+            if (!picker) action.accept(b);
+        });
+        return 20;
     }
 
     private void drawSlot(GuiGraphics g, RecipeDef r, int s, int x, int y, int size) {
@@ -503,15 +686,31 @@ public class AutoCrafterScreen extends Screen {
         boolean selected = slot == s;
         boolean hover = !picker && mouseX >= x && mouseX < x + size && mouseY >= y && mouseY < y + size;
         g.fill(x, y, x + size, y + size, hover ? 0xFF222A3B : C_PANEL);
-        border(g, x, y, size, size, selected ? C_ACCENT : C_BORDER);
+        border(g, x, y, size, size, selected ? C_ACCENT : s == RESULT ? C_GREEN : C_BORDER);
 
-        String id = r.slots.get(s);
+        String id = idAt(r, s);
         ItemStack st = stackOf(id);
         if (st != null) {
             g.renderItem(st, x + (size - 16) / 2, y + (size - 16) / 2);
+            int count = countAt(r, s);
+            if (count > 1) {
+                String n = String.valueOf(count);
+                g.drawString(this.font, n, x + size - this.font.width(n) - 2, y + size - 10, 0xFFFFFFFF, true);
+            }
             if (hover) {
                 tipName = st.getHoverName().getString();
                 tipId = id;
+            }
+        } else if (s == RESULT && id.isEmpty() && autoShown != null && stackOf(autoShown[0]) != null) {
+            ItemStack a = stackOf(autoShown[0]);
+            g.renderItem(a, x + (size - 16) / 2, y + (size - 16) / 2);
+            g.fill(x + 1, y + 1, x + size - 1, y + size - 1, 0x40000000);
+            if (!autoShown[1].equals("1")) {
+                g.drawString(this.font, autoShown[1], x + size - this.font.width(autoShown[1]) - 2, y + size - 10, 0xFFFFFFFF, true);
+            }
+            if (hover) {
+                tipName = a.getHoverName().getString();
+                tipId = "Found from the game's recipes";
             }
         } else if (!id.isEmpty()) {
             text(g, "?", x + size / 2 - 2, y + size / 2 - 4, C_RED);
@@ -521,18 +720,18 @@ public class AutoCrafterScreen extends Screen {
             }
         } else {
             text(g, "+", x + size / 2 - 2, y + size / 2 - 4, C_DIMMER);
+            if (hover && s == RESULT) {
+                tipName = "Optional result";
+                tipId = "Creative mode: makes your own custom recipe";
+            }
         }
 
         final int target = s;
         hits.add(new Hit(x, y, size, size, b -> {
             if (picker) return;
             slot = target;
-            if (b == 1) {
-                r.slots.set(target, "");
-                changed();
-            } else {
-                openPicker(target);
-            }
+            if (b == 1) clearSlot(r, target);
+            else openPicker(target);
         }));
     }
 
@@ -551,7 +750,8 @@ public class AutoCrafterScreen extends Screen {
         border(g, x, y, w, h, C_BORDER);
         g.fill(x, y, x + w, y + 2, C_ACCENT);
 
-        text(g, "Choose an item for slot " + (slot + 1), x + 10, y + 9, C_ACCENT);
+        String title = slot == RESULT ? "Choose the RESULT item" : "Choose an ingredient";
+        text(g, title, x + 10, y + 9, C_ACCENT);
         rtext(g, filtered.size() + " items", x + w - 10, y + 9, C_DIMMER);
 
         searchBox.setX(x + 10);
@@ -579,10 +779,7 @@ public class AutoCrafterScreen extends Screen {
                 tipId = e.id();
             }
             hits.add(new Hit(cx, cy, 22, 22, b -> {
-                if (r != null && slot >= 0) {
-                    r.slots.set(slot, e.id());
-                    changed();
-                }
+                if (r != null && slot >= 0) setItem(r, slot, e.id());
                 closePicker();
             }));
         }

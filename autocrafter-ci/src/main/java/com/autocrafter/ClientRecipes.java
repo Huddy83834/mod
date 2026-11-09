@@ -41,6 +41,10 @@ public final class ClientRecipes {
         }
     }
 
+    public static void changed() {
+        save();
+    }
+
     public static void save() {
         try {
             Files.writeString(path(), GSON.toJson(DATA));
