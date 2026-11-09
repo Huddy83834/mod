@@ -42,7 +42,11 @@ public final class TableOverlay {
 
             Button learn = Button.builder(Component.literal("Learn this grid"), b -> learn(client)).bounds(x, y, pw, 18).build();
             buttons.add(learn);
+            y += ROW;
+
+            buttons.add(new SpeedSlider(x, y, pw, 18));
             y += ROW + 4;
+            ScreenEvents.remove(screen).register(s -> ClientRecipes.save());
 
             int logLines = 8;
             int room = (h - y - 6 - logLines * 10) / ROW;

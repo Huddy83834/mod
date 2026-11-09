@@ -38,6 +38,8 @@ public final class RecipeDef {
         public boolean tableOnly = false;
         /** Master switch. */
         public boolean autoCraft = true;
+        /** 1 = careful, 5 = normal, 10 = as fast as possible. */
+        public int speed = 5;
     }
 
     public String name = "New recipe";

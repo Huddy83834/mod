@@ -57,4 +57,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: autocrafter-jar
-          path: autocrafter-ci/build/libs/autocrafter-2.2.0.jar
+          path: autocrafter-ci/build/libs/autocrafter-2.3.0.jar

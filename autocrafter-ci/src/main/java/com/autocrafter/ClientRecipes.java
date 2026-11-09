@@ -33,6 +33,7 @@ public final class ClientRecipes {
                 if (h != null) {
                     if (h.recipes == null) h.recipes = new ArrayList<>();
                     for (RecipeDef r : h.recipes) r.fill();
+                    if (h.speed < 1 || h.speed > 10) h.speed = 5;
                     DATA = h;
                 }
             }

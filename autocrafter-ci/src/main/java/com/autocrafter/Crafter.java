@@ -35,7 +35,7 @@ import java.util.Set;
  * The way that worked is remembered for each recipe. Items you put in the grid yourself are never touched.
  */
 public final class Crafter {
-    private enum S { IDLE, WAIT_RESULT, TAKE, VERIFY }
+    private enum S { IDLE, WAIT_RESULT, TAKE, VERIFY, BLIND_CHECK }
 
     enum Mode { BOOK, SPREAD, SPREAD_CUSTOM, ONE, COUNT }
 
@@ -102,6 +102,34 @@ public final class Crafter {
         cleanTries = 0;
     }
 
+    // ------------------------------------------------------------------ speed
+
+    public static int speed() {
+        return Math.max(1, Math.min(10, ClientRecipes.DATA.speed));
+    }
+
+    /** How many take clicks are sent at once when the way of taking is known to work. */
+    private static int burst() {
+        int s = speed();
+        return s <= 5 ? 1 : new int[]{3, 6, 10, 16, 24}[s - 6];
+    }
+
+    /** Extra ticks of waiting at low speeds. */
+    private static int extra() {
+        int s = speed();
+        return s <= 1 ? 6 : s <= 2 ? 3 : s <= 4 ? 1 : 0;
+    }
+
+    /** Wait between rounds. At high speed the next round starts right away (the server handles clicks in order). */
+    private static int roundWait(Minecraft mc) {
+        return speed() >= 7 ? 0 : lag(mc) + 1 + extra();
+    }
+
+    /** At speed 8+, a recipe that already worked is crafted in the same tick the items are placed. */
+    private static boolean blindOk(Mode m) {
+        return speed() >= 8 && cur != null && goodTake.containsKey(cur) && goodMode.get(cur) == m && goodTake.get(cur) != 1;
+    }
+
     /** Server round trip in ticks (at least 1). */
     private static int lag(Minecraft mc) {
         try {
@@ -149,6 +177,7 @@ public final class Crafter {
             case WAIT_RESULT -> waitResult(mc, menu);
             case TAKE -> take(mc, menu);
             case VERIFY -> verify(mc, menu);
+            case BLIND_CHECK -> blindCheck(mc, menu);
         }
     }
 
@@ -170,7 +199,7 @@ public final class Crafter {
                     return;
                 }
                 cleanGrid(mc, menu);
-                wait = lag(mc) + 1;
+                wait = roundWait(mc);
                 return;
             }
             message = "Paused: you are using the grid. Press \"Learn this grid\" to save it as a recipe.";
@@ -210,7 +239,7 @@ public final class Crafter {
             return;
         }
         message = "Waiting: nothing to craft with what you have.";
-        wait = 10; // check again twice a second
+        wait = speed() >= 6 ? 4 : 10; // check again soon
     }
 
     private static boolean startMode(Minecraft mc, CraftingMenu menu) {
@@ -218,11 +247,20 @@ public final class Crafter {
             Mode m = modes.get(modeIdx);
             if (place(mc, menu, cur, curBook, m)) {
                 ownGrid = true;
-                state = S.WAIT_RESULT;
                 waited = 0;
-                wait = 1;
                 message = "Crafting \"" + cur.name + "\"...";
                 Log.add("\"" + cur.name + "\": " + modeText(m));
+                if (m != Mode.BOOK && blindOk(m)) {
+                    // the server handles our clicks in order, so it already has the result when these arrive
+                    takeMode = goodTake.get(cur);
+                    gridBefore = gridTotal(menu);
+                    for (int i = 0; i < burst(); i++) takeClick(mc, menu, takeMode, cur.drop);
+                    state = S.BLIND_CHECK;
+                    wait = lag(mc) + 2;
+                    return true;
+                }
+                state = S.WAIT_RESULT;
+                wait = 1 + extra();
                 return true;
             }
             modeIdx++;
@@ -259,6 +297,23 @@ public final class Crafter {
         }
     }
 
+    private static void blindCheck(Minecraft mc, CraftingMenu menu) {
+        if (!menu.getCarried().isEmpty()) depositCursor(mc, menu, cur.drop);
+        if (gridTotal(menu) < gridBefore) {
+            roundCrafts++;
+            crafts++;
+            takeLoops = 0;
+            emptyWait = 0;
+            stall = 0;
+            gridBefore = gridTotal(menu);
+            state = S.TAKE; // take whatever is still craftable
+            return;
+        }
+        // nothing happened yet: go the careful way
+        state = S.WAIT_RESULT;
+        waited = 0;
+    }
+
     private static void take(Minecraft mc, CraftingMenu menu) {
         ItemStack res = menu.slots.get(0).getItem();
         if (res.isEmpty()) {
@@ -284,8 +339,16 @@ public final class Crafter {
             return;
         }
         gridBefore = g;
-        boolean drop = cur.drop;
-        switch (takeMode) {
+        boolean trusted = goodTake.containsKey(cur) && goodTake.get(cur) == takeMode;
+        int n = trusted && takeMode != 1 ? burst() : 1;
+        for (int i = 0; i < n; i++) takeClick(mc, menu, takeMode, cur.drop);
+        state = S.VERIFY;
+        // a craft that worked once is trusted; the first one is checked against the server's answer
+        wait = trusted ? (n > 1 ? lag(mc) + 1 : extra()) : lag(mc) + 2 + extra();
+    }
+
+    private static void takeClick(Minecraft mc, CraftingMenu menu, int mode, boolean drop) {
+        switch (mode) {
             case 0 -> {
                 if (drop) click(mc, menu, 0, 1, ClickType.THROW);
                 else click(mc, menu, 0, 0, ClickType.QUICK_MOVE);
@@ -296,9 +359,6 @@ public final class Crafter {
             }
             default -> click(mc, menu, 0, 0, ClickType.THROW);
         }
-        state = S.VERIFY;
-        // a craft that worked once is trusted; the first one is checked against the server's answer
-        wait = goodTake.containsKey(cur) && goodTake.get(cur) == takeMode ? 0 : lag(mc) + 2;
     }
 
     private static void verify(Minecraft mc, CraftingMenu menu) {
@@ -340,7 +400,7 @@ public final class Crafter {
         state = S.IDLE;
         cur = null;
         curBook = null;
-        wait = lag(mc) + 1;
+        wait = roundWait(mc);
     }
 
     private static void failMode(Minecraft mc, CraftingMenu menu, String why) {

@@ -67,6 +67,7 @@ public class AutoCrafterScreen extends Screen {
 
     private EditBox nameBox;
     private EditBox searchBox;
+    private SpeedSlider speedSlider;
     private int sel = 0;
     private int slot = -1;
     private boolean picker = false;
@@ -110,6 +111,9 @@ public class AutoCrafterScreen extends Screen {
         });
         addRenderableWidget(searchBox);
 
+        speedSlider = new SpeedSlider(0, 0, 130, 16);
+        addRenderableWidget(speedSlider);
+
         if (ClientRecipes.list().isEmpty()) {
             sel = -1;
         } else {
@@ -152,6 +156,10 @@ public class AutoCrafterScreen extends Screen {
         nameBox.active = haveRecipe && !picker;
         searchBox.visible = picker;
         searchBox.active = picker;
+        if (speedSlider != null) {
+            speedSlider.visible = !picker;
+            speedSlider.active = !picker;
+        }
     }
 
     private void refilter(String q) {
@@ -465,9 +473,19 @@ public class AutoCrafterScreen extends Screen {
             tipName = "Master switch";
             tipId = "Crafting table crafting and creative recipes";
         }
+        int sw = Math.max(90, Math.min(130, right - 8 - (px + 110)));
+        speedSlider.setWidth(sw);
+        speedSlider.setX(right - 8 - sw);
+        speedSlider.setY(py + 5);
+        if (!picker) speedSlider.render(g, mouseX, mouseY, 0f);
+        right -= 8 + sw;
+        if (!picker && mouseX >= right && mouseX < right + sw && mouseY >= py + 5 && mouseY < py + 21) {
+            tipName = "Crafting speed (drag)";
+            tipId = "Higher = fewer waits and more clicks at once. 9-10 may get you kicked on some servers.";
+        }
         Minecraft mc = Minecraft.getInstance();
         boolean creative = mc.player != null && mc.player.isCreative();
-        String mode = creative ? "Creative: all features" : "Survival: crafting table";
+        String mode = creative ? "Creative" : "Survival";
         int mw = this.font.width(mode);
         if (right - mw - 16 > px + 110) rtext(g, mode, right - 10, py + 9, creative ? C_GREEN : C_DIM);
         g.fill(px + 8, py + 26, px + pw - 8, py + 27, C_BORDER);
