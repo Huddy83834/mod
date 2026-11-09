@@ -230,6 +230,8 @@ public class AutoCrafterScreen extends Screen {
         } else {
             RecipeDef.Ing ing = r.ingredients.get(s);
             ing.id = id;
+            ing.exact = "";
+            r.bookKey = "";
             if (ing.count < 1) ing.count = 1;
         }
         changed();
@@ -242,6 +244,8 @@ public class AutoCrafterScreen extends Screen {
         } else {
             RecipeDef.Ing ing = r.ingredients.get(s);
             ing.id = "";
+            ing.exact = "";
+            r.bookKey = "";
             ing.count = 1;
         }
         changed();
@@ -653,8 +657,12 @@ public class AutoCrafterScreen extends Screen {
             sum += r.drop ? " Result is dropped." : " Result goes to your inventory.";
             if (r.flow) sum += " Ingredients arrive " + rateLabel(r.flowRate) + " set(s)/s.";
             lines.addAll(wrap(sum, ew, 4));
+        } else if (r.source.equals("learned") || r.source.equals("server")) {
+            lines.addAll(wrap((r.source.equals("server") ? "Server recipe from your recipe book." : "Learned from the crafting grid.")
+                    + " Uses the exact items (custom names too). Open a crafting table and it crafts automatically."
+                    + (r.drop ? " Results are dropped." : " Results go to your inventory."), ew, 4));
         } else {
-            lines.addAll(wrap("Open a crafting table and it crafts this layout with everything you have (the game's own recipe, so custom server items work too)."
+            lines.addAll(wrap("Open a crafting table and it crafts this layout with everything you have (the game's own recipe, so custom server items work too). For custom items, put them in the table and press \"Learn this grid\"."
                     + (r.drop ? " Results are dropped." : ""), ew, 4));
         }
         int maxLines = Math.max(1, (py + ph - 20 - sy) / 11);
@@ -662,7 +670,7 @@ public class AutoCrafterScreen extends Screen {
             text(g, lines.get(i), ex, sy + i * 11, r.finished() ? C_DIM : C_RED);
         }
 
-        String foot = Crafter.message + "  (" + Crafter.batches + " table batches, " + CreativeEngine.crafted + " creative crafts)";
+        String foot = Crafter.message + "  (" + Crafter.crafts + " table crafts, " + CreativeEngine.crafted + " creative crafts)";
         text(g, fit(foot, pw - 24), px + 12, py + ph - 14, C_DIMMER);
     }
 
@@ -690,6 +698,13 @@ public class AutoCrafterScreen extends Screen {
 
         String id = idAt(r, s);
         ItemStack st = stackOf(id);
+        ItemStack special = s == RESULT
+                ? (r.resultId.isEmpty() ? Stacks.decode(r.learnedResult) : ItemStack.EMPTY)
+                : Stacks.decode(r.ingredients.get(s).exact);
+        if (!special.isEmpty()) {
+            st = special;
+            if (id.isEmpty()) id = Stacks.id(special.getItem());
+        }
         if (st != null) {
             g.renderItem(st, x + (size - 16) / 2, y + (size - 16) / 2);
             int count = countAt(r, s);

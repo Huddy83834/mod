@@ -17,6 +17,8 @@ public final class RecipeDef {
     public static final class Ing {
         public String id = "";
         public int count = 1;
+        /** The exact item (with its custom name, lore, model...) saved as JSON. Empty = any item of this type. */
+        public String exact = "";
 
         public Ing() {}
 
@@ -51,6 +53,12 @@ public final class RecipeDef {
     public boolean flow = false;
     /** How many full sets of ingredients arrive per second. */
     public double flowRate = 1.0;
+    /** "" = made in the editor, "learned" = copied from the crafting grid, "server" = found in the recipe book. */
+    public String source = "";
+    /** The result the server showed when this was learned (JSON). Used to check the right thing is being crafted. */
+    public String learnedResult = "";
+    /** Identifies the recipe-book recipe this came from. */
+    public String bookKey = "";
 
     public RecipeDef() {
         fill();
@@ -63,6 +71,15 @@ public final class RecipeDef {
         for (int i = 0; i < SLOTS; i++) if (ingredients.get(i) == null) ingredients.set(i, new Ing());
         if (name == null) name = "Recipe";
         if (resultId == null) resultId = "";
+        if (source == null) source = "";
+        if (learnedResult == null) learnedResult = "";
+        if (bookKey == null) bookKey = "";
+        for (Ing ing : ingredients) if (ing.exact == null) ing.exact = "";
+    }
+
+    public boolean hasExact() {
+        for (Ing ing : ingredients) if (!ing.empty() && !ing.exact.isEmpty()) return true;
+        return false;
     }
 
     /** Looks an item up by id (works for modded items). Returns null if it is unknown. */

@@ -22,6 +22,8 @@ public class AutoCrafterClient implements ClientModInitializer {
         openKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.autocrafter.open", InputConstants.Type.KEYSYM, InputConstants.KEY_G, category));
 
+        TableOverlay.register();
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
                 if (client.player != null && client.screen == null) {
