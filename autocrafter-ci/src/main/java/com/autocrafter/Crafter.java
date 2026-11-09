@@ -86,6 +86,7 @@ public final class Crafter {
     /** Lets recipes that failed be tried again (after changing settings). */
     public static void unblock() {
         blocked.clear();
+        RecipeBookLink.forget();
     }
 
     private static void resetRound() {
@@ -209,6 +210,7 @@ public final class Crafter {
             return;
         }
         message = "Waiting: nothing to craft with what you have.";
+        wait = 10; // check again twice a second
     }
 
     private static boolean startMode(Minecraft mc, CraftingMenu menu) {

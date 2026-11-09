@@ -76,7 +76,7 @@ public final class Stacks {
 
     /**
      * How well an inventory item fits a recipe slot: 0 = not at all, higher = better.
-     * With an exact saved item: 4 = identical, 3 = same type and name, 1 = same type only.
+     * With an exact saved item: 4 = identical, 3 = same type and name (other details may differ).
      * Without one: 2 = plain item, 1 = custom version of the item (or the reverse when preferCustom).
      */
     public static int fit(ItemStack inv, Item item, ItemStack exact, boolean preferCustom) {
@@ -84,7 +84,7 @@ public final class Stacks {
         if (exact != null && !exact.isEmpty()) {
             if (ItemStack.isSameItemSameComponents(inv, exact)) return 4;
             if (name(inv).equals(name(exact))) return 3;
-            return 1;
+            return 0; // a plain item is NOT the custom one the recipe needs
         }
         boolean custom = !inv.getComponentsPatch().isEmpty();
         return custom == preferCustom ? 2 : 1;

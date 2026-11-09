@@ -172,6 +172,19 @@ public final class TableOverlay {
                 }
             }
         }
+        // switch off hand-made recipes with the same layout: the learned one replaces them
+        for (RecipeDef o : list) {
+            if (o == r || !o.source.isEmpty() || !o.enabled) continue;
+            boolean same = true;
+            for (int k = 0; k < RecipeDef.SLOTS; k++) {
+                RecipeDef.Ing a = o.ingredients.get(k), b = r.ingredients.get(k);
+                if (a.empty() != b.empty() || (!a.empty() && !a.id.equals(b.id))) same = false;
+            }
+            if (same) {
+                o.enabled = false;
+                Log.add("Switched off \"" + o.name + "\" (the learned recipe replaces it).");
+            }
+        }
         ClientRecipes.changed();
         Crafter.unblock();
         if (ClientRecipes.DATA.autoCraft) {

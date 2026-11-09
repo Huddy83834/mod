@@ -58,6 +58,7 @@ public final class RecipeBookLink {
     }
 
     private static List<Book> books = new ArrayList<>();
+    private static final java.util.Map<RecipeDef, java.util.Optional<Book>> FOUND = new java.util.IdentityHashMap<>();
 
     private RecipeBookLink() {}
 
@@ -83,6 +84,11 @@ public final class RecipeBookLink {
             Log.add("Could not read the recipe book: " + ex.getClass().getSimpleName());
         }
         books = out;
+        FOUND.clear();
+    }
+
+    public static void forget() {
+        FOUND.clear();
     }
 
     private static Book build(RecipeDisplayEntry e, ContextMap ctx) {
@@ -124,6 +130,10 @@ public final class RecipeBookLink {
 
     /** Finds the recipe-book recipe that matches a saved recipe, or null. */
     public static Book find(RecipeDef r) {
+        return FOUND.computeIfAbsent(r, k -> java.util.Optional.ofNullable(search(k))).orElse(null);
+    }
+
+    private static Book search(RecipeDef r) {
         if (!r.bookKey.isEmpty()) {
             for (Book b : books) if (b.key.equals(r.bookKey)) return b;
         }
