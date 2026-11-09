@@ -3,12 +3,11 @@
   "id": "autocrafter",
   "version": "${version}",
   "name": "Auto Crafter",
-  "description": "Set your own crafting recipes for any item, even modded ones. When the ingredients are in your inventory they are crafted instantly and the result is dropped. Optional ingredient flow keeps your inventory stocked.",
+  "description": "Client-side auto crafting: set your crafting layouts once and everything is crafted the moment you open a crafting table.",
   "authors": ["You"],
   "license": "MIT",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
-    "main": ["com.autocrafter.AutoCrafter"],
     "client": ["com.autocrafter.AutoCrafterClient"]
   },
   "depends": {
