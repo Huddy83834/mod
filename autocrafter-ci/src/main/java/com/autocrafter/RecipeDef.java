@@ -1,0 +1,88 @@
+package com.autocrafter;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/** One custom recipe: up to 9 ingredient slots and a result. Stored as JSON, shared by client and server. */
+public final class RecipeDef {
+    public static final int SLOTS = 9;
+
+    public static final class Ing {
+        public String id = "";
+        public int count = 1;
+
+        public Ing() {}
+
+        public Ing(String id, int count) {
+            this.id = id;
+            this.count = count;
+        }
+
+        public boolean empty() {
+            return id == null || id.isEmpty() || count <= 0;
+        }
+    }
+
+    public static final class Holder {
+        public List<RecipeDef> recipes = new ArrayList<>();
+    }
+
+    public String name = "New recipe";
+    public boolean enabled = true;
+    /** Craft by itself when the ingredients are in the inventory. */
+    public boolean autoCraft = true;
+    public List<Ing> ingredients = new ArrayList<>();
+    public String resultId = "";
+    public int resultCount = 1;
+    /** true: drop the result on the ground. false: put it in the inventory. */
+    public boolean drop = true;
+    /** Keep adding the ingredients to the inventory. */
+    public boolean flow = false;
+    /** How many full sets of ingredients arrive per second. */
+    public double flowRate = 1.0;
+
+    public RecipeDef() {
+        fill();
+    }
+
+    public void fill() {
+        if (ingredients == null) ingredients = new ArrayList<>();
+        while (ingredients.size() < SLOTS) ingredients.add(new Ing());
+        while (ingredients.size() > SLOTS) ingredients.remove(ingredients.size() - 1);
+        for (int i = 0; i < SLOTS; i++) if (ingredients.get(i) == null) ingredients.set(i, new Ing());
+        if (name == null) name = "Recipe";
+        if (resultId == null) resultId = "";
+    }
+
+    /** Looks an item up by id (works for modded items). Returns null if it is unknown. */
+    public static Item item(String id) {
+        if (id == null || id.isEmpty()) return null;
+        Identifier rl = Identifier.tryParse(id);
+        if (rl == null) return null;
+        Item it = BuiltInRegistries.ITEM.getValue(rl);
+        return it == null || it == Items.AIR ? null : it;
+    }
+
+    /** Total amount needed of each item (same item in several slots is added up). */
+    public Map<Item, Integer> needs() {
+        Map<Item, Integer> out = new LinkedHashMap<>();
+        for (Ing ing : ingredients) {
+            if (ing.empty()) continue;
+            Item it = item(ing.id);
+            if (it == null) continue;
+            out.merge(it, ing.count, Integer::sum);
+        }
+        return out;
+    }
+
+    public boolean usable() {
+        return item(resultId) != null && !needs().isEmpty();
+    }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "autocrafter",
+  "version": "${version}",
+  "name": "Auto Crafter",
+  "description": "Set your own crafting recipes for any item, even modded ones. When the ingredients are in your inventory they are crafted instantly and the result is dropped. Optional ingredient flow keeps your inventory stocked.",
+  "authors": ["You"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.autocrafter.AutoCrafter"],
+    "client": ["com.autocrafter.AutoCrafterClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
