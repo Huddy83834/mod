@@ -16,11 +16,19 @@ public final class ClientRecipes {
 
     public static final RecipeDef.Holder DATA = new RecipeDef.Holder();
     public static StatusPayload status = null;
+    public static int waitTicks = 0;
 
     private ClientRecipes() {}
 
     private static Path path() {
         return FabricLoader.getInstance().getConfigDir().resolve("autocrafter-recipes.json");
+    }
+
+    /** "id*count" the server found for recipe i, or "" if none. */
+    public static String resolved(int i) {
+        if (status == null || status.resolved() == null) return "";
+        String[] parts = status.resolved().split("\\|", -1);
+        return i >= 0 && i < parts.length ? parts[i] : "";
     }
 
     public static List<RecipeDef> list() {
@@ -33,6 +41,7 @@ public final class ClientRecipes {
             if (Files.exists(p)) {
                 RecipeDef.Holder h = GSON.fromJson(Files.readString(p), RecipeDef.Holder.class);
                 if (h != null && h.recipes != null) {
+                    DATA.tableOnly = h.tableOnly;
                     DATA.recipes = new ArrayList<>(h.recipes);
                     for (RecipeDef r : DATA.recipes) r.fill();
                 }

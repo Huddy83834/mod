@@ -9,7 +9,13 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.CraftingMenu;
+import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -20,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -38,13 +45,18 @@ public class AutoCrafter implements ModInitializer {
     public static final class ServerConfig {
         /** Dedicated servers: set to true to let players use the mod. */
         public boolean allowOnDedicatedServers = false;
-        public int maxCraftsPerTick = 16;
+        public int maxCraftsPerTick = 256;
         public double maxFlowSetsPerSecond = 20.0;
         public int maxRecipesPerPlayer = 16;
     }
 
+    /** What a recipe makes: either the item the player chose, or what the game's own recipe gives. */
+    private record Result(Item item, int count, boolean custom) {}
+
     private static final class PlayerState {
         List<RecipeDef> recipes = new ArrayList<>();
+        List<Result> results = new ArrayList<>();
+        boolean tableOnly;
         double[] acc = new double[0];
         long crafted;
         long flowed;
@@ -64,9 +76,17 @@ public class AutoCrafter implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(RecipesPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             PlayerState st = STATES.computeIfAbsent(player.getUUID(), k -> new PlayerState());
-            st.recipes = parse(payload.json());
+            st.tableOnly = false;
+            st.recipes = parse(payload.json(), st);
             st.acc = new double[st.recipes.size()];
+            resolveAll(player, st);
             sendStatus(context.server(), player, st);
+        });
+
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayer player = handler.getPlayer();
+            PlayerState st = STATES.computeIfAbsent(player.getUUID(), k -> new PlayerState());
+            sendStatus(server, player, st);
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
@@ -106,11 +126,12 @@ public class AutoCrafter implements ModInitializer {
     }
 
     /** Reads and cleans up a recipe list sent by a player (never trusts the numbers). */
-    private static List<RecipeDef> parse(String json) {
+    private static List<RecipeDef> parse(String json, PlayerState st) {
         List<RecipeDef> out = new ArrayList<>();
         try {
             RecipeDef.Holder h = GSON.fromJson(json, RecipeDef.Holder.class);
             if (h == null || h.recipes == null) return out;
+            st.tableOnly = h.tableOnly;
             for (RecipeDef r : h.recipes) {
                 if (r == null || out.size() >= config.maxRecipesPerPlayer) continue;
                 r.fill();
@@ -130,19 +151,70 @@ public class AutoCrafter implements ModInitializer {
 
     private static void sendStatus(MinecraftServer server, ServerPlayer player, PlayerState st) {
         boolean active = server.isSingleplayer() || config.allowOnDedicatedServers;
-        ServerPlayNetworking.send(player, new StatusPayload(active, st.crafted, st.flowed));
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < st.recipes.size(); i++) {
+            if (i > 0) sb.append('|');
+            Result r = i < st.results.size() ? st.results.get(i) : null;
+            if (r != null) {
+                sb.append(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(r.item())).append('*').append(r.count());
+            }
+        }
+        ServerPlayNetworking.send(player, new StatusPayload(active, st.crafted, st.flowed, sb.toString()));
+    }
+
+    private static void resolveAll(ServerPlayer player, PlayerState st) {
+        st.results = new ArrayList<>();
+        ServerLevel level = (ServerLevel) player.level();
+        for (RecipeDef def : st.recipes) {
+            Result r = null;
+            try {
+                r = resolve(level, def);
+            } catch (Exception ignored) {
+                // no result for this one
+            }
+            st.results.add(r);
+        }
+    }
+
+    /** The chosen result item, or (if none was chosen) what the game's own crafting recipe gives for this layout. */
+    private static Result resolve(ServerLevel level, RecipeDef def) {
+        Item custom = RecipeDef.item(def.resultId);
+        if (custom != null) return new Result(custom, def.resultCount, true);
+
+        List<ItemStack> grid = new ArrayList<>();
+        boolean any = false;
+        for (RecipeDef.Ing ing : def.ingredients) {
+            Item it = ing.empty() ? null : RecipeDef.item(ing.id);
+            if (it == null) {
+                grid.add(ItemStack.EMPTY);
+            } else {
+                grid.add(new ItemStack(it));
+                any = true;
+            }
+        }
+        if (!any) return null;
+        CraftingInput input = CraftingInput.of(3, 3, grid);
+        Optional<RecipeHolder<CraftingRecipe>> found = level.recipeAccess().getRecipeFor(RecipeType.CRAFTING, input, level);
+        if (found.isEmpty()) return null;
+        ItemStack out = found.get().value().assemble(input, level.registryAccess());
+        if (out.isEmpty()) return null;
+        return new Result(out.getItem(), out.getCount(), false);
     }
 
     // ------------------------------------------------------------------ the work
 
     private static void tickPlayer(ServerPlayer player, PlayerState st) {
         Inventory inv = player.getInventory();
+        boolean atTable = player.containerMenu instanceof CraftingMenu;
         for (int r = 0; r < st.recipes.size(); r++) {
             RecipeDef def = st.recipes.get(r);
             if (!def.enabled) continue;
-            Item result = RecipeDef.item(def.resultId);
-            Map<Item, Integer> needs = def.needs();
-            if (result == null || needs.isEmpty()) continue;
+            Result res = r < st.results.size() ? st.results.get(r) : null;
+            if (res == null) continue;
+            Item result = res.item();
+            int resultCount = res.count();
+            Map<Item, Integer> needs = res.custom() ? def.needs() : def.unitNeeds();
+            if (needs.isEmpty()) continue;
 
             // 1. Flow: keep the ingredients coming.
             if (def.flow && r < st.acc.length) {
@@ -159,12 +231,14 @@ public class AutoCrafter implements ModInitializer {
 
             // 2. Auto-craft as many sets as the inventory holds.
             if (!def.autoCraft) continue;
+            if (st.tableOnly && !atTable) continue;
             Map<Item, Integer> have = new HashMap<>();
             for (int i = 0; i < 36; i++) {
                 ItemStack s = inv.getItem(i);
                 if (!s.isEmpty() && needs.containsKey(s.getItem())) have.merge(s.getItem(), s.getCount(), Integer::sum);
             }
-            int crafts = config.maxCraftsPerTick;
+            // With a crafting table window open there is no limit: everything is crafted at once.
+            int crafts = atTable ? 100000 : config.maxCraftsPerTick;
             for (Map.Entry<Item, Integer> e : needs.entrySet()) {
                 crafts = Math.min(crafts, have.getOrDefault(e.getKey(), 0) / e.getValue());
             }
@@ -174,8 +248,9 @@ public class AutoCrafter implements ModInitializer {
                 take(inv, e.getKey(), e.getValue() * crafts);
             }
             inv.setChanged();
-            st.crafted += (long) crafts * def.resultCount;
-            deliver(player, inv, result, crafts * def.resultCount, def.drop);
+            long total = (long) crafts * resultCount;
+            st.crafted += total;
+            deliver(player, inv, result, (int) Math.min(total, 2_000_000L), def.drop);
         }
     }
 

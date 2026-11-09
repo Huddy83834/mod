@@ -77,6 +77,8 @@ public class AutoCrafterScreen extends Screen {
     private String tipName = null;
     private String tipId = null;
 
+    private String[] autoShown = null;
+
     private int px, py, pw, ph;
 
     public AutoCrafterScreen() {
@@ -168,6 +170,15 @@ public class AutoCrafterScreen extends Screen {
         ItemStack st = it == null ? ItemStack.EMPTY : new ItemStack(it);
         stacks.put(id, st);
         return st.isEmpty() ? null : st;
+    }
+
+    /** The result the server found for recipe idx when the player did not choose one: {id, count} or null. */
+    private String[] autoResult(int idx, RecipeDef r) {
+        if (r.customResult()) return null;
+        String f = ClientRecipes.resolved(idx);
+        int star = f.indexOf('*');
+        if (star <= 0) return null;
+        return new String[] {f.substring(0, star), f.substring(star + 1)};
     }
 
     private String nameOf(String id) {
@@ -368,6 +379,10 @@ public class AutoCrafterScreen extends Screen {
         return out;
     }
 
+    private boolean hoverRect(int x, int y, int w, int h) {
+        return !picker && mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    }
+
     private int chipW(String label) {
         return this.font.width(label) + 14;
     }
@@ -441,8 +456,8 @@ public class AutoCrafterScreen extends Screen {
         String label;
         int color;
         if (st == null) {
-            label = "Connecting...";
-            color = C_DIM;
+            label = ClientRecipes.waitTicks > 200 ? "Mod missing on server" : "Connecting...";
+            color = ClientRecipes.waitTicks > 200 ? C_RED : C_DIM;
         } else if (st.active()) {
             label = "ACTIVE";
             color = C_GREEN;
@@ -495,13 +510,15 @@ public class AutoCrafterScreen extends Screen {
             } else if (hover) {
                 g.fill(lx + 1, ry, lx + lw - 1, ry + 25, 0x18FFFFFF);
             }
-            ItemStack icon = stackOf(r.resultId);
+            String[] auto = autoResult(idx, r);
+            ItemStack icon = stackOf(r.customResult() ? r.resultId : auto != null ? auto[0] : "");
             if (icon != null) g.renderItem(icon, lx + 7, ry + 4);
             else text(g, "?", lx + 12, ry + 9, C_DIMMER);
             text(g, fit(r.name, lw - 52), lx + 28, ry + 5, r.enabled ? C_TEXT : C_DIMMER);
-            String sub = !r.usable() ? "not finished" : r.flow ? "auto + flow" : "auto-craft";
-            text(g, fit(sub, lw - 52), lx + 28, ry + 15, !r.usable() ? C_RED : C_DIM);
-            g.fill(lx + lw - 12, ry + 9, lx + lw - 7, ry + 14, r.enabled && r.usable() ? C_GREEN : C_DIMMER);
+            boolean noMatch = r.finished() && !r.customResult() && auto == null && ClientRecipes.status != null;
+            String sub = !r.finished() ? "no ingredients" : noMatch ? "no game recipe" : r.flow ? "auto + flow" : "auto-craft";
+            text(g, fit(sub, lw - 52), lx + 28, ry + 15, !r.finished() || noMatch ? C_RED : C_DIM);
+            g.fill(lx + lw - 12, ry + 9, lx + lw - 7, ry + 14, r.enabled && r.finished() && !noMatch ? C_GREEN : C_DIMMER);
             final int target = idx;
             hits.add(new Hit(lx, ry, lw, 26, b -> {
                 if (picker) return;
@@ -513,6 +530,16 @@ public class AutoCrafterScreen extends Screen {
         }
         if (l.size() > rows) {
             rtext(g, (listScroll + 1) + "-" + Math.min(l.size(), listScroll + rows) + " / " + l.size(), lx + lw - 8, ly + 6, C_DIMMER);
+        }
+        boolean tbl = ClientRecipes.DATA.tableOnly;
+        chip(g, lx + 8, ly + lh - 44, tbl ? "Table only: ON" : "Table only: OFF", tbl ? C_BLUE : 0, b -> {
+            if (picker) return;
+            ClientRecipes.DATA.tableOnly = !ClientRecipes.DATA.tableOnly;
+            changed();
+        });
+        if (hoverRect(lx + 8, ly + lh - 44, 100, 16)) {
+            tipName = "Table only";
+            tipId = tbl ? "Crafts only while a crafting table is open" : "Crafts all the time, anywhere";
         }
         if (l.size() < 16) {
             chip(g, lx + 8, ly + lh - 24, "+ New recipe", C_ACCENT, b -> {
@@ -571,7 +598,8 @@ public class AutoCrafterScreen extends Screen {
         int rs = 36;
         int rx = ax + 28;
         int ry = gy + (cell + 2) + cell / 2 - rs / 2;
-        text(g, "RESULT", rx, gy - 12, C_DIMMER);
+        autoShown = autoResult(sel, r);
+        text(g, r.customResult() ? "RESULT" : "RESULT (auto)", rx, gy - 12, C_DIMMER);
         drawSlot(g, r, RESULT, rx, ry, rs);
 
         // options
@@ -628,20 +656,30 @@ public class AutoCrafterScreen extends Screen {
             sb.append(e.getValue()).append("x ").append(new ItemStack(e.getKey()).getHoverName().getString());
         }
         List<String> lines = new ArrayList<>();
-        if (!r.usable()) {
-            lines.addAll(wrap("Pick at least one ingredient and a result item to finish this recipe.", ew, 2));
-        } else {
-            String sum = "Needs " + sb + "  =  " + r.resultCount + "x " + nameOf(r.resultId) + ".";
-            sum += r.drop ? " The result is dropped next to you." : " The result goes into your inventory.";
-            if (r.flow) sum += " The ingredients keep arriving, " + rateLabel(r.flowRate) + " set(s) per second.";
+        if (!r.finished()) {
+            lines.addAll(wrap("Click the slots and pick your ingredients, like on a crafting table. The result is found automatically.", ew, 2));
+        } else if (r.customResult()) {
+            String sum = "Custom recipe: " + sb + "  =  " + r.resultCount + "x " + nameOf(r.resultId) + ".";
+            sum += r.drop ? " Dropped next to you." : " Goes into your inventory.";
+            if (r.flow) sum += " Ingredients arrive " + rateLabel(r.flowRate) + " set(s) per second.";
             lines.addAll(wrap(sum, ew, 4));
+        } else if (autoShown != null) {
+            String sum = "Uses the game's own recipe: 1 of each ingredient in the layout = " + autoShown[1] + "x "
+                    + nameOf(autoShown[0]) + ".";
+            sum += r.drop ? " Dropped next to you." : " Goes into your inventory.";
+            if (r.flow) sum += " Ingredients arrive " + rateLabel(r.flowRate) + " set(s) per second.";
+            lines.addAll(wrap(sum, ew, 4));
+        } else if (ClientRecipes.status == null) {
+            lines.addAll(wrap("Looking up the recipe...", ew, 1));
+        } else {
+            lines.addAll(wrap("The game has no crafting recipe for this layout. Arrange the items like a real crafting table, or pick a result yourself to make your own recipe.", ew, 3));
         }
         int maxLines = Math.max(1, (py + ph - 20 - sy) / 11);
         for (int i = 0; i < lines.size() && i < maxLines; i++) {
-            text(g, lines.get(i), ex, sy + i * 11, r.usable() ? C_DIM : C_RED);
+            text(g, lines.get(i), ex, sy + i * 11, r.finished() && (r.customResult() || autoShown != null) ? C_DIM : C_RED);
         }
 
-        String foot = "Works with items from other mods. Only runs in single-player worlds (or where a server owner allows it).";
+        String foot = "Opening a crafting table crafts everything at once. Single-player only (unless the server allows it).";
         text(g, fit(foot, pw - 24), px + 12, py + ph - 14, C_DIMMER);
     }
 
@@ -680,6 +718,17 @@ public class AutoCrafterScreen extends Screen {
                 tipName = st.getHoverName().getString();
                 tipId = id;
             }
+        } else if (s == RESULT && id.isEmpty() && autoShown != null && stackOf(autoShown[0]) != null) {
+            ItemStack a = stackOf(autoShown[0]);
+            g.renderItem(a, x + (size - 16) / 2, y + (size - 16) / 2);
+            g.fill(x + 1, y + 1, x + size - 1, y + size - 1, 0x40000000);
+            if (!autoShown[1].equals("1")) {
+                g.drawString(this.font, autoShown[1], x + size - this.font.width(autoShown[1]) - 2, y + size - 10, 0xFFFFFFFF, true);
+            }
+            if (hover) {
+                tipName = a.getHoverName().getString();
+                tipId = "Found from the game's recipes";
+            }
         } else if (!id.isEmpty()) {
             text(g, "?", x + size / 2 - 2, y + size / 2 - 4, C_RED);
             if (hover) {
@@ -688,6 +737,10 @@ public class AutoCrafterScreen extends Screen {
             }
         } else {
             text(g, "+", x + size / 2 - 2, y + size / 2 - 4, C_DIMMER);
+            if (hover && s == RESULT) {
+                tipName = "No result needed";
+                tipId = "Leave empty to use the game's own recipe";
+            }
         }
 
         final int target = s;

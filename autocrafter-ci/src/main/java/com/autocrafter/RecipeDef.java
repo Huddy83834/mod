@@ -32,6 +32,8 @@ public final class RecipeDef {
 
     public static final class Holder {
         public List<RecipeDef> recipes = new ArrayList<>();
+        /** true: only craft while a crafting table window is open. false: craft anywhere, all the time. */
+        public boolean tableOnly = false;
     }
 
     public String name = "New recipe";
@@ -82,7 +84,25 @@ public final class RecipeDef {
         return out;
     }
 
-    public boolean usable() {
-        return item(resultId) != null && !needs().isEmpty();
+    /** Like needs(), but one of each filled slot: how a real crafting recipe uses its ingredients. */
+    public Map<Item, Integer> unitNeeds() {
+        Map<Item, Integer> out = new LinkedHashMap<>();
+        for (Ing ing : ingredients) {
+            if (ing.empty()) continue;
+            Item it = item(ing.id);
+            if (it == null) continue;
+            out.merge(it, 1, Integer::sum);
+        }
+        return out;
+    }
+
+    /** True once at least one ingredient is chosen. The result is optional (the game's own recipe is used). */
+    public boolean finished() {
+        return !needs().isEmpty();
+    }
+
+    /** True if the player chose a result item (a custom recipe) instead of using the game's recipe. */
+    public boolean customResult() {
+        return item(resultId) != null;
     }
 }

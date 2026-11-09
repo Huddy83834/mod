@@ -31,6 +31,13 @@ public class AutoCrafterClient implements ClientModInitializer {
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.player == null) {
+                ClientRecipes.waitTicks = 0;
+            } else if (ClientRecipes.status == null) {
+                ClientRecipes.waitTicks++;
+                // Keep asking until the server answers (the first message can be too early).
+                if (ClientRecipes.waitTicks % 30 == 5) ClientRecipes.sync();
+            }
             while (openKey.consumeClick()) {
                 if (client.player != null && client.screen == null) {
                     client.setScreen(new AutoCrafterScreen());
