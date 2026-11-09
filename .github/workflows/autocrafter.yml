@@ -42,6 +42,18 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
+      - name: Probe game classes
+        if: always()
+        shell: bash
+        run: |
+          J=""
+          for f in $(find / -name "*.jar" -path "*minecraft*" 2>/dev/null | grep -i -E "merged|client" | grep -v sources); do
+            if unzip -l "$f" 2>/dev/null | grep -q "net/minecraft/client/ClientRecipeBook.class"; then J="$f"; echo "JAR $f"; fi
+          done
+          [ -z "$J" ] && exit 0
+          for c in net.minecraft.client.ClientRecipeBook net.minecraft.client.gui.screens.recipebook.RecipeCollection net.minecraft.world.item.crafting.display.RecipeDisplayEntry net.minecraft.world.item.crafting.display.RecipeDisplay net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay net.minecraft.world.item.crafting.display.SlotDisplay 'net.minecraft.world.item.crafting.display.SlotDisplay$ItemStackSlotDisplay' 'net.minecraft.world.item.crafting.display.SlotDisplay$ItemSlotDisplay' net.minecraft.world.item.crafting.display.SlotDisplayContext net.minecraft.world.item.crafting.display.RecipeDisplayId net.minecraft.client.multiplayer.MultiPlayerGameMode net.minecraft.world.item.ItemStack net.minecraft.client.gui.screens.inventory.AbstractContainerScreen; do
+            echo "===== $c"; javap -cp "$J" "$c" 2>&1 | head -120
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: autocrafter-jar
