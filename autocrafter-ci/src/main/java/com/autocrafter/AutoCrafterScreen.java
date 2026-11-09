@@ -288,7 +288,7 @@ public class AutoCrafterScreen extends Screen {
                 int[] a = slotRect[s];
                 if (mx >= a[0] && mx < a[0] + a[2] && my >= a[1] && my < a[1] + a[3]) {
                     if (!idAt(r, s).isEmpty()) {
-                        int step = hasShiftDown() ? 10 : 1;
+                        int step = shiftDown ? 10 : 1;
                         setCount(r, s, countAt(r, s) - dir * step);
                         slot = s;
                     }
@@ -304,8 +304,17 @@ public class AutoCrafterScreen extends Screen {
         return super.mouseScrolled(mx, my, sx, sy);
     }
 
+    private boolean shiftDown = false;
+
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        if (event.key() == 340 || event.key() == 344) shiftDown = false;
+        return super.keyReleased(event);
+    }
+
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (event.key() == 340 || event.key() == 344) shiftDown = true;
         if (event.key() == 256 && picker) { // Escape closes the picker first
             closePicker();
             return true;
