@@ -42,25 +42,6 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
-      - name: Probe game classes
-        if: always()
-        shell: bash
-        run: |
-          J=""
-          for f in $(find / -name "*.jar" -path "*minecraft*" 2>/dev/null | grep -i -E "merged|client" | grep -v sources); do
-            if unzip -l "$f" 2>/dev/null | grep -q "net/minecraft/client/ClientRecipeBook.class"; then J="$f"; echo "JAR $f"; fi
-          done
-          [ -z "$J" ] && exit 0
-          for c in net.minecraft.client.gui.GuiGraphics org.joml.Matrix3x2fStack net.minecraft.client.gui.components.PlayerFaceRenderer net.minecraft.client.multiplayer.ClientLevel net.minecraft.world.item.component.FireworkExplosion 'net.minecraft.world.item.component.FireworkExplosion$Shape' net.minecraft.client.renderer.GameRenderer net.minecraft.client.particle.ParticleEngine net.minecraft.client.resources.sounds.SimpleSoundInstance net.minecraft.client.gui.components.AbstractSliderButton net.minecraft.client.gui.screens.Screen net.minecraft.client.multiplayer.PlayerInfo net.minecraft.util.Util net.minecraft.client.gui.components.EditBox net.minecraft.client.gui.components.Button net.minecraft.sounds.SoundEvents; do
-            echo "===== $c"; javap -cp "$J:$(find / -name 'joml*.jar' 2>/dev/null | head -1)" "$c" 2>&1 | grep -v lambda | head -150
-          done
-          for k in net/fabricmc/fabric/api/client/rendering/v1/hud/HudElementRegistry net/fabricmc/fabric/api/client/rendering/v1/hud/HudElement net/fabricmc/fabric/api/client/rendering/v1/hud/VanillaHudElements net/fabricmc/fabric/api/client/message/v1/ClientReceiveMessageEvents 'net/fabricmc/fabric/api/client/message/v1/ClientReceiveMessageEvents$Game' 'net/fabricmc/fabric/api/client/message/v1/ClientReceiveMessageEvents$AllowGame' net/fabricmc/fabric/api/client/command/v2/ClientCommandRegistrationCallback net/fabricmc/fabric/api/client/command/v2/FabricClientCommandSource; do
-            F=""
-            for f in $(find / -name "*.jar" -path "*fabric*" 2>/dev/null | grep -v sources); do
-              if unzip -l "$f" 2>/dev/null | grep -q "$k.class"; then F="$f"; break; fi
-            done
-            echo "===== $k ($F)"; [ -n "$F" ] && javap -cp "$F:$J" "$(echo $k | tr / .)" 2>&1 | head -40
-          done
       - uses: actions/upload-artifact@v4
         with:
           name: donationfx-jar

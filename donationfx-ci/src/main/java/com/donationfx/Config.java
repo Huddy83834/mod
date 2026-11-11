@@ -100,7 +100,7 @@ public final class Config {
             "you paid", "you sent", "you have paid", "you have sent", "you gave", "you donated", "sent to",
             "paid to", "you transferred", "withdrew", "withdrawn", "insufficient", "not enough",
             "you bought", "you purchased", "sold", "listed", "auction", "bid", "order", "costs", "price",
-            "bounty", "for killing", "reward", "shop", "sell", "/pay"));
+            "bounty", "for killing", "reward", "shop", "sell", "selling", "earned", "stole", "killed", "slain", "/pay"));
     /** Save money messages to config/donationfx-seen.txt so patterns can be made for them. */
     public boolean saveSeenLines = true;
 
