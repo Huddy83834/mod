@@ -34,6 +34,12 @@ public final class Detector {
             + "\\s+(?:has\\s+|just\\s+)?(?:paid|sent|gave|given|donated|transferred|tipped)\\b");
     private static final Pattern WHISPER = Pattern.compile("(?i)^\\W*\\[?\\s*" + NAME + "\\s*(?:->|\u2192|\u00bb)\\s*(?:me|you)\\b");
     private static final Pattern CHAT = Pattern.compile("^\\W*" + RANKS + "[^:\u00bb>]{0,30}?" + NAME + "\\s*(?::|\u00bb|>>|>|\u2503|\\|)\\s+");
+    /** "From Steve: hi", "[From Steve] hi", "To Steve » hi", "(From Steve) hi" */
+    private static final Pattern PM_FROM = Pattern.compile("(?i)^\\W*[\\[(]?\\s*(?:from|to)\\s+" + RANKS + "\\*?" + NAME + "\\s*(?:[\\])]|:|\u00bb|>>|>|->|\u2192|\u27a1|-|\\|)");
+    /** "Steve -> me", "me -> Steve", "Steve \u2192 You" */
+    private static final Pattern PM_ARROW = Pattern.compile("(?i)(?:" + NAME + "\\s*(?:->|\u2192|\u27a1|\u21d2)\\s*(?:me|you)\\b|\\b(?:me|you)\\s*(?:->|\u2192|\u27a1|\u21d2)\\s*" + NAME + ")");
+    /** "+$50,000 from Steve" at the start of a line */
+    private static final Pattern PLUS_MONEY = Pattern.compile("^\\W{0,3}\\+\\s?\\$");
     private static final Pattern VANILLA_CHAT = Pattern.compile("^<" + NAME + ">\\s");
     private static final java.util.Set<String> NOT_NAMES = java.util.Set.of(
             "you", "your", "the", "a", "an", "server", "console", "bank", "player", "someone", "money", "admin", "system");
@@ -101,13 +107,17 @@ public final class Detector {
             why.append("looks like a player typing in chat");
             return null;
         }
+        if (c.ignorePlayerChat && isPrivateMessage(text, lower)) {
+            why.append("looks like a private message");
+            return null;
+        }
         for (String w : c.outgoingWords) {
             if (!w.isBlank() && containsWord(lower, w.toLowerCase(Locale.ROOT))) {
                 why.append("has the word \"").append(w).append("\" (not money you received)");
                 return null;
             }
         }
-        boolean incoming = false;
+        boolean incoming = PLUS_MONEY.matcher(text).find();
         for (String w : c.incomingWords) {
             if (!w.isBlank() && containsWord(lower, w.toLowerCase(Locale.ROOT))) {
                 incoming = true;
@@ -174,6 +184,14 @@ public final class Detector {
         return isOnline(name);
     }
 
+    private static boolean isPrivateMessage(String text, String lower) {
+        if (PM_FROM.matcher(text).find() || PM_ARROW.matcher(text).find()) return true;
+        for (String w : Config.get().privateMessageWords) {
+            if (!w.isBlank() && lower.contains(w.toLowerCase(Locale.ROOT))) return true;
+        }
+        return false;
+    }
+
     private static boolean isOnline(String name) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getConnection() == null) return false;
@@ -197,7 +215,8 @@ public final class Detector {
             boolean word = after.startsWith("coins") || after.startsWith("coin") || after.startsWith("money")
                     || after.startsWith("dollars") || after.startsWith("$") || after.startsWith("bucks");
             boolean bigComma = m.group(2).contains(",");
-            if (dollar || suffix || word || bigComma) {
+            boolean ok = Config.get().requireDollarSign ? dollar || word : dollar || suffix || word || bigComma;
+            if (ok) {
                 double v = Money.value(m.group(2), m.group(3));
                 if (v > 0) return v;
             }

@@ -53,7 +53,7 @@ public final class Config {
     }
 
     // ---- main switches
-    public int configVersion = 1;
+    public int configVersion = 2;
     public boolean enabled = true;
     public boolean sounds = true;
     /** 0.0 - 1.0 */
@@ -94,13 +94,19 @@ public final class Config {
     /** Words that mean you RECEIVED money. */
     public List<String> incomingWords = new ArrayList<>(List.of(
             "received", "paid you", "sent you", "gave you", "has paid", "has sent", "has given",
-            "donated", "you got", "you have been paid", "transferred", "deposited into your", "from", "+$"));
+            "donated", "you got", "you have been paid", "transferred", "deposited into your"));
     /** Words that mean YOU paid someone (ignored). */
     public List<String> outgoingWords = new ArrayList<>(List.of(
             "you paid", "you sent", "you have paid", "you have sent", "you gave", "you donated", "sent to",
             "paid to", "you transferred", "withdrew", "withdrawn", "insufficient", "not enough",
             "you bought", "you purchased", "sold", "listed", "auction", "bid", "order", "costs", "price",
             "bounty", "for killing", "reward", "shop", "sell", "selling", "earned", "stole", "killed", "slain", "/pay"));
+    /** Only count amounts with a $ (or the word coins/money/dollars). Stops "5m" in a message from counting. */
+    public boolean requireDollarSign = true;
+    /** Words that mean a private message (ignored, so nobody can fake a donation by messaging you). */
+    public List<String> privateMessageWords = new ArrayList<>(List.of(
+            "whisper", "whispers", "whispered", "messaged you", "-> me", "-> you", "\u2192 me", "\u2192 you",
+            "\u27a1 me", "\u27a1 you", "[msg]", "[pm]", "[dm]", "(msg)", "\u2709", "reply"));
     /** Save money messages to config/donationfx-seen.txt so patterns can be made for them. */
     public boolean saveSeenLines = true;
 
@@ -166,6 +172,15 @@ public final class Config {
         }
         if (customPatterns == null) customPatterns = new ArrayList<>();
         if (incomingWords == null) incomingWords = d.incomingWords;
+        if (privateMessageWords == null) privateMessageWords = d.privateMessageWords;
+        if (configVersion < 2) {
+            // 1.0 counted "from" and plain numbers like "5m": a private message could set it off
+            incomingWords.removeIf(w -> w.equalsIgnoreCase("from") || w.equals("+$"));
+            requireDollarSign = true;
+            privateMessageWords = d.privateMessageWords;
+            configVersion = 2;
+            save();
+        }
         if (outgoingWords == null) outgoingWords = d.outgoingWords;
         volume = Math.max(0f, Math.min(1f, volume));
         size = Math.max(0.5, Math.min(2.0, size));
