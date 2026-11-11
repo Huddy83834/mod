@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "donationfx",
+  "version": "${version}",
+  "name": "Donation FX",
+  "description": "Plays big animations and sounds on your screen when someone pays you money. 5 levels from 50k to 10m. Client-side only.",
+  "authors": ["You"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.donationfx.DonationFxClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
