@@ -118,7 +118,7 @@ final class ThemesB {
         }
 
         static double[] pops(int L, double T) {
-            int n = 8 + 6 * L;
+            int n = 10 + 8 * L;
             double[] a = new double[n];
             double span = T * 0.75;
             Random r = new Random(77 + L);
@@ -247,10 +247,12 @@ final class ThemesB {
                         sm.max = sm.life = 1.0f;
                         sm.size = 2;
                     }
-                    rect(g, x, y + 7, 3, 6 + s.r.nextFloat() * 4, ang, A(c.vis, s.r.nextBoolean() ? 0xFFB020 : 0xFFF080));
-                    rect(g, x, y, 4, 10, ang, A(c.vis, i % 2 == 0 ? 0xD02020 : 0x2050D0));
-                    rect(g, x, y - 1, 4, 2, ang, A(c.vis, 0xFFFFFF));
-                    rect(g, x, y - 6, 2.5f, 3, ang, A(c.vis, 0xE8E8E8));
+                    float rs = 1.7f * (c.h / 360f);
+                    glow(g, x, y + 9 * rs, 8 * rs, 0xFFB020, 0.5f * c.vis);
+                    rect(g, x, y + 9 * rs, 3 * rs, (6 + s.r.nextFloat() * 5) * rs, ang, A(c.vis, s.r.nextBoolean() ? 0xFFB020 : 0xFFF080));
+                    rect(g, x, y, 4 * rs, 11 * rs, ang, A(c.vis, i % 2 == 0 ? 0xD02020 : 0x2050D0));
+                    rect(g, x, y - 1 * rs, 4 * rs, 2 * rs, ang, A(c.vis, 0xFFFFFF));
+                    rect(g, x, y - 7 * rs, 2.6f * rs, 3.5f * rs, ang, A(c.vis, 0xE8E8E8));
                 } else if (s.f[i] == 0) {
                     s.f[i] = 1;
                     explode(c, x0, (float) (r[2] * c.h), (int) r[3], i);
@@ -321,10 +323,11 @@ final class ThemesB {
                         b.col = col;
                     }
                 }
+                float big = 1.35f * (c.h / 360f) * (1 + c.L * 0.06f);
                 b.x = x;
                 b.y = y;
-                b.vx = (float) vx;
-                b.vy = (float) vy;
+                b.vx = (float) vx * big;
+                b.vy = (float) vy * big;
                 b.grav = pattern == 3 ? 60 : 45;
                 b.drag = pattern == 3 ? 1.2f : 1.6f;
                 b.max = b.life = pattern == 3 ? 2.4f : 1.4f + s.r.nextFloat() * 0.4f;
@@ -572,7 +575,7 @@ final class ThemesB {
         public void draw(Ctx c) {
             Bag s = c.bag;
             GuiGraphics g = c.g;
-            float sc = (1.0f + c.L * 0.12f) * (c.h / 360f);
+            float sc = (1.45f + c.L * 0.15f) * (c.h / 360f);
             tint(c, 0x0A0012, 0.35f * c.vis);
             if (s.r.nextFloat() < c.dt * 12) s.c.add(ThemesA.glint(s.r.nextFloat() * c.w, s.r.nextFloat() * c.h * 0.6f));
             ThemesA.drawGlints(c, s.c);
@@ -775,7 +778,7 @@ final class ThemesB {
         public void draw(Ctx c) {
             Bag s = c.bag;
             GuiGraphics g = c.g;
-            float sc = (1.0f + c.L * 0.06f) * (c.h / 360f);
+            float sc = (1.3f + c.L * 0.06f) * (c.h / 360f);
             float cell = 34 * sc;
             float mw = cell * 3 + 24 * sc, mh = cell + 40 * sc;
             float mx = c.w / 2f - mw / 2, my = c.h * 0.88f - mh;
@@ -889,7 +892,7 @@ final class ThemesB {
         public void draw(Ctx c) {
             Bag s = c.bag;
             GuiGraphics g = c.g;
-            int hz = (int) (c.h * 0.62f);
+            int hz = (int) (c.h * 0.72f);
             float beat = (float) Math.exp(-((c.t % BEAT) / BEAT) * 5);
             g.fillGradient(0, 0, c.w, hz, A(0.85f * c.vis, 0x12002E), A(0.85f * c.vis, 0xC2186B));
             // stars
@@ -900,8 +903,8 @@ final class ThemesB {
                 rect(g, x, y, 1.5f, 1.5f, 0, A(tw * c.vis, 0xFFFFFF));
             }
             // sun with stripes
-            float R = (62 + c.L * 6) * (c.h / 360f);
-            float sx = c.w / 2f, sy = hz - R * 0.35f;
+            float R = (58 + c.L * 5) * (c.h / 360f);
+            float sx = c.w / 2f, sy = hz - R * 0.55f;
             glow(g, sx, sy, R * 1.8f, 0xFF4F9A, (0.35f + 0.2f * beat) * c.vis);
             for (float dy = -R; dy < R; dy += 1) {
                 float yy = sy + dy;
@@ -974,7 +977,7 @@ final class ThemesB {
         @Override
         public void start(Ctx c) {
             Random r = c.bag.r;
-            for (int i = 0; i < 260; i++) {
+            for (int i = 0; i < 420; i++) {
                 Bit b = new Bit();
                 b.a = r.nextFloat() * 6.28f;
                 b.b = 50 + r.nextFloat() * 120;
@@ -1041,6 +1044,14 @@ final class ThemesB {
         }
 
         private static void drawDisk(Ctx c, Bag s, float x, float y, float scale, boolean back) {
+            double a0 = back ? Math.PI : 0, a1 = back ? Math.PI * 2 : Math.PI;
+            for (int i = 0; i < 14; i++) {
+                float f = i / 13f;
+                float rx = (40 + f * 130) * scale, ry = rx * 0.26f;
+                int col = f < 0.25f ? 0xFFF6E0 : f < 0.6f ? mix(0xFFF6E0, 0xFF9A3C, (f - 0.25f) / 0.35f) : mix(0xFF9A3C, 0xB0301A, (f - 0.6f) / 0.4f);
+                float a = c.vis * (0.55f - f * 0.35f) * (back ? 0.7f : 1f);
+                arc(c.g, x, y, rx, ry, 3.2f * scale, A(a, col), a0, a1, 40);
+            }
             for (Bit b : s.a) {
                 if (back) b.a += c.dt * (2.4f * 80f / b.b) * (1 + c.L * 0.15f);
                 double sin = Math.sin(b.a);
@@ -1050,7 +1061,7 @@ final class ThemesB {
                 float f = (b.b - 50) / 120f;
                 int col = f < 0.25f ? 0xFFF6E0 : f < 0.6f ? mix(0xFFF6E0, 0xFF9A3C, (f - 0.25f) / 0.35f) : mix(0xFF9A3C, 0xB0301A, (f - 0.6f) / 0.4f);
                 float bright = (float) (0.6 + 0.4 * Math.cos(b.a)); // the side coming toward you is brighter
-                rect(g(c), px, py, 2.2f, 1.4f, 0, A(c.vis * bright, col));
+                rect(g(c), px, py, 3.2f, 1.6f, 0, A(c.vis * bright, col));
             }
         }
 

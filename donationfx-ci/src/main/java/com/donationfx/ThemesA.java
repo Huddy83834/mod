@@ -161,6 +161,30 @@ final class ThemesA {
                 float pulse = 1 + 0.1f * (float) Math.sin(c.t * 4 + i);
                 text(g, c.font, "$", x, y, (9 + c.L * 1.5f) * pulse, A(0.09f * c.vis, 0x5CFF7A), (float) Math.sin(c.t + i) * 0.15f, false);
             }
+            if (s.last < 0) {
+                s.last = 1;
+                int n = (int) ((30 + 18 * c.L) * Math.min(2, c.k));
+                for (int i = 0; i < n; i++) {
+                    Bit b = bit(s.a, 500);
+                    double ang = -Math.PI / 2 + s.r.nextGaussian() * 0.9;
+                    float sp = 160 + s.r.nextFloat() * 220;
+                    b.x = c.cx;
+                    b.y = c.cy;
+                    b.vx = (float) Math.cos(ang) * sp;
+                    b.vy = (float) Math.sin(ang) * sp;
+                    b.grav = 160;
+                    b.drag = 1.4f;
+                    b.a = s.r.nextFloat() * 6.28f;
+                    b.b = 0.8f + s.r.nextFloat() * 0.5f;
+                    b.max = b.life = 12;
+                }
+            }
+            for (Bit b : s.a) if (b.grav > 0 && b.vy > 45) {
+                b.grav = 0;
+                b.drag = 0;
+                b.vy = 45;
+                b.vx *= 0.3f;
+            }
             if (c.spawning()) {
                 s.acc1 += c.dt * (14 + 12 * c.L) * c.k;
                 while (s.acc1 >= 1) {
@@ -239,6 +263,7 @@ final class ThemesA {
             GuiGraphics g = c.g;
             float env = beat(c.t, c.L);
             float R0 = Math.max(c.w, c.h) * 0.62f;
+            float vx = c.w / 2f, vy = c.h * 0.7f;
             // pulsing red edges
             float va = c.vis * (0.18f + 0.32f * env);
             int band = c.h / 4;
@@ -251,9 +276,9 @@ final class ThemesA {
                 g.fill(c.w - (i + 1) * sw, 0, c.w - i * sw, c.h, col);
             }
             // giant heart
-            float hs = (11 + c.L * 2.2f) * (1 + 0.14f * env) * (c.h / 360f);
-            glow(g, c.cx, c.cy + 6, 40 * hs / 11 * (1 + env * 0.3f), 0xFF2040, 0.45f * c.vis);
-            text(g, c.font, "❤", c.cx, c.cy + 8, hs, A(0.28f * c.vis, 0xFF1E3C), 0, false);
+            float hs = (7 + c.L * 1.4f) * (1 + 0.14f * env) * (c.h / 360f);
+            glow(g, vx, vy, 40 * hs / 7 * (1 + env * 0.3f), 0xFF2040, 0.5f * c.vis);
+            text(g, c.font, "❤", vx, vy + 4, hs, A(0.6f * c.vis, 0xFF1E3C), 0, true);
 
             if (c.spawning()) {
                 s.acc1 += c.dt * (30 + 22 * c.L) * c.k;
@@ -274,8 +299,8 @@ final class ThemesA {
                 for (int i = 0; i < 6 + 2 * c.L; i++) {
                     Bit b = bit(s.b, 300);
                     double a = s.r.nextDouble() * Math.PI * 2;
-                    b.x = c.cx;
-                    b.y = c.cy;
+                    b.x = vx;
+                    b.y = vy;
                     b.vx = (float) Math.cos(a) * (120 + s.r.nextFloat() * 120);
                     b.vy = (float) Math.sin(a) * (120 + s.r.nextFloat() * 120);
                     b.drag = 1.5f;
@@ -289,8 +314,8 @@ final class ThemesA {
                 b.a += c.dt * (1.0f + 4.5f * closeness * closeness + 0.6f);
                 b.b -= c.dt * (70 + 220 * closeness) * (1 + c.L * 0.1f);
                 if (b.b < 14) b.dead = true;
-                b.x = c.cx + (float) Math.cos(b.a) * b.b;
-                b.y = c.cy + (float) Math.sin(b.a) * b.b * 0.78f;
+                b.x = vx + (float) Math.cos(b.a) * b.b;
+                b.y = vy + (float) Math.sin(b.a) * b.b * 0.6f;
             }
             step(s.a, c.dt, c.h);
             step(s.b, c.dt, c.h);
@@ -534,8 +559,8 @@ final class ThemesA {
                     b.x = s.r.nextFloat() * c.w;
                     b.y = c.h + 4 - s.r.nextFloat() * wall;
                     b.vx = (float) s.r.nextGaussian() * 14;
-                    b.vy = -(70 + s.r.nextFloat() * 130) * (1 + c.L * 0.15f);
-                    b.max = b.life = 0.8f + s.r.nextFloat() * 0.9f;
+                    b.vy = -(45 + s.r.nextFloat() * 85) * (1 + c.L * 0.12f) * (c.h / 360f);
+                    b.max = b.life = 0.6f + s.r.nextFloat() * 0.7f;
                     b.size = 5 + s.r.nextFloat() * 6 + c.L;
                 }
                 s.acc2 += c.dt * (18 + 10 * c.L) * c.k;
@@ -581,7 +606,7 @@ final class ThemesA {
                 else if (q > 0.15f) col = mix(0xB8160E, 0xFF6A10, (q - 0.15f) / 0.2f);
                 else {
                     col = 0x2E2A2A;
-                    a *= q / 0.15f * 0.5f;
+                    a *= q / 0.15f * 0.22f;
                 }
                 float sz = b.size * (q > 0.15f ? 0.4f + q * 0.8f : 1.1f + (0.15f - q) * 6);
                 rect(g, b.x, b.y, sz, sz, 0, A(a * (q > 0.15f ? 0.85f : 1f), col));
@@ -619,16 +644,19 @@ final class ThemesA {
             float x2 = x + (float) Math.cos(ang) * len, y2 = y + (float) Math.sin(ang) * len;
             out.add(new float[]{x, y, x2, y2, birth, th, r.nextFloat()});
             float nb = birth + 0.11f;
-            grow(out, x2, y2, ang + (float) r.nextGaussian() * 0.25f, len * 0.82f, nb, depth - 1, r, th * 0.8f);
-            if (r.nextInt(10) < 7) grow(out, x2, y2, ang + 0.7f + (float) r.nextGaussian() * 0.2f, len * 0.55f, nb, depth - 2, r, th * 0.6f);
-            if (r.nextInt(10) < 7) grow(out, x2, y2, ang - 0.7f + (float) r.nextGaussian() * 0.2f, len * 0.55f, nb, depth - 2, r, th * 0.6f);
+            // ice grows in straight lines with side spikes at 60 degrees (like real frost)
+            grow(out, x2, y2, ang + (float) r.nextGaussian() * 0.08f, len * 0.85f, nb, depth - 1, r, th * 0.85f);
+            float side = len * (0.35f + r.nextFloat() * 0.2f);
+            if (r.nextInt(10) < 8) out.add(new float[]{x2, y2, x2 + (float) Math.cos(ang + 1.047f) * side, y2 + (float) Math.sin(ang + 1.047f) * side, nb, th * 0.6f, r.nextFloat()});
+            if (r.nextInt(10) < 8) out.add(new float[]{x2, y2, x2 + (float) Math.cos(ang - 1.047f) * side, y2 + (float) Math.sin(ang - 1.047f) * side, nb, th * 0.6f, r.nextFloat()});
+            if (depth >= 4 && r.nextInt(3) == 0) grow(out, x2, y2, ang + (r.nextBoolean() ? 1.047f : -1.047f), len * 0.6f, nb, depth - 2, r, th * 0.7f);
         }
 
         @Override
         public void start(Ctx c) {
             List<float[]> segs = new ArrayList<>();
             Random r = c.bag.r;
-            int roots = 22 + 8 * c.L;
+            int roots = 16 + 5 * c.L;
             for (int i = 0; i < roots; i++) {
                 int edge = r.nextInt(4);
                 float x, y, ang;
@@ -639,7 +667,7 @@ final class ThemesA {
                     default -> { x = c.w; y = r.nextFloat() * c.h; ang = (float) Math.PI; }
                 }
                 ang += (float) r.nextGaussian() * 0.35f;
-                grow(segs, x, y, ang, 18 + r.nextFloat() * 14 + c.L * 2, r.nextFloat() * 0.6f, 6, r, 2.2f);
+                grow(segs, x, y, ang, 14 + r.nextFloat() * 10 + c.L * 2, r.nextFloat() * 0.6f, 7, r, 2.0f);
             }
             c.bag.extra = segs;
         }
@@ -788,6 +816,26 @@ final class ThemesA {
                 }
                 if (c.flashes && since < 0.3) tint(c, 0xE0FFFF, (float) (1 - since / 0.3) * 0.5f);
                 if (c.spawning() && s.r.nextFloat() < c.dt * (10 + 4 * c.L)) s.c.add(glint(s.r.nextFloat() * c.w, s.r.nextFloat() * c.h));
+                // a slow rain of diamonds and a glowing gem where the diamond was
+                if (c.spawning()) {
+                    s.acc1 += c.dt * (4 + 3 * c.L) * c.k;
+                    while (s.acc1 >= 1) {
+                        s.acc1--;
+                        Bit b = bit(s.a, 600);
+                        b.kind = 1;
+                        b.item = stack(s.r.nextInt(5) == 0 ? "diamond_block" : "diamond");
+                        b.x = s.r.nextFloat() * c.w;
+                        b.y = -12;
+                        b.vy = 50 + s.r.nextFloat() * 60;
+                        b.max = b.life = 8;
+                    }
+                }
+                float pulse = 0.6f + 0.4f * (float) Math.sin(c.t * 4);
+                glow(g, dx, dy, 60 + 10 * c.L, 0x6FF6FF, 0.35f * c.vis * pulse * clamp(since / 0.6));
+                for (int i = 0; i < 6; i++) {
+                    float ang = (float) (c.t * 0.6 + i * Math.PI / 3);
+                    line(g, dx, dy, dx + (float) Math.cos(ang) * 90, dy + (float) Math.sin(ang) * 90, 3, A(0.18f * c.vis * clamp(since / 0.6), 0xBFFFFF));
+                }
             }
             step(s.a, c.dt, c.h);
             for (Bit b : s.a) {

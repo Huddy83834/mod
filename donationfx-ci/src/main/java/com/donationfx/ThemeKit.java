@@ -205,8 +205,13 @@ public final class ThemeKit {
 
     /** A filled circle (or oval when ry != rx). */
     public static void disc(GuiGraphics g, float cx, float cy, float rx, float ry, int argb) {
+        disc(g, cx, cy, rx, ry, argb, 28);
+    }
+
+    /** rows = how many strips it is made of (fewer = faster, softer edges are fine for glows). */
+    public static void disc(GuiGraphics g, float cx, float cy, float rx, float ry, int argb, int rows) {
         if (rx < 0.5f || ry < 0.5f || (argb >>> 24) == 0) return;
-        float step = Math.max(1f, ry / 36f);
+        float step = Math.max(1f, ry * 2 / rows);
         for (float dy = -ry; dy < ry; dy += step) {
             float mid = dy + step / 2f;
             float hw = rx * (float) Math.sqrt(Math.max(0, 1 - (mid * mid) / (ry * ry)));
@@ -223,7 +228,7 @@ public final class ThemeKit {
         if (a <= 0.005f || r < 1) return;
         for (int i = 4; i >= 0; i--) {
             float rr = r * (0.35f + i * 0.2f);
-            disc(g, cx, cy, rr, A(a * 0.22f, rgb));
+            disc(g, cx, cy, rr, rr, A(a * 0.22f, rgb), 14);
         }
     }
 
@@ -237,6 +242,19 @@ public final class ThemeKit {
             line(g, (float) prevX, (float) prevY, (float) x, (float) y, th, argb);
             prevX = x;
             prevY = y;
+        }
+    }
+
+    /** Part of an oval ring, from angle a0 to a1 (radians). */
+    public static void arc(GuiGraphics g, float cx, float cy, float rx, float ry, float th, int argb, double a0, double a1, int segs) {
+        if (rx < 1 || (argb >>> 24) == 0) return;
+        double px = cx + Math.cos(a0) * rx, py = cy + Math.sin(a0) * ry;
+        for (int i = 1; i <= segs; i++) {
+            double a = a0 + (a1 - a0) * i / segs;
+            double x = cx + Math.cos(a) * rx, y = cy + Math.sin(a) * ry;
+            line(g, (float) px, (float) py, (float) x, (float) y, th, argb);
+            px = x;
+            py = y;
         }
     }
 
