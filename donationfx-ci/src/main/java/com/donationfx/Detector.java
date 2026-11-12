@@ -62,7 +62,8 @@ public final class Detector {
     /** A chat or action bar line arrived. */
     public static void onMessage(String raw, boolean actionBar) {
         Config c = Config.get();
-        if (!c.enabled) return;
+        // donations are still written to the sheet when the animations are switched off
+        if (!c.enabled && !c.sheetLogging) return;
         if (actionBar && !c.readActionBar) return;
         String text = clean(raw);
         if (text.isEmpty()) return;
@@ -82,7 +83,16 @@ public final class Detector {
             lastMoneyLine = text;
             lastMoneyVerdict = verdict;
             remember(text, verdict, actionBar);
-            if (r != null && level >= 0) Fx.donate(r.amount(), r.player(), level, false);
+            if (r != null) {
+                int raw = -1;
+                for (int i = 0; i < c.tiers.size(); i++) if (r.amount() >= c.tiers.get(i).minAmount) raw = i;
+                try {
+                    SheetLog.log(r.amount(), r.player(), raw, text, false);
+                } catch (Exception e) {
+                    DonationFxClient.LOG.warn("Donation FX: could not log donation", e);
+                }
+            }
+            if (c.enabled && r != null && level >= 0) Fx.donate(r.amount(), r.player(), level, false);
         }
     }
 

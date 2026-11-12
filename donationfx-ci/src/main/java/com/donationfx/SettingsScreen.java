@@ -92,6 +92,10 @@ public class SettingsScreen extends Screen {
         // header
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose()).bounds(px + pw - 56, py + 6, 50, 20).build());
         toggle(px + pw - 56 - 6 - 110, py + 6, 110, "Donation FX", () -> Config.get().enabled, v -> Config.get().enabled = v);
+        addRenderableWidget(Button.builder(Component.literal("Sheet..."), b -> {
+            Config.save();
+            Minecraft.getInstance().setScreen(new SheetScreen(this));
+        }).bounds(px + pw - 56 - 6 - 110 - 4 - 56, py + 6, 56, 20).build());
 
         // effects: two columns of switches and sliders
         int top = py + 46;
@@ -251,7 +255,7 @@ public class SettingsScreen extends Screen {
         Config c = Config.get();
         g.drawString(this.font, "DONATION FX", px + 10, py + 9, GOLD, true);
         String stats = "This session: " + Fx.sessionCount + " donation" + (Fx.sessionCount == 1 ? "" : "s") + ", " + Money.full(Fx.sessionTotal);
-        int statsRight = px + pw - 56 - 6 - 110 - 8;
+        int statsRight = px + pw - 56 - 6 - 110 - 4 - 56 - 8;
         if (this.font.width(stats) < statsRight - (px + 90)) g.drawString(this.font, stats, statsRight - this.font.width(stats), py + 12, DIM, false);
         g.drawString(this.font, "Plays when someone pays you. Only you see it.", px + 10, py + 19, DIM, false);
 

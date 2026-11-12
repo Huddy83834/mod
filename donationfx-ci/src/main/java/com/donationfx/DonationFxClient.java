@@ -30,10 +30,12 @@ public class DonationFxClient implements ClientModInitializer {
     private static KeyMapping toggleKey;
     private static KeyMapping testKey;
     private static boolean openSettings = false;
+    private static boolean openSheet = false;
 
     @Override
     public void onInitializeClient() {
         Config.load();
+        SheetLog.start();
 
         KeyMapping.Category cat = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
         settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.donationfx.settings", InputConstants.Type.KEYSYM, InputConstants.KEY_J, cat));
@@ -70,6 +72,10 @@ public class DonationFxClient implements ClientModInitializer {
                 if (client.player != null) client.player.displayClientMessage(Component.literal("Donation FX: " + (c.enabled ? "ON" : "OFF")), true);
             }
             while (testKey.consumeClick()) testLevel(client, (int) (Math.random() * 5));
+            if (openSheet) {
+                openSheet = false;
+                client.setScreen(new SheetScreen(null));
+            }
             if (openSettings) {
                 openSettings = false;
                 client.setScreen(new SettingsScreen(null));
@@ -146,6 +152,36 @@ public class DonationFxClient implements ClientModInitializer {
                             testLevel(Minecraft.getInstance(), IntegerArgumentType.getInteger(ctx, "level") - 1);
                             return 1;
                         })))
+                .then(ClientCommandManager.literal("sheet")
+                        .executes(ctx -> {
+                            openSheet = true;
+                            return 1;
+                        })
+                        .then(ClientCommandManager.literal("test").executes(ctx -> {
+                            SheetLog.sendTest();
+                            return say(ctx, "Sending a test row to the Google Sheet... (" + SheetLog.status + ")");
+                        }))
+                        .then(ClientCommandManager.literal("status").executes(ctx ->
+                                say(ctx, (Config.get().sheetLogging ? "Logging ON. " : "Logging OFF. ") + SheetLog.status + " Waiting: " + SheetLog.pending())))
+                        .then(ClientCommandManager.literal("on").executes(ctx -> {
+                            Config.get().sheetLogging = true;
+                            Config.save();
+                            return say(ctx, "Google Sheet logging ON.");
+                        }))
+                        .then(ClientCommandManager.literal("off").executes(ctx -> {
+                            Config.get().sheetLogging = false;
+                            Config.save();
+                            return say(ctx, "Google Sheet logging OFF.");
+                        }))
+                        .then(ClientCommandManager.literal("link")
+                                .then(ClientCommandManager.argument("url", StringArgumentType.greedyString()).executes(ctx -> {
+                                    String u = StringArgumentType.getString(ctx, "url").trim();
+                                    if (!u.startsWith("https://script.google.com/")) return say(ctx, "\u00a7cThat doesn't look like a Google Apps Script web app link (https://script.google.com/.../exec).");
+                                    Config.get().sheetUrl = u;
+                                    Config.save();
+                                    SheetLog.sendTest();
+                                    return say(ctx, "Link saved. Sending a test row...");
+                                }))))
                 .then(ClientCommandManager.literal("themes").executes(ctx -> {
                     if (!Themes.unlocked()) return say(ctx, "\u00a7cThe extra animations are locked. Open the secret panel (/dfx, then Secret) and enter the code.");
                     StringBuilder sb = new StringBuilder("Animations: ");

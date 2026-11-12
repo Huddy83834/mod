@@ -116,6 +116,10 @@ public final class Config {
     public List<String> disabledThemes = new ArrayList<>();
     /** Themes play their own music and sounds (instead of the level's sound list). */
     public boolean themeSounds = true;
+    /** Write every donation into the Google Sheet (and config/donationfx-donations.csv). */
+    public boolean sheetLogging = true;
+    /** The Google Apps Script web app link (ends in /exec). See the setup steps. */
+    public String sheetUrl = "";
     /** The 20 extra animations stay off until the secret panel is opened with the code. */
     public boolean secretUnlocked = false;
 
@@ -187,6 +191,7 @@ public final class Config {
         if (incomingWords == null) incomingWords = d.incomingWords;
         if (privateMessageWords == null) privateMessageWords = d.privateMessageWords;
         if (disabledThemes == null) disabledThemes = new ArrayList<>();
+        if (sheetUrl == null) sheetUrl = "";
         if (configVersion < 2) {
             // 1.0 counted "from" and plain numbers like "5m": a private message could set it off
             incomingWords.removeIf(w -> w.equalsIgnoreCase("from") || w.equals("+$"));
