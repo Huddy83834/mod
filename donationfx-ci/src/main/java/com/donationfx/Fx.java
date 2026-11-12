@@ -251,6 +251,11 @@ public final class Fx {
         }
     }
 
+    /** Plays a sound by name (for buttons and the secret panel). */
+    static void playId(String id, float vol, float pitch) {
+        play(Minecraft.getInstance(), new Config.Sound(id, 0, vol, pitch));
+    }
+
     private static void play(Minecraft mc, Config.Sound snd) {
         Identifier id = Identifier.tryParse(snd.id);
         if (id == null) return;

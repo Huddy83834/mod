@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -24,6 +25,15 @@ public class ThemesScreen extends Screen {
     private final List<String> ids = new ArrayList<>();
     private String hover = null;
 
+    // secret panel (keypad)
+    private static final int CODE_LEN = 4;
+    private static int wrongTries = 0;
+    private static long lockedUntil = 0;
+    private String typed = "";
+    private long wrongAt = 0;
+    private long unlockedAt = 0;
+    private boolean locked;
+
     public ThemesScreen(Screen parent) {
         super(Component.literal("Donation FX animations"));
         this.parent = parent;
@@ -31,6 +41,11 @@ public class ThemesScreen extends Screen {
 
     @Override
     protected void init() {
+        locked = !Themes.unlocked();
+        if (locked) {
+            initLocked();
+            return;
+        }
         Config c = Config.get();
         ids.clear();
         ids.addAll(Themes.ids());
@@ -40,6 +55,13 @@ public class ThemesScreen extends Screen {
         py = (this.height - ph) / 2;
 
         addRenderableWidget(Button.builder(Component.literal("Back"), b -> onClose()).bounds(px + pw - 56, py + 6, 50, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("Lock"), b -> {
+            c.secretUnlocked = false;
+            Config.save();
+            Fx.playId("minecraft:block.iron_door.close", 0.8f, 1.0f);
+            typed = "";
+            rebuild();
+        }).bounds(px + pw - 56 - 4 - 64, py + 6, 64, 20).build());
 
         // which theme each level uses
         int y = py + 46;
@@ -94,6 +116,127 @@ public class ThemesScreen extends Screen {
         }
     }
 
+    // ------------------------------------------------------------------ secret keypad
+
+    private void initLocked() {
+        pw = 190;
+        ph = 236;
+        px = (this.width - pw) / 2;
+        py = Math.max(4, (this.height - ph) / 2);
+        int kw = 46, kh = 24, gap = 6;
+        int gx = px + (pw - (kw * 3 + gap * 2)) / 2;
+        int gy = py + 82;
+        String[] keys = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "OK"};
+        for (int i = 0; i < keys.length; i++) {
+            String k = keys[i];
+            int x = gx + (i % 3) * (kw + gap), y = gy + (i / 3) * (kh + gap);
+            addRenderableWidget(Button.builder(Component.literal(k), b -> press(k)).bounds(x, y, kw, kh).build());
+        }
+        addRenderableWidget(Button.builder(Component.literal("Back"), b -> onClose()).bounds(px + pw / 2 - 30, py + ph - 26, 60, 20).build());
+    }
+
+    private void press(String k) {
+        if (System.currentTimeMillis() < lockedUntil) return;
+        switch (k) {
+            case "C" -> {
+                typed = "";
+                Fx.playId("minecraft:block.stone_button.click_on", 0.6f, 0.8f);
+            }
+            case "OK" -> submit();
+            default -> {
+                if (typed.length() >= CODE_LEN) return;
+                typed += k;
+                Fx.playId("minecraft:block.note_block.hat", 0.6f, 1.0f + typed.length() * 0.15f);
+                if (typed.length() == CODE_LEN) submit();
+            }
+        }
+    }
+
+    private void submit() {
+        if (typed.isEmpty()) return;
+        if (Themes.checkCode(typed)) {
+            Config c = Config.get();
+            c.secretUnlocked = true;
+            c.disabledThemes.clear(); // all 20 can now be picked
+            Config.save();
+            wrongTries = 0;
+            unlockedAt = System.currentTimeMillis();
+            Fx.playId("minecraft:block.iron_door.open", 0.9f, 1.0f);
+            Fx.playId("minecraft:ui.toast.challenge_complete", 1.0f, 1.0f);
+            typed = "";
+            rebuild();
+            return;
+        }
+        wrongTries++;
+        wrongAt = System.currentTimeMillis();
+        typed = "";
+        Fx.playId("minecraft:block.note_block.bass", 1.0f, 0.5f);
+        Fx.playId("minecraft:entity.villager.no", 0.8f, 1.0f);
+        if (wrongTries >= 3) {
+            lockedUntil = System.currentTimeMillis() + 30_000;
+            wrongTries = 0;
+        }
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (locked) {
+            int key = event.key();
+            if (key >= 48 && key <= 57) {
+                press(String.valueOf(key - 48));
+                return true;
+            }
+            if (key >= 320 && key <= 329) {
+                press(String.valueOf(key - 320));
+                return true;
+            }
+            if (key == 257 || key == 335) {
+                press("OK");
+                return true;
+            }
+            if (key == 259) {
+                if (!typed.isEmpty()) typed = typed.substring(0, typed.length() - 1);
+                return true;
+            }
+        }
+        return super.keyPressed(event);
+    }
+
+    private void renderLocked(GuiGraphics g, int mouseX, int mouseY) {
+        long now = System.currentTimeMillis();
+        int cx = px + pw / 2;
+        String lock = "\u2726";
+        g.drawCenteredString(this.font, "SECRET ANIMATIONS", cx, py + 10, GOLD);
+        g.drawCenteredString(this.font, "Enter the code to unlock", cx, py + 22, DIM);
+        g.drawCenteredString(this.font, "20 extra animations.", cx, py + 32, DIM);
+        // code display
+        int shake = now - wrongAt < 400 ? (int) (Math.sin((now - wrongAt) / 25.0) * 4) : 0;
+        int dw = 24, gap = 8;
+        int dx = cx - (dw * CODE_LEN + gap * (CODE_LEN - 1)) / 2 + shake;
+        int dy = py + 48;
+        boolean wrong = now - wrongAt < 900;
+        for (int i = 0; i < CODE_LEN; i++) {
+            int x = dx + i * (dw + gap);
+            int border = wrong ? 0xFFFF5C5C : i < typed.length() ? GOLD : LINE;
+            g.fill(x - 1, dy - 1, x + dw + 1, dy + 23, border);
+            g.fill(x, dy, x + dw, dy + 22, 0xFF05060A);
+            if (i < typed.length()) g.drawCenteredString(this.font, "\u25cf", x + dw / 2, dy + 7, TEXT);
+        }
+        String status;
+        int col;
+        if (now < lockedUntil) {
+            status = "Too many tries. Wait " + ((lockedUntil - now) / 1000 + 1) + "s";
+            col = 0xFFFF5C5C;
+        } else if (wrong) {
+            status = "Wrong code";
+            col = 0xFFFF5C5C;
+        } else {
+            status = lock + " Locked";
+            col = DIM;
+        }
+        g.drawCenteredString(this.font, status, cx, py + ph - 40, col);
+    }
+
     private void rebuild() {
         clearWidgets();
         init();
@@ -130,12 +273,20 @@ public class ThemesScreen extends Screen {
         g.fill(px, py + ph - 1, px + pw, py + ph, LINE);
         g.fill(px, py, px + 1, py + ph, LINE);
         g.fill(px + pw - 1, py, px + pw, py + ph, LINE);
-        g.fill(px + 8, py + 30, px + pw - 8, py + 31, LINE);
+        if (!locked) g.fill(px + 8, py + 30, px + pw - 8, py + 31, LINE);
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         super.render(g, mouseX, mouseY, delta);
+        if (locked) {
+            renderLocked(g, mouseX, mouseY);
+            return;
+        }
+        if (System.currentTimeMillis() - unlockedAt < 2500) {
+            String u = "UNLOCKED! All 20 animations are on.";
+            g.drawString(this.font, u, px + pw - 10 - this.font.width(u), py + ph - 36, 0xFF3DDC84, true);
+        }
         g.drawString(this.font, "ANIMATIONS  (" + ids.size() + ")", px + 10, py + 9, GOLD, true);
         g.drawString(this.font, "Each level can use one animation, or Random. ON = can be picked by Random. ▶ = test.", px + 10, py + 19, DIM, false);
         g.drawString(this.font, "LEVELS (click to change)", px + 10, py + 35, DIM, false);

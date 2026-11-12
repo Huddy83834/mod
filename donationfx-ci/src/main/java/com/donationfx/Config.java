@@ -55,7 +55,7 @@ public final class Config {
     }
 
     // ---- main switches
-    public int configVersion = 2;
+    public int configVersion = 3;
     public boolean enabled = true;
     public boolean sounds = true;
     /** 0.0 - 1.0 */
@@ -116,6 +116,8 @@ public final class Config {
     public List<String> disabledThemes = new ArrayList<>();
     /** Themes play their own music and sounds (instead of the level's sound list). */
     public boolean themeSounds = true;
+    /** The 20 extra animations stay off until the secret panel is opened with the code. */
+    public boolean secretUnlocked = false;
 
     public List<Tier> tiers = new ArrayList<>();
 
@@ -133,8 +135,9 @@ public final class Config {
             if (Files.exists(p)) {
                 Config c = GSON.fromJson(Files.readString(p), Config.class);
                 if (c != null) {
-                    c.fix();
+                    boolean migrated = c.fix();
                     INSTANCE = c;
+                    if (migrated) save();
                     return;
                 }
             }
@@ -158,7 +161,9 @@ public final class Config {
         save();
     }
 
-    private void fix() {
+    /** Fills in missing settings. Returns true if old settings were upgraded (then they get saved). */
+    private boolean fix() {
+        boolean migrated = false;
         Config d = defaults();
         if (tiers == null || tiers.size() != 5) tiers = d.tiers;
         for (int i = 0; i < tiers.size(); i++) {
@@ -188,7 +193,13 @@ public final class Config {
             requireDollarSign = true;
             privateMessageWords = d.privateMessageWords;
             configVersion = 2;
-            save();
+            migrated = true;
+        }
+        if (configVersion < 3) {
+            // 1.2: the extra animations are locked behind the secret panel
+            secretUnlocked = false;
+            configVersion = 3;
+            migrated = true;
         }
         if (outgoingWords == null) outgoingWords = d.outgoingWords;
         volume = Math.max(0f, Math.min(1f, volume));
@@ -196,6 +207,7 @@ public final class Config {
         speed = Math.max(0.25, Math.min(2.0, speed));
         maxQueue = Math.max(1, Math.min(50, maxQueue));
         combineSeconds = Math.max(0, Math.min(30, combineSeconds));
+        return migrated;
     }
 
     /** Which level an amount reaches: 0-4, or -1 if it is too small (or that level is switched off). */

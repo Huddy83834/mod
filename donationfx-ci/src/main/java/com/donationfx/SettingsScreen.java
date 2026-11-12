@@ -179,7 +179,7 @@ public class SettingsScreen extends Screen {
         int by = py + ph - 28;
         int bw = (pw - 20 - 5 * 4) / 6;
         int bx = px + 10;
-        addRenderableWidget(Button.builder(Component.literal("Animations..."), b -> {
+        addRenderableWidget(Button.builder(Component.literal(Themes.unlocked() ? "Animations..." : "Secret..."), b -> {
             Config.save();
             Minecraft.getInstance().setScreen(new ThemesScreen(this));
         }).bounds(bx, by, bw, 20).build());

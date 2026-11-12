@@ -54,7 +54,28 @@ public final class Themes {
         return t == null ? "" : t.desc;
     }
 
+    /** SHA-256 of the secret code, so the code itself is not written in the mod. */
+    private static final String CODE_HASH = "c94392b1b2b6e22afe36fb94cb3c3309";
+
+    public static boolean unlocked() {
+        return Config.get().secretUnlocked;
+    }
+
+    /** True if the code typed into the secret panel is right. */
+    public static boolean checkCode(String code) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] h = md.digest(("donationfx:" + code).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 16; i++) sb.append(String.format("%02x", h[i]));
+            return sb.toString().equals(CODE_HASH);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static boolean enabled(String id) {
+        if (!id.equalsIgnoreCase(CLASSIC) && !unlocked()) return false;
         for (String d : Config.get().disabledThemes) if (d.equalsIgnoreCase(id)) return false;
         return true;
     }
@@ -67,6 +88,7 @@ public final class Themes {
 
     /** Turns "random" (or an unknown/disabled name) into a real theme id. Avoids playing the same one twice in a row. */
     public static String pick(String wanted, String last) {
+        if (!unlocked()) return CLASSIC; // the extra animations are locked
         if (wanted != null && !wanted.equalsIgnoreCase(RANDOM)) {
             if (wanted.equalsIgnoreCase(CLASSIC) || get(wanted) != null) return wanted.toLowerCase();
         }

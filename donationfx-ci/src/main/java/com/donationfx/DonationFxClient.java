@@ -147,6 +147,7 @@ public class DonationFxClient implements ClientModInitializer {
                             return 1;
                         })))
                 .then(ClientCommandManager.literal("themes").executes(ctx -> {
+                    if (!Themes.unlocked()) return say(ctx, "\u00a7cThe extra animations are locked. Open the secret panel (/dfx, then Secret) and enter the code.");
                     StringBuilder sb = new StringBuilder("Animations: ");
                     for (String id : Themes.ids()) sb.append(id).append(Themes.enabled(id) ? "" : " (off)").append(", ");
                     say(ctx, sb.substring(0, sb.length() - 2));
@@ -177,6 +178,7 @@ public class DonationFxClient implements ClientModInitializer {
     }
 
     private static int theme(CommandContext<FabricClientCommandSource> ctx, String name, int level) {
+        if (!Themes.unlocked() && !name.equalsIgnoreCase(Themes.CLASSIC)) return say(ctx, "\u00a7cLocked. Open the secret panel (/dfx, then Secret) and enter the code.");
         if (!name.equalsIgnoreCase(Themes.CLASSIC) && Themes.get(name) == null) return say(ctx, "\u00a7cNo animation called " + name + ". Try /dfx themes");
         Minecraft mc = Minecraft.getInstance();
         Config.Tier t = Config.get().tiers.get(level - 1);
