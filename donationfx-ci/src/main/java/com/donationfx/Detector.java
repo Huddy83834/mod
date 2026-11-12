@@ -84,10 +84,10 @@ public final class Detector {
             lastMoneyVerdict = verdict;
             remember(text, verdict, actionBar);
             if (r != null) {
-                int raw = -1;
-                for (int i = 0; i < c.tiers.size(); i++) if (r.amount() >= c.tiers.get(i).minAmount) raw = i;
+                int rawLevel = -1;
+                for (int i = 0; i < c.tiers.size(); i++) if (r.amount() >= c.tiers.get(i).minAmount) rawLevel = i;
                 try {
-                    SheetLog.log(r.amount(), r.player(), raw, text, false);
+                    SheetLog.log(r.amount(), r.player(), rawLevel, text, false);
                 } catch (Exception e) {
                     DonationFxClient.LOG.warn("Donation FX: could not log donation", e);
                 }
