@@ -73,7 +73,19 @@ public final class Fx {
         List<Config.Sound> sounds;
         final Set<String> once = new HashSet<>();
         double rainAcc, confAcc, glyphAcc, starAcc, burstAcc;
+        /** Theme id ("classic" = the original animation). */
+        String theme = Themes.CLASSIC;
+        /** Forced theme (tests), or null to use the level's setting. */
+        String forceTheme;
+        ThemeKit.Bag bag;
+        boolean classic() {
+            return Themes.CLASSIC.equals(theme);
+        }
     }
+
+    private static final double[] THEME_KICKS = {0.0};
+    private static String lastTheme = null;
+    private static final ThemeKit.Ctx CTX = new ThemeKit.Ctx();
 
     private static final class P {
         static final int CONFETTI = 0, SPARK = 1, ITEM = 2, GLYPH = 3;
@@ -113,6 +125,11 @@ public final class Fx {
 
     /** Called when money arrives. level = 0..4. */
     public static void donate(double amount, String player, int level, boolean test) {
+        donate(amount, player, level, test, null);
+    }
+
+    /** Same, but always uses the given theme (for testing a theme). */
+    public static void donate(double amount, String player, int level, boolean test, String theme) {
         Config c = Config.get();
         if (level < 0 || level >= c.tiers.size()) return;
         Minecraft mc = Minecraft.getInstance();
@@ -152,6 +169,7 @@ public final class Fx {
         s.amount = amount;
         s.player = player;
         s.test = test;
+        s.forceTheme = theme;
         if (!c.queue) {
             QUEUE.clear();
             cur = null;
@@ -195,17 +213,32 @@ public final class Fx {
         double inside = s.tier.minAmount > 0 && next > s.tier.minAmount
                 ? Math.log(Math.max(1, s.amount / s.tier.minAmount)) / Math.log(next / s.tier.minAmount) : 0;
         s.intensity = s.tier.intensity * (1 + 0.6 * Math.max(0, Math.min(1, inside)));
-        s.sounds = new ArrayList<>(s.tier.sounds);
+        s.theme = Themes.pick(s.forceTheme != null ? s.forceTheme : s.tier.theme, lastTheme);
+        lastTheme = s.theme;
+        ThemeKit.Theme th = Themes.get(s.theme);
+        if (th == null) s.theme = Themes.CLASSIC;
+        if (th != null && c.themeSounds) {
+            s.sounds = new ArrayList<>();
+            try {
+                th.sounds(s.level, s.tier.seconds, s.sounds);
+            } catch (Exception e) {
+                DonationFxClient.LOG.warn("Donation FX: theme sounds failed", e);
+            }
+            Themes.stingers(s.level, s.sounds);
+        } else {
+            s.sounds = new ArrayList<>(s.tier.sounds);
+        }
         s.sounds.removeIf(x -> x == null || x.id == null);
         s.sounds.sort(Comparator.comparingDouble(x -> x.at));
+        if (th != null) s.bag = new ThemeKit.Bag(R.nextLong());
         cur = s;
 
-        // opening burst on screen
+        // opening burst on screen (classic only; themes do their own)
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
         int n = (int) Math.min(420, (40 + 45 * s.level) * s.intensity);
-        for (int i = 0; i < n; i++) confetti(w / 2f, h * 0.35f, 140 + 60 * s.level, 260 + 40 * s.level, s);
-        if (s.level >= 2) {
+        if (s.classic()) for (int i = 0; i < n; i++) confetti(w / 2f, h * 0.35f, 140 + 60 * s.level, 260 + 40 * s.level, s);
+        if (s.level >= 2 && s.classic()) {
             int side = (int) Math.min(200, 30 * s.level * s.intensity);
             for (int i = 0; i < side; i++) {
                 cannon(0, h, 1, s);
@@ -540,7 +573,7 @@ public final class Fx {
         float sx = 0, sy = 0;
         if (s != null && c.shake && SHAKE[s.level] > 0) {
             double amp = 0;
-            for (double k : KICKS[s.level]) if (tNorm >= k) amp += SHAKE[s.level] * Math.exp(-(tNorm - k) * 3.2);
+            for (double k : (s.classic() ? KICKS[s.level] : THEME_KICKS)) if (tNorm >= k) amp += SHAKE[s.level] * Math.exp(-(tNorm - k) * 3.2);
             if (s.level >= 4) amp += 0.8;
             amp = Math.min(12, amp * Math.sqrt(s.intensity)) * vis;
             sx = (float) (R.nextGaussian() * amp);
@@ -553,7 +586,9 @@ public final class Fx {
         g.pose().pushMatrix();
         g.pose().translate(sx, sy);
 
-        if (s != null) {
+        if (s != null && !s.classic()) {
+            drawTheme(g, mc, s, w, h, cx, cy, tNorm, dt / (float) c.speed, vis);
+        } else if (s != null) {
             int L = s.level;
             int col = color(s, 0);
             if (L >= 4) rainbowSweep(g, w, h, el, vis);
@@ -575,12 +610,42 @@ public final class Fx {
         // flashes (not shaken)
         if (s != null && c.flashes && s.level >= 3) {
             float fa = 0;
-            for (double k : KICKS[s.level]) {
+            for (double k : (s.classic() ? KICKS[s.level] : THEME_KICKS)) {
                 double since = tNorm - k;
                 if (since >= 0 && since < 0.35) fa = Math.max(fa, (float) (1 - since / 0.35) * (k == 0 ? 0.75f : 0.35f));
             }
             if (fa > 0.01f) g.fill(0, 0, w, h, argb(fa, s.level >= 4 && tNorm > 0.1 ? color(s, 50) : 0xFFFFFF));
         }
+    }
+
+    private static void drawTheme(GuiGraphics g, Minecraft mc, Show s, int w, int h, float cx, float cy, double t, float dt, float vis) {
+        ThemeKit.Theme th = Themes.get(s.theme);
+        if (th == null) return;
+        ThemeKit.Ctx x = CTX;
+        x.g = g;
+        x.font = mc.font;
+        x.mc = mc;
+        x.w = w;
+        x.h = h;
+        x.cx = cx;
+        x.cy = cy;
+        x.t = t;
+        x.T = s.tier.seconds;
+        x.dt = Math.min(0.1f, dt);
+        x.vis = vis;
+        x.L = s.level;
+        x.k = s.intensity;
+        x.rainbow = "rainbow".equalsIgnoreCase(s.tier.color);
+        x.col = parseColor(s.tier.color, 0xFFFFFF);
+        x.flashes = Config.get().flashes;
+        x.amount = s.amount;
+        x.player = s.player;
+        x.bag = s.bag;
+        if (!s.bag.started) {
+            s.bag.started = true;
+            th.start(x);
+        }
+        th.draw(x);
     }
 
     private static void title(GuiGraphics g, Minecraft mc, Show s, float cx, float cy, double el, float vis, int w) {

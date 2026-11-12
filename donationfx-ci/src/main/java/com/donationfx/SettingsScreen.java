@@ -177,18 +177,23 @@ public class SettingsScreen extends Screen {
 
         // bottom buttons
         int by = py + ph - 28;
-        int bw = (pw - 20 - 4 * 4) / 5;
+        int bw = (pw - 20 - 5 * 4) / 6;
         int bx = px + 10;
+        addRenderableWidget(Button.builder(Component.literal("Animations..."), b -> {
+            Config.save();
+            Minecraft.getInstance().setScreen(new ThemesScreen(this));
+        }).bounds(bx, by, bw, 20).build());
+        bx += bw + 4;
         addRenderableWidget(Button.builder(Component.literal("Test random"), b -> test(-1)).bounds(bx, by, bw, 20).build());
         bx += bw + 4;
-        addRenderableWidget(Button.builder(Component.literal("Stop all"), b -> Fx.stop()).bounds(bx, by, bw, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("Stop"), b -> Fx.stop()).bounds(bx, by, bw, 20).build());
         bx += bw + 4;
-        addRenderableWidget(Button.builder(Component.literal("Open folder"), b -> {
+        addRenderableWidget(Button.builder(Component.literal("Folder"), b -> {
             Config.save();
             Util.getPlatform().openPath(FabricLoader.getInstance().getConfigDir());
         }).bounds(bx, by, bw, 20).build());
         bx += bw + 4;
-        addRenderableWidget(Button.builder(Component.literal("Reload file"), b -> {
+        addRenderableWidget(Button.builder(Component.literal("Reload"), b -> {
             Config.load();
             Detector.clearCache();
             rebuild();
@@ -197,7 +202,7 @@ public class SettingsScreen extends Screen {
         resetButton = addRenderableWidget(Button.builder(Component.literal("Reset all"), b -> {
             if (!confirmReset) {
                 confirmReset = true;
-                b.setMessage(Component.literal("Sure? Click again"));
+                b.setMessage(Component.literal("Sure?"));
                 return;
             }
             confirmReset = false;

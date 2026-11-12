@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
@@ -145,6 +146,18 @@ public class DonationFxClient implements ClientModInitializer {
                             testLevel(Minecraft.getInstance(), IntegerArgumentType.getInteger(ctx, "level") - 1);
                             return 1;
                         })))
+                .then(ClientCommandManager.literal("themes").executes(ctx -> {
+                    StringBuilder sb = new StringBuilder("Animations: ");
+                    for (String id : Themes.ids()) sb.append(id).append(Themes.enabled(id) ? "" : " (off)").append(", ");
+                    say(ctx, sb.substring(0, sb.length() - 2));
+                    return say(ctx, "Play one with /dfx theme <name> [level 1-5]. Change them with /dfx then Animations...");
+                }))
+                .then(ClientCommandManager.literal("theme")
+                        .then(ClientCommandManager.argument("name", StringArgumentType.word())
+                                .suggests((ctx, b) -> SharedSuggestionProvider.suggest(Themes.ids(), b))
+                                .executes(ctx -> theme(ctx, StringArgumentType.getString(ctx, "name"), 3))
+                                .then(ClientCommandManager.argument("level", IntegerArgumentType.integer(1, 5))
+                                        .executes(ctx -> theme(ctx, StringArgumentType.getString(ctx, "name"), IntegerArgumentType.getInteger(ctx, "level"))))))
                 .then(ClientCommandManager.literal("amount")
                         .then(ClientCommandManager.argument("money", StringArgumentType.word())
                                 .executes(ctx -> amount(ctx, StringArgumentType.getString(ctx, "money"), null))
@@ -161,6 +174,15 @@ public class DonationFxClient implements ClientModInitializer {
                             Fx.donate(r.amount(), r.player(), level, true);
                             return say(ctx, "§aDonation! " + Money.full(r.amount()) + " from " + r.player() + " = level " + (level + 1) + " (" + r.why() + ")");
                         })));
+    }
+
+    private static int theme(CommandContext<FabricClientCommandSource> ctx, String name, int level) {
+        if (!name.equalsIgnoreCase(Themes.CLASSIC) && Themes.get(name) == null) return say(ctx, "\u00a7cNo animation called " + name + ". Try /dfx themes");
+        Minecraft mc = Minecraft.getInstance();
+        Config.Tier t = Config.get().tiers.get(level - 1);
+        String who = mc.player == null ? "You" : mc.player.getGameProfile().name();
+        Fx.donate(t.minAmount, who, level - 1, true, name.toLowerCase());
+        return say(ctx, "Playing " + Themes.name(name) + " as level " + level + ".");
     }
 
     private static int amount(CommandContext<FabricClientCommandSource> ctx, String money, String player) {

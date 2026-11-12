@@ -45,6 +45,8 @@ public final class Config {
         public double seconds;
         /** 1.0 = normal. Higher = more particles and effects. */
         public double intensity = 1.0;
+        /** Which animation: "random", "classic", or a theme id like "jackpot" (see /donationfx themes). */
+        public String theme = "random";
         /** Items that rain down the screen. */
         public List<String> rainItems = new ArrayList<>();
         public List<Sound> sounds = new ArrayList<>();
@@ -110,6 +112,11 @@ public final class Config {
     /** Save money messages to config/donationfx-seen.txt so patterns can be made for them. */
     public boolean saveSeenLines = true;
 
+    /** Themes that "random" never picks. */
+    public List<String> disabledThemes = new ArrayList<>();
+    /** Themes play their own music and sounds (instead of the level's sound list). */
+    public boolean themeSounds = true;
+
     public List<Tier> tiers = new ArrayList<>();
 
     public static Config get() {
@@ -169,10 +176,12 @@ public final class Config {
             if (t.intensity <= 0) t.intensity = 1;
             if (t.rainItems == null) t.rainItems = dt.rainItems;
             if (t.sounds == null) t.sounds = dt.sounds;
+            if (t.theme == null || t.theme.isBlank()) t.theme = "random";
         }
         if (customPatterns == null) customPatterns = new ArrayList<>();
         if (incomingWords == null) incomingWords = d.incomingWords;
         if (privateMessageWords == null) privateMessageWords = d.privateMessageWords;
+        if (disabledThemes == null) disabledThemes = new ArrayList<>();
         if (configVersion < 2) {
             // 1.0 counted "from" and plain numbers like "5m": a private message could set it off
             incomingWords.removeIf(w -> w.equalsIgnoreCase("from") || w.equals("+$"));
