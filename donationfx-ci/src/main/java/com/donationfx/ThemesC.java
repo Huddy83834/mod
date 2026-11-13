@@ -599,10 +599,10 @@ final class ThemesC {
             step(c.bag.a, c.dt, c.h);
             for (Bit b : c.bag.a) {
                 float a = c.vis * 0.8f;
-                ring(g, b.x, b.y, b.size, b.size, 1.4f, A(a, 0xCFFFFF), 20);
-                ring(g, b.x, b.y, b.size, b.size, 1.0f, A(a * 0.6f, b.col), 20);
-                disc(g, b.x - b.size * 0.3f, b.y - b.size * 0.35f, b.size * 0.22f, b.size * 0.22f, A(a * 0.8f, 0xFFFFFF), 8);
-                disc(g, b.x, b.y, b.size, b.size, A(a * 0.06f, b.col), 10);
+                int segs = b.size > 14 ? 14 : 10;
+                ring(g, b.x, b.y, b.size, b.size, 1.4f, A(a, 0xCFFFFF), segs);
+                ring(g, b.x, b.y, b.size * 0.72f, b.size * 0.72f, 1.0f, A(a * 0.5f, b.col), segs);
+                disc(g, b.x - b.size * 0.3f, b.y - b.size * 0.35f, b.size * 0.2f, b.size * 0.2f, A(a * 0.8f, 0xFFFFFF), 5);
             }
             step(c.bag.b, c.dt, c.h);
             drawSparks(c, c.bag.b);
