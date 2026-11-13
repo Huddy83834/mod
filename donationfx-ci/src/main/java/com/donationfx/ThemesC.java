@@ -189,10 +189,12 @@ final class ThemesC {
                 float width = (90 - 70 * f) * s * (1 + 0.15f * (float) Math.sin(c.t * 4 + f * 8));
                 float wob = (float) Math.sin(yy * 0.03 + c.t * 8) * 10 * s;
                 float a = c.vis * (0.12f + 0.12f * (1 - f));
-                rect(g, fx + wob, yy, width, 7, 0, A(a, 0x9aa0ac));
-                rect(g, fx + wob, yy, width * 0.6f, 7, 0, A(a, 0x6b7078));
+                rect(g, fx + wob, yy, width, 7, 0, A(a * 1.2f, 0xB6BAC4));
+                rect(g, fx + wob, yy, width * 0.6f, 7, 0, A(a * 1.1f, 0x7E838C));
+                rect(g, fx + wob - width * 0.35f, yy, width * 0.18f, 7, 0, A(a * 0.8f, 0xE8EAF0));
             }
-            glow(g, fx, groundY, 70 * s, 0x5a5e66, 0.3f * c.vis);
+            glow(g, fx, groundY, 90 * s, 0x7E838C, 0.35f * c.vis);
+            for (int i = 0; i < 10; i++) { float dx = (float) c.bag.r.nextGaussian() * 50 * s; disc(g, fx + dx, groundY + c.bag.r.nextFloat() * 8, 20 * s, 7 * s, A(0.06f * c.vis, 0xC9CDd6 & 0xFFFFFF), 5); }
             // debris spiralling up the funnel
             if (c.spawning()) {
                 c.bag.acc1 += c.dt * (40 + 20 * c.L) * c.k;
@@ -206,7 +208,7 @@ final class ThemesC {
                     b.kind = c.bag.r.nextInt(3) == 0 ? 1 : 0;
                     if (b.kind == 1) b.item = stack(JUNK[c.bag.r.nextInt(JUNK.length)]);
                     b.size = 1 + c.bag.r.nextFloat() * 1.5f;
-                    b.col = mix(0x8a7a5a, 0x5a5048, c.bag.r.nextFloat());
+                    b.col = mix(0xC9B98A, 0x8A7E68, c.bag.r.nextFloat());
                 }
             }
             for (Bit b : c.bag.a) {
@@ -335,20 +337,36 @@ final class ThemesC {
         @Override
         public void draw(Ctx c) {
             GuiGraphics g = c.g;
-            tint(c, 0x03030E, 0.7f * c.vis);
+            tint(c, 0x02020A, 0.82f * c.vis);
             float gx = c.w / 2f, gy = c.h * 0.52f;
             float spin = (float) (c.t * 0.5 + easeOut(c.t / 2) * 0.6);
-            glow(g, gx, gy, 70, 0xFFE9B0, 0.4f * c.vis);
-            glow(g, gx, gy, 130, 0x6A4AD0, 0.15f * c.vis);
+            // glowing core with a hot center and a wide purple halo
+            glow(g, gx, gy, 170, 0x5A36C0, 0.22f * c.vis);
+            glow(g, gx, gy, 95, 0xFFCF7A, 0.55f * c.vis);
+            glow(g, gx, gy, 46, 0xFFF4D0, 0.7f * c.vis);
+            // soft rotating haze bands along the two arms
+            for (int arm = 0; arm < 2; arm++) {
+                for (int i = 3; i < 60; i += 3) {
+                    float dist = i / 60f;
+                    float rad = dist * Math.max(c.w, c.h) * 0.6f + 8;
+                    float ang = (float) (arm * Math.PI + dist * 7) + spin * (60f / Math.max(20, rad));
+                    float x = gx + (float) Math.cos(ang) * rad, y = gy + (float) Math.sin(ang) * rad * 0.52f;
+                    int col = mix(0x8AB6FF, 0x9A6AFF, dist);
+                    disc(g, x, y, (18 - dist * 14), (10 - dist * 8), A(0.07f * c.vis, col), 6);
+                }
+            }
             for (Bit b : c.bag.a) {
                 float ang = b.a + spin * (60f / Math.max(20, b.b));
                 float x = gx + (float) Math.cos(ang) * b.b;
                 float y = gy + (float) Math.sin(ang) * b.b * 0.52f;
                 float tw = 0.6f + 0.4f * (float) Math.sin(c.t * 4 + b.b);
-                rect(g, x, y, b.size, b.size, 0, A(c.vis * tw, b.col));
+                float sz = b.size * (b.b < 60 ? 1.6f : 1.2f);
+                if (b.b < 50) glow(g, x, y, sz * 3, b.col, 0.3f * c.vis * tw);
+                rect(g, x, y, sz, sz, 0, A(c.vis * tw, b.col));
             }
-            disc(g, gx, gy, 16, 9, A(c.vis, 0xFFF8E0));
-            if (c.spawning() && c.bag.r.nextFloat() < c.dt * 8) c.bag.b.add(ThemesA.glint(c.bag.r.nextFloat() * c.w, c.bag.r.nextFloat() * c.h));
+            disc(g, gx, gy, 18, 10, A(c.vis, 0xFFFBEE));
+            disc(g, gx, gy, 9, 5, A(c.vis, 0xFFFFFF));
+            if (c.spawning() && c.bag.r.nextFloat() < c.dt * 10) c.bag.b.add(ThemesA.glint(c.bag.r.nextFloat() * c.w, c.bag.r.nextFloat() * c.h));
             ThemesA.drawGlints(c, c.bag.b);
         }
 
@@ -498,9 +516,10 @@ final class ThemesC {
             GuiGraphics g = c.g;
             tint(c, 0x0B0B1E, 0.6f * c.vis);
             // big pixel coin spinning in the middle-ish
-            float s = sc(c) * (4 + c.L * 0.6f);
+            float s = sc(c) * (5.5f + c.L * 0.7f);
             float spin = Math.abs((float) Math.cos(c.t * 4));
             float cw = (0.2f + 0.8f * spin);
+            glow(g, c.cx, c.cy, s * 1.5f * cw, 0xFFD54F, 0.45f * c.vis);
             drawCoin(g, c.cx, c.cy, s, cw, c.vis);
             // falling pixel blocks
             if (c.spawning()) {
@@ -912,12 +931,13 @@ final class ThemesC {
                     float tf = i / 24f;
                     float tx = x - (x - (-40)) * tf * 0.12f;
                     float ty = y + (c.h * 0.9f - y) * tf * 0.12f;
-                    float sz = (10 - tf * 9) * s;
+                    float sz = (14 - tf * 12) * s;
                     int col = tf < 0.3f ? 0xFFF4C0 : mix(0xFF8030, 0x6A2000, (tf - 0.3f) / 0.7f);
                     rect(g, tx, ty, sz, sz, 0, A(c.vis * (1 - tf) * 0.8f, col));
                 }
-                glow(g, x, y, 24 * s, 0xFFE0A0, 0.7f * c.vis);
-                disc(g, x, y, 7 * s, 7 * s, A(c.vis, 0xFFFFFF), 10);
+                glow(g, x, y, 42 * s, 0xFF9A3C, 0.5f * c.vis);
+                glow(g, x, y, 22 * s, 0xFFE8B0, 0.8f * c.vis);
+                disc(g, x, y, 9 * s, 9 * s, A(c.vis, 0xFFFFFF), 10);
                 c.bag.extra = new float[]{x, y};
             } else if (c.bag.last < 0) {
                 c.bag.last = 1;
@@ -1004,16 +1024,18 @@ final class ThemesC {
         @Override
         public void draw(Ctx c) {
             GuiGraphics g = c.g;
-            float s = sc(c);
-            tint(c, 0x160402, 0.45f * c.vis);
+            float s = sc(c) * (1.35f + c.L * 0.08f);
+            tint(c, 0x120302, 0.5f * c.vis);
             float rise = (float) easeOut(Math.min(1, c.t / (c.T * 0.7)));
             float bx = c.w / 2f + (float) Math.sin(c.t * 1.2) * c.w * 0.12f;
             float by = c.h * (1.0f - rise * 0.75f);
             float flap = (float) Math.sin(c.t * 7);
             float wing = (40 + c.L * 6) * s;
             // body
-            glow(g, bx, by, 40 * s, 0xFF8A2A, 0.6f * c.vis);
-            disc(g, bx, by, 8 * s, 12 * s, A(c.vis, 0xFFD24A), 12);
+            glow(g, bx, by, 70 * s, 0xFF6A10, 0.4f * c.vis);
+            glow(g, bx, by, 38 * s, 0xFFC24A, 0.6f * c.vis);
+            disc(g, bx, by, 9 * s, 14 * s, A(c.vis, 0xFFE27A), 12);
+            disc(g, bx, by, 5 * s, 9 * s, A(c.vis, 0xFFF6C0), 10);
             // head + beak
             disc(g, bx, by - 13 * s, 5 * s, 5 * s, A(c.vis, 0xFFE27A), 8);
             rect(g, bx, by - 13 * s, 5 * s, 2.5f * s, 0, A(c.vis, 0xFF6A10));
@@ -1033,7 +1055,8 @@ final class ThemesC {
                     float ex = bx + side * (float) Math.cos(ang) * len;
                     float ey = by - 2 * s + (float) Math.sin(ang - Math.PI) * len * 0.5f + fth * 2;
                     int col = fth < 2 ? 0xFFE27A : fth < 4 ? 0xFF8A2A : 0xC2420A;
-                    line(g, bx, by - 2 * s, ex, ey, (4 - fth * 0.4f) * s, A(c.vis, col));
+                    line(g, bx, by - 2 * s, ex, ey, (5.5f - fth * 0.5f) * s, A(c.vis, col));
+                    line(g, bx, by - 2 * s, ex, ey, (2.2f - fth * 0.2f) * s, A(c.vis * 0.8f, 0xFFF0C0));
                 }
             }
             // embers

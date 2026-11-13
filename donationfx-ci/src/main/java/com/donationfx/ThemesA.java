@@ -354,7 +354,7 @@ final class ThemesA {
 
         @Override
         public void start(Ctx c) {
-            for (int i = 0; i < 320; i++) {
+            for (int i = 0; i < 460; i++) {
                 Bit b = new Bit();
                 reset(b, c.bag.r, true);
                 c.bag.a.add(b);
@@ -381,7 +381,8 @@ final class ThemesA {
                 int col = i % 3 == 0 ? 0x6A2CFF : i % 3 == 1 ? 0x2C7BFF : 0xFF2CA8;
                 glow(g, x, y, 110 + 20 * c.L, col, 0.2f * c.vis);
             }
-            glow(g, c.w / 2f, c.h / 2f, 50 + v * 30, 0xBFE4FF, 0.35f * c.vis);
+            glow(g, c.w / 2f, c.h / 2f, 70 + v * 46, 0xBFE4FF, 0.5f * c.vis);
+            glow(g, c.w / 2f, c.h / 2f, 24 + v * 14, 0xFFFFFF, 0.5f * c.vis);
             float fx = c.w * 0.5f, fy = c.h * 0.5f;
             for (Bit b : s.a) {
                 float z0 = b.a;
@@ -398,13 +399,13 @@ final class ThemesA {
                     continue;
                 }
                 float near = Math.min(1, (1.2f - b.a) / 1.2f);
-                float th = 0.6f + near * 1.8f;
+                float th = 0.7f + near * 2.6f;
                 line(g, x0, y0, x1, y1, th, A(c.vis * (0.25f + 0.75f * near), b.col));
                 if (z0 < 0) b.dead = true;
             }
             // warp flash
             double since = c.t - 1.4;
-            if (c.flashes && since >= 0 && since < 0.35) tint(c, 0xE8F4FF, (float) (1 - since / 0.35) * 0.55f);
+            if (c.flashes && since >= 0 && since < 0.4) tint(c, 0xEAF4FF, (float) (1 - since / 0.4) * 0.75f);
         }
 
         @Override

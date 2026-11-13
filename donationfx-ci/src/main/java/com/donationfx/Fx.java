@@ -719,8 +719,24 @@ public final class Fx {
             s.bag.started = true;
             th.start(x);
         }
+        cinematicBackdrop(g, w, h, vis); // subtle dark frame so the animation pops off the game world
         th.draw(x);
         themeShake = Math.max(0, x.shake);
+    }
+
+    /** A gentle vignette drawn behind every theme. Themes with their own full background simply paint over it. */
+    private static void cinematicBackdrop(GuiGraphics g, int w, int h, float vis) {
+        int col = 0x04050C;
+        int top = h / 3, bot = h / 3;
+        g.fillGradient(0, 0, w, top, argb(0.30f * vis, col), argb(0, col));
+        g.fillGradient(0, h - bot, w, h, argb(0, col), argb(0.42f * vis, col));
+        int strips = 10;
+        int sw = Math.max(1, w / 34);
+        for (int i = 0; i < strips; i++) {
+            int a = argb((1 - i / (float) strips) * 0.30f * vis, col);
+            g.fill(i * sw, 0, (i + 1) * sw, h, a);
+            g.fill(w - (i + 1) * sw, 0, w - i * sw, h, a);
+        }
     }
 
     private static void title(GuiGraphics g, Minecraft mc, Show s, float cx, float cy, double el, float vis, int w) {
