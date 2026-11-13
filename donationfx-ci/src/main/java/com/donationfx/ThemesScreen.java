@@ -8,20 +8,24 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
-/** Pick the animation for each level, switch themes on/off for "Random", and test any theme. */
+/** Choose which animations are in each level's pool, with a secret-code lock in front of them. */
 public class ThemesScreen extends Screen {
     private static final int BG = 0xF00B0D13;
     private static final int LINE = 0xFF2A3142;
     private static final int GOLD = 0xFFF5B83D;
     private static final int TEXT = 0xFFE8EAF0;
     private static final int DIM = 0xFF8B93A7;
+    private static final int GREEN = 0xFF3DDC84;
 
     private final Screen parent;
     private int px, py, pw, ph;
-    private int gridY, cols, cellW;
-    private static int testLevel = 2;
+    private int gridY, cols, cellW, rowH = 20;
+    private int selLevel = 0;
+    private boolean previewMode = false;
     private final List<String> ids = new ArrayList<>();
     private String hover = null;
 
@@ -49,71 +53,120 @@ public class ThemesScreen extends Screen {
         Config c = Config.get();
         ids.clear();
         ids.addAll(Themes.ids());
-        pw = Math.min(this.width - 12, 600);
-        ph = Math.min(this.height - 12, 310);
+        pw = Math.min(this.width - 12, 620);
+        ph = Math.min(this.height - 10, 320);
         px = (this.width - pw) / 2;
         py = (this.height - ph) / 2;
+        if (selLevel >= c.tiers.size()) selLevel = 0;
 
-        addRenderableWidget(Button.builder(Component.literal("Back"), b -> onClose()).bounds(px + pw - 56, py + 6, 50, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("Back"), b -> onClose()).bounds(px + pw - 54, py + 6, 48, 18).build());
         addRenderableWidget(Button.builder(Component.literal("Lock"), b -> {
             c.secretUnlocked = false;
             Config.save();
             Fx.playId("minecraft:block.iron_door.close", 0.8f, 1.0f);
             typed = "";
             rebuild();
-        }).bounds(px + pw - 56 - 4 - 64, py + 6, 64, 20).build());
+        }).bounds(px + pw - 54 - 4 - 50, py + 6, 50, 18).build());
 
-        // which theme each level uses
-        int y = py + 46;
-        int lw = (pw - 20 - 4 * 4) / 5;
-        for (int i = 0; i < c.tiers.size(); i++) {
-            Config.Tier t = c.tiers.get(i);
+        // level selector row
+        int y = py + 42;
+        int n = c.tiers.size();
+        int lw = Math.min(70, (pw - 20) / Math.max(1, n));
+        for (int i = 0; i < n; i++) {
             final int idx = i;
-            addRenderableWidget(Button.builder(Component.literal(levelLabel(idx)), b -> {
-                t.theme = Themes.next(t.theme, 1);
-                b.setMessage(Component.literal(levelLabel(idx)));
-                Config.save();
-            }).bounds(px + 10 + i * (lw + 4), y, lw, 20).build());
+            Button b = Button.builder(Component.literal("Lv " + (i + 1)), x -> {
+                selLevel = idx;
+                rebuild();
+            }).bounds(px + 10 + i * (lw + 2), y, lw, 18).build();
+            b.active = i != selLevel;
+            addRenderableWidget(b);
         }
 
-        y += 24;
-        int ow = (pw - 20 - 3 * 4) / 4;
-        addRenderableWidget(Button.builder(Component.literal(testLabel()), b -> {
-            testLevel = (testLevel + 1) % 5;
-            b.setMessage(Component.literal(testLabel()));
-        }).bounds(px + 10, y, ow, 20).build());
+        // controls row
+        y += 22;
+        int ow = (pw - 20 - 4 * 4) / 5;
+        int ox = px + 10;
+        addRenderableWidget(Button.builder(Component.literal("All (random)"), b -> {
+            c.tiers.get(selLevel).pool.clear();
+            Config.save();
+            rebuild();
+        }).bounds(ox, y, ow, 18).build());
+        ox += ow + 4;
+        addRenderableWidget(Button.builder(Component.literal("Classic only"), b -> {
+            Config.Tier t = c.tiers.get(selLevel);
+            t.pool.clear();
+            t.pool.add(Themes.CLASSIC);
+            Config.save();
+            rebuild();
+        }).bounds(ox, y, ow, 18).build());
+        ox += ow + 4;
+        addRenderableWidget(Button.builder(Component.literal("Surprise 6"), b -> {
+            Config.Tier t = c.tiers.get(selLevel);
+            List<String> all = new ArrayList<>();
+            for (String id : ids) if (Themes.enabled(id)) all.add(id);
+            java.util.Collections.shuffle(all);
+            t.pool.clear();
+            t.pool.addAll(all.subList(0, Math.min(6, all.size())));
+            Config.save();
+            rebuild();
+        }).bounds(ox, y, ow, 18).build());
+        ox += ow + 4;
+        addRenderableWidget(Button.builder(Component.literal(previewMode ? "Click: Preview" : "Click: Choose"), b -> {
+            previewMode = !previewMode;
+            b.setMessage(Component.literal(previewMode ? "Click: Preview" : "Click: Choose"));
+        }).bounds(ox, y, ow, 18).build());
+        ox += ow + 4;
         addRenderableWidget(Button.builder(Component.literal(soundLabel()), b -> {
             c.themeSounds = !c.themeSounds;
             b.setMessage(Component.literal(soundLabel()));
             Config.save();
-        }).bounds(px + 10 + (ow + 4), y, ow, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("All on"), b -> {
-            c.disabledThemes.clear();
-            Config.save();
-            rebuild();
-        }).bounds(px + 10 + 2 * (ow + 4), y, ow, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("All off"), b -> {
-            c.disabledThemes.clear();
-            for (String id : ids) if (!id.equals(Themes.CLASSIC)) c.disabledThemes.add(id);
-            Config.save();
-            rebuild();
-        }).bounds(px + 10 + 3 * (ow + 4), y, ow, 20).build());
+        }).bounds(ox, y, ow, 18).build());
 
-        // every theme: on/off for Random, and a test button
-        gridY = y + 34;
-        cols = pw >= 380 ? 3 : 2;
+        // animation grid: fit columns so every animation shows without scrolling
+        gridY = y + 24;
+        int gridBottom = py + ph - 24;
+        int avail = gridBottom - gridY;
+        int maxRows = Math.max(4, avail / rowH);
+        cols = Math.max(3, (int) Math.ceil(ids.size() / (double) maxRows));
+        cols = Math.min(cols, 8);
         cellW = (pw - 20) / cols;
         for (int i = 0; i < ids.size(); i++) {
-            String id = ids.get(i);
-            int cx = px + 10 + (i % cols) * cellW;
-            int cy = gridY + (i / cols) * 22;
-            addRenderableWidget(Button.builder(Component.literal(Themes.enabled(id) ? "ON" : "OFF"), b -> {
-                Themes.setEnabled(id, !Themes.enabled(id));
-                b.setMessage(Component.literal(Themes.enabled(id) ? "ON" : "OFF"));
-                Config.save();
-            }).bounds(cx, cy, 30, 20).build());
-            addRenderableWidget(Button.builder(Component.literal("▶"), b -> test(id)).bounds(cx + 32, cy, 20, 20).build());
+            final String id = ids.get(i);
+            int gx = px + 10 + (i % cols) * cellW;
+            int gy = gridY + (i / cols) * rowH;
+            addRenderableWidget(Button.builder(Component.literal(""), b -> cellClick(id)).bounds(gx, gy, cellW - 2, rowH - 2).build());
         }
+    }
+
+    private void cellClick(String id) {
+        Config c = Config.get();
+        if (previewMode) {
+            test(id);
+            return;
+        }
+        Config.Tier t = c.tiers.get(selLevel);
+        Set<String> cur = new LinkedHashSet<>();
+        if (t.pool.isEmpty()) {
+            for (String x : ids) if (Themes.enabled(x)) cur.add(x);
+        } else {
+            cur.addAll(t.pool);
+        }
+        if (cur.contains(id)) cur.remove(id);
+        else cur.add(id);
+        // can't choose nothing: empty falls back to "all"
+        Set<String> allEnabled = new LinkedHashSet<>();
+        for (String x : ids) if (Themes.enabled(x)) allEnabled.add(x);
+        if (cur.isEmpty() || cur.equals(allEnabled)) t.pool.clear();
+        else {
+            t.pool.clear();
+            t.pool.addAll(cur);
+        }
+        Config.save();
+        Fx.playId("minecraft:ui.button.click", 0.4f, 1.3f);
+    }
+
+    private boolean inPool(Config.Tier t, String id) {
+        return t.pool.isEmpty() || t.pool.contains(id);
     }
 
     // ------------------------------------------------------------------ secret keypad
@@ -157,7 +210,7 @@ public class ThemesScreen extends Screen {
         if (Themes.checkCode(typed)) {
             Config c = Config.get();
             c.secretUnlocked = true;
-            c.disabledThemes.clear(); // all 20 can now be picked
+            c.disabledThemes.clear();
             Config.save();
             wrongTries = 0;
             unlockedAt = System.currentTimeMillis();
@@ -205,11 +258,9 @@ public class ThemesScreen extends Screen {
     private void renderLocked(GuiGraphics g, int mouseX, int mouseY) {
         long now = System.currentTimeMillis();
         int cx = px + pw / 2;
-        String lock = "\u2726";
         g.drawCenteredString(this.font, "SECRET ANIMATIONS", cx, py + 10, GOLD);
         g.drawCenteredString(this.font, "Enter the code to unlock", cx, py + 22, DIM);
-        g.drawCenteredString(this.font, "20 extra animations.", cx, py + 32, DIM);
-        // code display
+        g.drawCenteredString(this.font, "40 extra animations.", cx, py + 32, DIM);
         int shake = now - wrongAt < 400 ? (int) (Math.sin((now - wrongAt) / 25.0) * 4) : 0;
         int dw = 24, gap = 8;
         int dx = cx - (dw * CODE_LEN + gap * (CODE_LEN - 1)) / 2 + shake;
@@ -220,7 +271,7 @@ public class ThemesScreen extends Screen {
             int border = wrong ? 0xFFFF5C5C : i < typed.length() ? GOLD : LINE;
             g.fill(x - 1, dy - 1, x + dw + 1, dy + 23, border);
             g.fill(x, dy, x + dw, dy + 22, 0xFF05060A);
-            if (i < typed.length()) g.drawCenteredString(this.font, "\u25cf", x + dw / 2, dy + 7, TEXT);
+            if (i < typed.length()) g.drawCenteredString(this.font, "●", x + dw / 2, dy + 7, TEXT);
         }
         String status;
         int col;
@@ -231,7 +282,7 @@ public class ThemesScreen extends Screen {
             status = "Wrong code";
             col = 0xFFFF5C5C;
         } else {
-            status = lock + " Locked";
+            status = "✦ Locked";
             col = DIM;
         }
         g.drawCenteredString(this.font, status, cx, py + ph - 40, col);
@@ -242,16 +293,8 @@ public class ThemesScreen extends Screen {
         init();
     }
 
-    private static String levelLabel(int i) {
-        return "Lvl " + (i + 1) + ": " + Themes.name(Config.get().tiers.get(i).theme);
-    }
-
-    private static String testLabel() {
-        return "Test as level " + (testLevel + 1);
-    }
-
     private static String soundLabel() {
-        return "Theme music: " + (Config.get().themeSounds ? "ON" : "OFF");
+        return "Music: " + (Config.get().themeSounds ? "ON" : "OFF");
     }
 
     private void test(String id) {
@@ -259,10 +302,10 @@ public class ThemesScreen extends Screen {
         Config.save();
         Minecraft mc = Minecraft.getInstance();
         String me = mc.player == null ? "You" : mc.player.getGameProfile().name();
-        Config.Tier t = c.tiers.get(testLevel);
+        Config.Tier t = c.tiers.get(selLevel);
         onClose();
-        if (mc.screen != null) mc.setScreen(null); // close everything so the animation can be seen
-        Fx.donate(t.minAmount, me, testLevel, true, id);
+        if (mc.screen != null) mc.setScreen(null);
+        Fx.donate(t.minAmount, me, selLevel, true, id);
     }
 
     @Override
@@ -273,7 +316,7 @@ public class ThemesScreen extends Screen {
         g.fill(px, py + ph - 1, px + pw, py + ph, LINE);
         g.fill(px, py, px + 1, py + ph, LINE);
         g.fill(px + pw - 1, py, px + pw, py + ph, LINE);
-        if (!locked) g.fill(px + 8, py + 30, px + pw - 8, py + 31, LINE);
+        if (!locked) g.fill(px + 8, py + 28, px + pw - 8, py + 29, LINE);
     }
 
     @Override
@@ -283,29 +326,38 @@ public class ThemesScreen extends Screen {
             renderLocked(g, mouseX, mouseY);
             return;
         }
+        Config c = Config.get();
+        Config.Tier sel = c.tiers.get(selLevel);
+        g.drawString(this.font, "ANIMATION POOLS  (" + (ids.size()) + " animations)", px + 10, py + 9, GOLD, true);
+        int poolN = sel.pool.isEmpty() ? ids.size() : sel.pool.size();
+        String poolDesc = sel.pool.isEmpty() ? "all (random)" : poolN + " chosen";
+        g.drawString(this.font, "Level " + (selLevel + 1) + " \"" + sel.name + "\" plays: " + poolDesc
+                + (previewMode ? "   -  click an animation to PREVIEW it" : "   -  click to add/remove from this level"), px + 10, py + 19, DIM, false);
         if (System.currentTimeMillis() - unlockedAt < 2500) {
-            String u = "UNLOCKED! All 20 animations are on.";
-            g.drawString(this.font, u, px + pw - 10 - this.font.width(u), py + ph - 36, 0xFF3DDC84, true);
+            String u = "UNLOCKED!";
+            g.drawString(this.font, u, px + pw - 10 - this.font.width(u), py + 9, GREEN, true);
         }
-        g.drawString(this.font, "ANIMATIONS  (" + ids.size() + ")", px + 10, py + 9, GOLD, true);
-        g.drawString(this.font, "Each level can use one animation, or Random. ON = can be picked by Random. ▶ = test.", px + 10, py + 19, DIM, false);
-        g.drawString(this.font, "LEVELS (click to change)", px + 10, py + 35, DIM, false);
+
         hover = null;
         for (int i = 0; i < ids.size(); i++) {
             String id = ids.get(i);
-            int cx = px + 10 + (i % cols) * cellW;
-            int cy = gridY + (i / cols) * 22;
+            int gx = px + 10 + (i % cols) * cellW;
+            int gy = gridY + (i / cols) * rowH;
+            boolean on = inPool(sel, id);
+            boolean hovering = mouseX >= gx && mouseX < gx + cellW - 2 && mouseY >= gy && mouseY < gy + rowH - 2;
+            if (hovering) hover = id;
+            g.fill(gx, gy, gx + cellW - 2, gy + rowH - 2, on ? 0x4033DC84 : 0x33202634);
+            g.fill(gx, gy, gx + 3, gy + rowH - 2, on ? GREEN : LINE);
             String name = Themes.name(id);
-            int maxW = cellW - 60;
-            String shown = this.font.width(name) > maxW ? this.font.plainSubstrByWidth(name, maxW - 6) + ".." : name;
-            g.drawString(this.font, shown, cx + 56, cy + 6, Themes.enabled(id) ? TEXT : DIM, false);
-            if (mouseX >= cx && mouseX < cx + cellW - 4 && mouseY >= cy && mouseY < cy + 20) hover = id;
+            int maxW = cellW - 10;
+            String shown = this.font.width(name) > maxW ? this.font.plainSubstrByWidth(name, maxW - 4) + ".." : name;
+            g.drawString(this.font, shown, gx + 6, gy + (rowH - 2) / 2 - 3, on ? TEXT : DIM, false);
         }
-        g.drawString(this.font, "THEMES", px + 10, gridY - 10, DIM, false);
-        String d = hover != null ? Themes.name(hover) + ": " + Themes.desc(hover) : "Point at a theme to see what it does.";
-        int ty = py + ph - 24;
+        String d = hover != null ? Themes.name(hover) + ": " + Themes.desc(hover)
+                : "Each level randomly plays one animation from its pool. Empty pool = every animation.";
+        int ty = py + ph - 22;
         for (var line : this.font.split(Component.literal(d), pw - 20)) {
-            if (ty > py + ph - 4) break;
+            if (ty > py + ph - 2) break;
             g.drawString(this.font, line, px + 10, ty, hover != null ? TEXT : DIM, false);
             ty += 10;
         }

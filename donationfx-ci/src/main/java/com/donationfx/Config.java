@@ -45,26 +45,45 @@ public final class Config {
         public double seconds;
         /** 1.0 = normal. Higher = more particles and effects. */
         public double intensity = 1.0;
-        /** Which animation: "random", "classic", or a theme id like "jackpot" (see /donationfx themes). */
+        /** Old field (1.0-1.3): a single animation choice. Kept so old configs still load; moved into {@link #pool}. */
         public String theme = "random";
+        /** The animations this level may play (ids). Empty = pick randomly from every unlocked animation. */
+        public List<String> pool = new ArrayList<>();
         /** Items that rain down the screen. */
         public List<String> rainItems = new ArrayList<>();
         public List<Sound> sounds = new ArrayList<>();
 
         public Tier() {}
+
+        public Tier copy() {
+            Tier t = new Tier();
+            t.enabled = enabled;
+            t.name = name;
+            t.minAmount = minAmount;
+            t.title = title;
+            t.subtitle = subtitle;
+            t.color = color;
+            t.seconds = seconds;
+            t.intensity = intensity;
+            t.theme = theme;
+            t.pool = new ArrayList<>(pool);
+            t.rainItems = new ArrayList<>(rainItems);
+            t.sounds = new ArrayList<>(sounds);
+            return t;
+        }
     }
 
     // ---- main switches
-    public int configVersion = 3;
+    public int configVersion = 4;
     public boolean enabled = true;
     public boolean sounds = true;
     /** 0.0 - 1.0 */
     public float volume = 1.0f;
     public boolean flashes = true;
     public boolean shake = true;
-    /** Particles and fireworks around you in the world (only you see them). */
+    /** Particles and fireworks around you in the world (only you see them). Classic animation only. */
     public boolean worldEffects = true;
-    /** The big item pop-up like a totem of undying (levels 3+). */
+    /** The big item pop-up like a totem of undying. Classic animation only. */
     public boolean itemPopup = true;
     public boolean chatMessage = true;
     public boolean countUp = true;
@@ -82,6 +101,41 @@ public final class Config {
     /** Add up several payments from the same player that arrive close together. */
     public boolean combine = true;
     public double combineSeconds = 3.0;
+
+    // ---- extra look-and-feel settings
+    /** How much stuff appears: 0.25 (calm) to 2.0 (chaos). Multiplies every animation's particle count. */
+    public double particleAmount = 1.0;
+    /** Screen shake strength: 0 (off) to 2.0. */
+    public double shakeAmount = 1.0;
+    /** Flash strength: 0 (off, photosensitive-safe) to 1.0. */
+    public double flashAmount = 1.0;
+    /** Title text size: 0.5 to 2.0. */
+    public double titleScale = 1.0;
+    /** Show the big "NICE DONATION!" title and who/how much. Off = just the animation. */
+    public boolean showTitle = true;
+    /** Show the amount in the subtitle. */
+    public boolean showAmount = true;
+    /** Show the star rating / level name line. */
+    public boolean showStars = true;
+    /** Never play sounds (visuals only). */
+    public boolean muteAll = false;
+    /** Only play sounds at this level or above (1-based; 0 = all). */
+    public int minLevelForSound = 0;
+    /** Ignore new donations for this many seconds after one starts (0 = off). They still get logged. */
+    public double cooldownSeconds = 0;
+    /** Show "x2, x3..." when donations arrive in a row quickly. */
+    public boolean combo = true;
+    public double comboWindowSeconds = 6.0;
+    /** Use this color for every level ("" = each level's own color, "rainbow" = all colors). */
+    public String fixedColor = "";
+    /** Give every donation a random color. */
+    public boolean randomColor = false;
+    /** Show a "raised this session" bar at the bottom. */
+    public boolean sessionBar = false;
+    /** Goal for the session bar ($). 0 = just show the running total, no goal. */
+    public double sessionGoal = 0;
+    /** Flip through the pool in order instead of at random. */
+    public boolean cyclePool = false;
 
     // ---- detection
     /** Ignore lines that look like a player typing in chat (stops fake "donations"). */
@@ -169,22 +223,23 @@ public final class Config {
     private boolean fix() {
         boolean migrated = false;
         Config d = defaults();
-        if (tiers == null || tiers.size() != 5) tiers = d.tiers;
+        if (tiers == null || tiers.isEmpty()) tiers = d.tiers;
         for (int i = 0; i < tiers.size(); i++) {
             Tier t = tiers.get(i);
-            Tier dt = d.tiers.get(i);
+            Tier dt = d.tiers.get(Math.min(i, d.tiers.size() - 1));
             if (t == null) {
-                tiers.set(i, dt);
+                tiers.set(i, dt.copy());
                 continue;
             }
-            if (t.name == null) t.name = dt.name;
+            if (t.name == null) t.name = "Level " + (i + 1);
             if (t.title == null) t.title = dt.title;
             if (t.subtitle == null) t.subtitle = dt.subtitle;
             if (t.color == null) t.color = dt.color;
             if (t.seconds <= 0) t.seconds = dt.seconds;
             if (t.intensity <= 0) t.intensity = 1;
-            if (t.rainItems == null) t.rainItems = dt.rainItems;
-            if (t.sounds == null) t.sounds = dt.sounds;
+            if (t.rainItems == null) t.rainItems = new ArrayList<>(dt.rainItems);
+            if (t.sounds == null) t.sounds = new ArrayList<>(dt.sounds);
+            if (t.pool == null) t.pool = new ArrayList<>();
             if (t.theme == null || t.theme.isBlank()) t.theme = "random";
         }
         if (customPatterns == null) customPatterns = new ArrayList<>();
@@ -206,16 +261,54 @@ public final class Config {
             configVersion = 3;
             migrated = true;
         }
+        if (configVersion < 4) {
+            // 1.4: the single "theme" per level became a "pool" of animations
+            for (Tier t : tiers) {
+                if (t.pool == null) t.pool = new ArrayList<>();
+                if (t.pool.isEmpty() && t.theme != null && !t.theme.isBlank() && !t.theme.equalsIgnoreCase("random")) {
+                    t.pool.add(t.theme.toLowerCase());
+                }
+            }
+            configVersion = 4;
+            migrated = true;
+        }
+        if (fixedColor == null) fixedColor = "";
         if (outgoingWords == null) outgoingWords = d.outgoingWords;
         volume = Math.max(0f, Math.min(1f, volume));
         size = Math.max(0.5, Math.min(2.0, size));
         speed = Math.max(0.25, Math.min(2.0, speed));
         maxQueue = Math.max(1, Math.min(50, maxQueue));
         combineSeconds = Math.max(0, Math.min(30, combineSeconds));
+        particleAmount = Math.max(0.25, Math.min(2.0, particleAmount));
+        shakeAmount = Math.max(0, Math.min(2.0, shakeAmount));
+        flashAmount = Math.max(0, Math.min(1.0, flashAmount));
+        titleScale = Math.max(0.5, Math.min(2.0, titleScale));
+        minLevelForSound = Math.max(0, Math.min(99, minLevelForSound));
+        cooldownSeconds = Math.max(0, Math.min(60, cooldownSeconds));
+        comboWindowSeconds = Math.max(1, Math.min(60, comboWindowSeconds));
+        sessionGoal = Math.max(0, sessionGoal);
         return migrated;
     }
 
-    /** Which level an amount reaches: 0-4, or -1 if it is too small (or that level is switched off). */
+    /** Adds a new level after the last one, with a sensible starting amount. */
+    public Tier addTier() {
+        Tier t = new Tier();
+        int n = tiers.size();
+        t.minAmount = n > 0 ? tiers.get(n - 1).minAmount * 2 : 50_000;
+        t.name = "Level " + (n + 1);
+        t.title = "DONATION!";
+        t.subtitle = "{player} donated {amount}!";
+        t.color = "#FFD700";
+        t.seconds = 5.0;
+        t.intensity = 1.0;
+        t.rainItems = new ArrayList<>(List.of("minecraft:gold_ingot", "minecraft:emerald"));
+        t.sounds = new ArrayList<>();
+        t.pool = new ArrayList<>();
+        tiers.add(t);
+        return t;
+    }
+
+    /** Which level an amount reaches: 0-based, or -1 if it is too small (or that level is switched off). */
     public int tierFor(double amount) {
         for (int i = tiers.size() - 1; i >= 0; i--) {
             Tier t = tiers.get(i);

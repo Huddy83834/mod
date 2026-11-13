@@ -78,6 +78,9 @@ public final class Fx {
         /** Forced theme (tests), or null to use the level's setting. */
         String forceTheme;
         ThemeKit.Bag bag;
+        /** Resolved color for this donation (after fixed/random-color settings). */
+        boolean rb;
+        int rgb = 0xFFFFFF;
         boolean classic() {
             return Themes.CLASSIC.equals(theme);
         }
@@ -85,6 +88,9 @@ public final class Fx {
 
     private static final double[] THEME_KICKS = {0.0};
     private static String lastTheme = null;
+    private static float themeShake = 0;
+    public static int comboCount = 0;
+    public static long comboAt = 0;
     private static final ThemeKit.Ctx CTX = new ThemeKit.Ctx();
 
     private static final class P {
@@ -150,6 +156,10 @@ public final class Fx {
         }
 
         long now = System.currentTimeMillis();
+        if (!test) {
+            comboCount = (comboAt > 0 && now - comboAt <= c.comboWindowSeconds * 1000) ? comboCount + 1 : 1;
+            comboAt = now;
+        }
         if (c.combine && !test) {
             for (Show s : QUEUE) {
                 if (s.player.equalsIgnoreCase(player) && !player.equals(Detector.UNKNOWN) && now - s.arrived <= c.combineSeconds * 1000) {
@@ -163,6 +173,8 @@ public final class Fx {
                 }
             }
         }
+        // cooldown: don't start another animation too soon after the last one began (still counted and logged)
+        if (!test && c.cooldownSeconds > 0 && cur != null && cur.start > 0 && now - cur.start < c.cooldownSeconds * 1000) return;
         Show s = new Show();
         s.level = level;
         s.tier = c.tiers.get(level);
@@ -192,11 +204,12 @@ public final class Fx {
         if (cur == null) return;
         Config c = Config.get();
         double el = elapsed(cur);
+        boolean soundOk = c.sounds && !c.muteAll && (c.minLevelForSound <= 0 || cur.level + 1 >= c.minLevelForSound);
         while (cur.nextSound < cur.sounds.size() && cur.sounds.get(cur.nextSound).at * 1000 * c.speed <= el) {
-            if (c.sounds) play(mc, cur.sounds.get(cur.nextSound));
+            if (soundOk) play(mc, cur.sounds.get(cur.nextSound));
             cur.nextSound++;
         }
-        if (c.worldEffects) world(mc, cur, el / 1000.0 / c.speed);
+        if (c.worldEffects && cur.classic()) world(mc, cur, el / 1000.0 / c.speed);
         if (el >= cur.dur) cur = null;
     }
 
@@ -212,8 +225,17 @@ public final class Fx {
         double next = s.level + 1 < c.tiers.size() ? c.tiers.get(s.level + 1).minAmount : s.tier.minAmount * 10;
         double inside = s.tier.minAmount > 0 && next > s.tier.minAmount
                 ? Math.log(Math.max(1, s.amount / s.tier.minAmount)) / Math.log(next / s.tier.minAmount) : 0;
-        s.intensity = s.tier.intensity * (1 + 0.6 * Math.max(0, Math.min(1, inside)));
-        s.theme = Themes.pick(s.forceTheme != null ? s.forceTheme : s.tier.theme, lastTheme);
+        s.intensity = s.tier.intensity * (1 + 0.6 * Math.max(0, Math.min(1, inside))) * Math.max(0.1, c.particleAmount);
+        // resolve the color: random > fixed > the level's own
+        if (c.randomColor) {
+            s.rb = false;
+            s.rgb = hsv(R.nextFloat(), 0.8f, 1f);
+        } else {
+            String cs = c.fixedColor != null && !c.fixedColor.isBlank() ? c.fixedColor : s.tier.color;
+            s.rb = "rainbow".equalsIgnoreCase(cs);
+            s.rgb = parseColor(cs, 0xFFFFFF);
+        }
+        s.theme = s.forceTheme != null ? Themes.resolve(s.forceTheme) : Themes.pickForTier(s.tier, lastTheme);
         lastTheme = s.theme;
         ThemeKit.Theme th = Themes.get(s.theme);
         if (th == null) s.theme = Themes.CLASSIC;
@@ -245,7 +267,7 @@ public final class Fx {
                 cannon(w, h, -1, s);
             }
         }
-        if (c.itemPopup && s.level >= 2) {
+        if (c.itemPopup && s.classic() && s.level >= 2) {
             Item it = item(POPUP[Math.min(s.level, POPUP.length - 1)]);
             if (it != null) mc.gameRenderer.displayItemActivation(new ItemStack(it));
         }
@@ -352,11 +374,10 @@ public final class Fx {
     }
 
     private static int[] fireColors(Show s) {
-        if ("rainbow".equalsIgnoreCase(s.tier.color)) {
+        if (s.rb) {
             return new int[]{0xFF5555, 0xFFAA00, 0xFFFF55, 0x55FF55, 0x55FFFF, 0x5555FF, 0xFF55FF};
         }
-        int c = parseColor(s.tier.color, 0xFFFFFF);
-        return new int[]{c, 0xFFFFFF, 0xFFD700};
+        return new int[]{s.rgb, 0xFFFFFF, 0xFFD700};
     }
 
     // ------------------------------------------------------------------ screen particles
@@ -370,9 +391,8 @@ public final class Fx {
     }
 
     private static int partColor(Show s) {
-        if ("rainbow".equalsIgnoreCase(s.tier.color) || R.nextInt(4) == 0) return hsv(R.nextFloat(), 0.85f, 1f);
-        int c = parseColor(s.tier.color, 0xFFFFFF);
-        return R.nextInt(3) == 0 ? 0xFFD700 : c;
+        if (s.rb || R.nextInt(4) == 0) return hsv(R.nextFloat(), 0.85f, 1f);
+        return R.nextInt(3) == 0 ? 0xFFD700 : s.rgb;
     }
 
     private static void confetti(float x, float y, float spread, float up, Show s) {
@@ -422,7 +442,7 @@ public final class Fx {
             p.size = 1.2f + R.nextFloat();
             p.gravity = 70;
             p.drag = 1.6f;
-            p.color = "rainbow".equalsIgnoreCase(s.tier.color) ? hsv(((hueBase + i * 5) % 360) / 360f, 0.9f, 1f) : partColor(s);
+            p.color = s.rb ? hsv(((hueBase + i * 5) % 360) / 360f, 0.9f, 1f) : partColor(s);
         }
     }
 
@@ -576,13 +596,22 @@ public final class Fx {
 
         // screen shake
         float sx = 0, sy = 0;
-        if (s != null && c.shake && SHAKE[s.level] > 0) {
-            double amp = 0;
-            for (double k : (s.classic() ? KICKS[s.level] : THEME_KICKS)) if (tNorm >= k) amp += SHAKE[s.level] * Math.exp(-(tNorm - k) * 3.2);
-            if (s.level >= 4) amp += 0.8;
-            amp = Math.min(12, amp * Math.sqrt(s.intensity)) * vis;
-            sx = (float) (R.nextGaussian() * amp);
-            sy = (float) (R.nextGaussian() * amp);
+        if (s != null && c.shake && c.shakeAmount > 0) {
+            double amp;
+            if (s.classic()) {
+                int cl = Math.min(s.level, SHAKE.length - 1);
+                amp = 0;
+                for (double k : KICKS[cl]) if (tNorm >= k) amp += SHAKE[cl] * Math.exp(-(tNorm - k) * 3.2);
+                if (s.level >= 4) amp += 0.8;
+                amp *= Math.sqrt(s.intensity);
+            } else {
+                amp = themeShake; // what the theme asked for on the last frame
+            }
+            amp = Math.min(14, amp * c.shakeAmount) * vis;
+            if (amp > 0.01) {
+                sx = (float) (R.nextGaussian() * amp);
+                sy = (float) (R.nextGaussian() * amp);
+            }
         }
 
         float cx = w / 2f;
@@ -595,11 +624,12 @@ public final class Fx {
             drawTheme(g, mc, s, w, h, cx, cy, tNorm, dt / (float) c.speed, vis);
         } else if (s != null) {
             int L = s.level;
+            int cl = Math.min(L, RINGS.length - 1);
             int col = color(s, 0);
             if (L >= 4) rainbowSweep(g, w, h, el, vis);
             if (L >= 1) vignette(g, w, h, col, vis * (0.35f + 0.15f * (float) Math.sin(el / 160.0)) * Math.min(1, 0.4f + 0.2f * L));
             if (L >= 2) rays(g, cx, cy, Math.max(w, h), s, el, vis);
-            for (double r : RINGS[L]) {
+            for (double r : RINGS[cl]) {
                 double since = tNorm - r;
                 if (since >= 0 && since < 1.2) ring(g, cx, cy, (float) (since * (w * 0.75)), argb((float) (1 - since / 1.2) * 0.8f, color(s, (int) (r * 100))), L >= 3 ? 3 : 2);
             }
@@ -608,18 +638,56 @@ public final class Fx {
 
         updateAndDraw(g, dt, h);
 
-        if (s != null) title(g, mc, s, cx, cy, el, vis, w);
+        if (s != null && c.showTitle) title(g, mc, s, cx, cy, el, vis, w);
 
         g.pose().popMatrix();
 
-        // flashes (not shaken)
-        if (s != null && c.flashes && s.level >= 3) {
+        // classic white flash (not shaken); themes do their own flashes
+        if (s != null && s.classic() && c.flashes && c.flashAmount > 0.01 && s.level >= 3) {
+            int cl = Math.min(s.level, KICKS.length - 1);
             float fa = 0;
-            for (double k : (s.classic() ? KICKS[s.level] : THEME_KICKS)) {
+            for (double k : KICKS[cl]) {
                 double since = tNorm - k;
                 if (since >= 0 && since < 0.35) fa = Math.max(fa, (float) (1 - since / 0.35) * (k == 0 ? 0.75f : 0.35f));
             }
+            fa *= (float) c.flashAmount;
             if (fa > 0.01f) g.fill(0, 0, w, h, argb(fa, s.level >= 4 && tNorm > 0.1 ? color(s, 50) : 0xFFFFFF));
+        }
+
+        if (s != null) drawExtras(g, mc, c, s, w, h, vis);
+    }
+
+    /** Combo counter and the session-raised bar, drawn un-shaken at the edges. */
+    private static void drawExtras(GuiGraphics g, Minecraft mc, Config c, Show s, int w, int h, float vis) {
+        var font = mc.font;
+        if (c.combo && comboCount >= 2) {
+            long age = System.currentTimeMillis() - comboAt;
+            if (age < 4000) {
+                float a = vis * (float) Math.min(1, (4000 - age) / 700.0);
+                float pop = age < 220 ? 1 + (float) (1 - age / 220.0) * 0.8f : 1f;
+                String combo = "COMBO x" + comboCount;
+                int col = hsv((float) ((System.currentTimeMillis() % 1500) / 1500.0), 0.7f, 1f);
+                g.pose().pushMatrix();
+                g.pose().translate(w - 14 - font.width(combo) * 1.4f, h * 0.3f);
+                g.pose().scale(1.4f * pop);
+                g.drawString(font, combo, 0, 0, argb(a, col), true);
+                g.pose().popMatrix();
+            }
+        }
+        if (c.sessionBar) {
+            String label = c.sessionGoal > 0
+                    ? "Raised: " + Money.format(sessionTotal) + " / " + Money.format(c.sessionGoal)
+                    : "Raised this session: " + Money.format(sessionTotal);
+            int bw = Math.min(w - 20, 240);
+            int bx = (w - bw) / 2;
+            int by = h - 16;
+            g.drawString(font, label, bx, by - 10, argb(vis, 0xFFF5B83D), true);
+            if (c.sessionGoal > 0) {
+                g.fill(bx, by, bx + bw, by + 5, argb(vis * 0.5f, 0x05060A));
+                float frac = (float) Math.max(0, Math.min(1, sessionTotal / c.sessionGoal));
+                int fillCol = hsv(0.33f * frac, 0.8f, 1f);
+                g.fill(bx, by, bx + (int) (bw * frac), by + 5, argb(vis, fillCol));
+            }
         }
     }
 
@@ -640,9 +708,10 @@ public final class Fx {
         x.vis = vis;
         x.L = s.level;
         x.k = s.intensity;
-        x.rainbow = "rainbow".equalsIgnoreCase(s.tier.color);
-        x.col = parseColor(s.tier.color, 0xFFFFFF);
-        x.flashes = Config.get().flashes;
+        x.rainbow = s.rb;
+        x.col = s.rgb;
+        x.flashes = Config.get().flashes && Config.get().flashAmount > 0.05;
+        x.shake = 0;
         x.amount = s.amount;
         x.player = s.player;
         x.bag = s.bag;
@@ -651,6 +720,7 @@ public final class Fx {
             th.start(x);
         }
         th.draw(x);
+        themeShake = Math.max(0, x.shake);
     }
 
     private static void title(GuiGraphics g, Minecraft mc, Show s, float cx, float cy, double el, float vis, int w) {
@@ -663,7 +733,7 @@ public final class Fx {
             title = title.substring(0, shown);
         }
         double inP = Math.min(1, el / 450.0);
-        double scale = (1.7 + 0.32 * L) * c.size * easeOutBack(inP);
+        double scale = (1.7 + 0.32 * L) * c.size * c.titleScale * easeOutBack(inP);
         double pulse = 1 + 0.035 * (L + 1) * Math.sin(el / (L >= 3 ? 90.0 : 130.0));
         scale *= pulse;
         int fullW = f.width(s.tier.title);
@@ -672,7 +742,7 @@ public final class Fx {
         if (fadeOutGrow(s, el) > 0) scale *= 1 + 0.25 * fadeOutGrow(s, el);
 
         // dark panel behind the text
-        float sub = (float) (1.15 * c.size);
+        float sub = (float) (1.15 * c.size * c.titleScale);
         int panelW = (int) Math.min(w - 8, Math.max(fullW * Math.min(scale, maxScale), 200 * c.size) + 30);
         int panelH = (int) (12 * scale + 34 * sub + (L >= 2 ? 10 * sub : 0) + 16);
         int px = (int) (cx - panelW / 2f);
@@ -714,7 +784,9 @@ public final class Fx {
             double cp = Math.max(0, Math.min(1, (el - 200) / Math.max(400, s.dur * 0.35)));
             shownAmount = s.amount * easeOut(cp);
         }
-        String text = s.tier.subtitle.replace("{player}", s.player).replace("{amount}", Money.format(shownAmount));
+        String text = c.showAmount
+                ? s.tier.subtitle.replace("{player}", s.player).replace("{amount}", Money.format(shownAmount))
+                : s.player;
         float subA = vis * (float) subIn;
         g.pose().pushMatrix();
         g.pose().translate(cx, subY);
@@ -733,7 +805,7 @@ public final class Fx {
         g.pose().popMatrix();
 
         // level stars
-        if (L >= 0) {
+        if (c.showStars) {
             StringBuilder stars = new StringBuilder();
             for (int i = 0; i < 5; i++) stars.append(i <= L ? '★' : '☆');
             String lv = stars + "  " + s.tier.name.toUpperCase(Locale.ROOT);
@@ -820,10 +892,10 @@ public final class Fx {
     // ------------------------------------------------------------------ colors
 
     private static int color(Show s, int offset) {
-        if ("rainbow".equalsIgnoreCase(s.tier.color)) {
+        if (s.rb) {
             return hsv((float) (((System.currentTimeMillis() + offset * 37L) % 3000) / 3000.0), 0.8f, 1f);
         }
-        return parseColor(s.tier.color, 0xFFFFFF);
+        return s.rgb;
     }
 
     public static int parseColor(String s, int def) {

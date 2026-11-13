@@ -19,6 +19,7 @@ public final class Themes {
     static {
         ThemesA.register(ALL);
         ThemesB.register(ALL);
+        ThemesC.register(ALL);
     }
 
     private Themes() {}
@@ -86,27 +87,36 @@ public final class Themes {
         if (!on) d.add(id);
     }
 
-    /** Turns "random" (or an unknown/disabled name) into a real theme id. Avoids playing the same one twice in a row. */
-    public static String pick(String wanted, String last) {
+    public static boolean valid(String id) {
+        return id != null && (id.equalsIgnoreCase(CLASSIC) || get(id) != null);
+    }
+
+    private static int cycleIdx = 0;
+
+    /** Picks the animation to play for a level, from its own pool (or all animations if its pool is empty). */
+    public static String pickForTier(Config.Tier tier, String last) {
         if (!unlocked()) return CLASSIC; // the extra animations are locked
-        if (wanted != null && !wanted.equalsIgnoreCase(RANDOM)) {
-            if (wanted.equalsIgnoreCase(CLASSIC) || get(wanted) != null) return wanted.toLowerCase();
-        }
         List<String> pool = new ArrayList<>();
-        for (String id : ids()) if (enabled(id)) pool.add(id);
+        if (tier != null && tier.pool != null && !tier.pool.isEmpty()) {
+            for (String id : tier.pool) if (valid(id) && enabled(id)) pool.add(id.toLowerCase());
+        }
+        if (pool.isEmpty()) {
+            for (String id : ids()) if (enabled(id)) pool.add(id);
+        }
         if (pool.isEmpty()) return CLASSIC;
-        if (pool.size() > 1 && last != null) pool.removeIf(x -> x.equalsIgnoreCase(last));
+        if (pool.size() == 1) return pool.get(0);
+        if (Config.get().cyclePool) {
+            Collections.sort(pool);
+            return pool.get(Math.floorMod(cycleIdx++, pool.size()));
+        }
+        if (last != null) pool.removeIf(x -> x.equalsIgnoreCase(last));
         return pool.get(R.nextInt(pool.size()));
     }
 
-    /** Next choice for a level's theme button: Random, Classic, then each theme. */
-    public static String next(String cur, int dir) {
-        List<String> order = new ArrayList<>();
-        order.add(RANDOM);
-        order.addAll(ids());
-        int i = 0;
-        for (int k = 0; k < order.size(); k++) if (order.get(k).equalsIgnoreCase(cur)) i = k;
-        return order.get(Math.floorMod(i + dir, order.size()));
+    /** A forced choice (test / command): the id itself if valid, else classic. */
+    public static String resolve(String wanted) {
+        if (!unlocked()) return CLASSIC;
+        return valid(wanted) ? wanted.toLowerCase() : CLASSIC;
     }
 
     /** Extra sounds that make higher levels feel bigger, whatever the theme. */

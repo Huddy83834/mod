@@ -60,6 +60,8 @@ public final class ThemeKit {
         public int col;
         public boolean rainbow;
         public boolean flashes;
+        /** A theme sets this each frame to ask for screen shake (in pixels, ~0-10); applied next frame. */
+        public float shake;
         public double amount;
         public String player;
         public Bag bag;
