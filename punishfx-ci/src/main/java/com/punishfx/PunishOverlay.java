@@ -346,35 +346,15 @@ public final class PunishOverlay {
     }
 
     private static void disco(GuiGraphics g, int w, int h, long now, float vis) {
-        // dark club + beat strobe + vivid sweeping spotlight cones from the top edge
-        float beat = (float) Math.exp(-((now % 480) / 480.0) * 5);
-        g.fill(0, 0, w, h, A((0.30f + 0.10f * beat) * vis, 0x05000A));
-        g.fill(0, 0, w, h, A(0.14f * beat * vis, Ui.hsv((now % 600) / 600f, 0.9f, 1f)));
-        int beams = 5;
-        for (int i = 0; i < beams; i++) {
-            float baseX = w * (i + 0.5f) / beams;
-            float sweep = (float) Math.sin(now / 820.0 * (0.7 + i * 0.13) + i * 1.9) * w * 0.28f;
-            int col = Ui.hsv((i / (float) beams + now / 2600f) % 1f, 0.85f, 1f);
-            // cone: wedges widening toward the floor, drawn as stacked rotated rects
-            float apexX = baseX, apexY = -4;
-            for (int k = 0; k < 10; k++) {
-                float f0 = k / 10f, f1 = (k + 1) / 10f;
-                float y0 = apexY + f0 * (h + 10), y1 = apexY + f1 * (h + 10);
-                float midX = apexX + sweep * (f0 + f1) / 2f;
-                float wdt = 6 + (f0 + f1) * 34;
-                float ang = (float) Math.atan2(sweep, h);
-                rect(g, midX, (y0 + y1) / 2, wdt, y1 - y0 + 1, ang, A((0.10f + 0.08f * beat) * vis, col));
-            }
-            // bright core + a glowing spot where it hits the floor
-            float floorX = baseX + sweep;
-            glow(g, floorX, h * 0.72f, 26, col, 0.22f * vis);
-            disc(g, floorX, h * 0.72f, 5, A(0.5f * vis, 0xFFFFFF));
-        }
-        // sparkle flecks on the beat
-        if (beat > 0.4f) {
-            Random r = new Random(now / 120);
-            for (int i = 0; i < 18; i++) disc(g, r.nextInt(w), r.nextInt(h), 1.5f, A(0.7f * beat * vis, 0xFFFFFF));
-        }
+        // make the whole screen cycle through RGB, fast
+        float hue = (now % 900) / 900f;
+        float beat = 0.5f + 0.5f * (float) Math.sin(now / 150.0);
+        int col = Ui.hsv(hue, 0.95f, 1f);
+        g.fill(0, 0, w, h, A((0.34f + 0.14f * beat) * vis, col));
+        // a second, offset hue so edges shimmer a different colour
+        int col2 = Ui.hsv((hue + 0.33f) % 1f, 0.95f, 1f);
+        g.fillGradient(0, 0, w, h, A(0.18f * vis, col2), A(0.18f * vis, Ui.hsv((hue + 0.66f) % 1f, 0.95f, 1f)));
+        vignette(g, w, h, Ui.hsv((hue + 0.5f) % 1f, 0.9f, 1f), 0.3f * vis);
     }
 
     private static void heartbeat(GuiGraphics g, int w, int h, long now, float vis) {

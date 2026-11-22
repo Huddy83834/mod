@@ -56,8 +56,12 @@ jobs:
           echo "===== Options (fov)"; javap -cp "$J" net.minecraft.client.Options 2>&1 | grep -iE "fov|OptionInstance" | head -20
           echo "===== OptionInstance"; javap -cp "$J" net.minecraft.client.OptionInstance 2>&1 | grep -E "public|get|set" | grep -vE "lambda|\\$" | head -30
           echo "===== Camera"; javap -cp "$J" net.minecraft.client.Camera 2>&1 | grep -E "public|protected" | grep -vE "lambda|\\$" | head -40
-          echo "===== RenderSystem (blend/color)"; javap -cp "$J" com.mojang.blaze3d.systems.RenderSystem 2>&1 | grep -iE "blend|setShaderColor|disableBlend|enableBlend" | head -25
-          echo "===== GuiGraphics (blit/fill/flush/pose)"; javap -cp "$J" net.minecraft.client.gui.GuiGraphics 2>&1 | grep -E "public" | grep -iE "fill|blit|flush|pose|drawSpecial|nextStratum" | grep -vE "lambda|\\$" | head -40
+          echo "===== RenderPipeline"; javap -cp "$J" com.mojang.blaze3d.pipeline.RenderPipeline 2>&1 | grep -E "public|builder|Builder" | grep -vE "lambda|\\$" | head -40
+          echo "===== RenderPipeline.Builder"; javap -cp "$J" 'com.mojang.blaze3d.pipeline.RenderPipeline$Builder' 2>&1 | grep -E "public" | grep -vE "lambda" | head -40
+          echo "===== RenderPipelines (built-ins)"; javap -cp "$J" net.minecraft.client.renderer.RenderPipelines 2>&1 | grep -iE "GUI|FILL|public static" | head -40
+          echo "===== BlendFunction"; javap -cp "$J" com.mojang.blaze3d.pipeline.BlendFunction 2>&1 | grep -iE "public static|ONE_MINUS|invert|public" | head -30
+          echo "===== DestFactor/SourceFactor"; javap -cp "$J" com.mojang.blaze3d.platform.GlStateManager 2>&1 | grep -iE "SourceFactor|DestFactor" | head -5
+          echo "===== blaze3d DestFactor enum"; javap -cp "$J" 'com.mojang.blaze3d.platform.DestFactor' 2>&1 | grep -iE "ONE_MINUS_SRC_COLOR|ZERO|public" | head -20
           exit 0
       - uses: actions/upload-artifact@v4
         with:
