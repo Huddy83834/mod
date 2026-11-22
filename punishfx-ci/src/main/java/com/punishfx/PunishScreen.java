@@ -33,11 +33,10 @@ public class PunishScreen extends Screen {
 
     private void toggle(String name, BooleanSupplier get, Consumer<Boolean> set) {
         int[] p = next();
-        addRenderableWidget(new FancyButton(p[0], p[1], colW, 18, Component.literal(name + ": " + (get.getAsBoolean() ? "ON" : "OFF")), btn -> {
+        addRenderableWidget(new FancyButton(p[0], p[1], colW, 20, Component.literal(name), btn -> {
             set.accept(!get.getAsBoolean());
-            btn.setMessage(Component.literal(name + ": " + (get.getAsBoolean() ? "ON" : "OFF")));
             Config.save();
-        }).accent(get.getAsBoolean() ? Ui.GOOD : Ui.DIM));
+        }).toggle(get));
     }
 
     private void stepper(double[] vals, DoubleSupplier get, DoubleConsumer set, DoubleFunction<String> label) {
@@ -62,13 +61,12 @@ public class PunishScreen extends Screen {
         py = (this.height - ph) / 2;
 
         addRenderableWidget(new FancyButton(px + pw - 52, py + 8, 44, 18, Component.literal("Done"), b -> onClose()));
-        addRenderableWidget(new FancyButton(px + pw - 52 - 6 - 120, py + 8, 120, 18,
-                Component.literal(c.enabled ? "PUNISH FX: ON" : "PUNISH FX: OFF"), b -> {
+        addRenderableWidget(new FancyButton(px + pw - 52 - 6 - 130, py + 7, 130, 20,
+                Component.literal("PUNISH FX"), b -> {
             c.enabled = !c.enabled;
-            b.setMessage(Component.literal(c.enabled ? "PUNISH FX: ON" : "PUNISH FX: OFF"));
             if (!c.enabled) PunishManager.cancelAll();
             Config.save();
-        }).accent(c.enabled ? Ui.ACCENT : Ui.DIM));
+        }).toggle(() -> c.enabled));
 
         gx0 = px + 12;
         gy0 = py + 44;

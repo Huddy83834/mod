@@ -42,12 +42,10 @@ public class PunishPoolScreen extends Screen {
         int lw = Math.min(66, (pw - 24) / Math.max(1, n));
         for (int i = 0; i < n; i++) {
             final int idx = i;
-            FancyButton b = new FancyButton(px + 12 + i * (lw + 3), y, lw, 18, Component.literal("Lv " + (i + 1)), x -> {
+            addRenderableWidget(new FancyButton(px + 12 + i * (lw + 3), y, lw, 18, Component.literal("Lv " + (i + 1)), x -> {
                 selLevel = idx;
                 rebuild();
-            });
-            b.accent(i == selLevel ? Ui.ACCENT : Ui.DIM).active = i != selLevel;
-            addRenderableWidget(b);
+            }).accent(Ui.ACCENT).hot(() -> idx == selLevel));
         }
 
         y += 24;
@@ -56,7 +54,7 @@ public class PunishPoolScreen extends Screen {
             c.tiers.get(selLevel).pool.clear();
             Config.save();
             rebuild();
-        }));
+        }).accent(Ui.GOOD).hot(() -> c.tiers.get(selLevel).pool.isEmpty()));
         addRenderableWidget(new FancyButton(px + 12 + ow + 2, y, ow, 18, Component.literal("Surprise 5"), b -> {
             Config.Tier t = c.tiers.get(selLevel);
             List<String> safe = new ArrayList<>();
@@ -90,17 +88,12 @@ public class PunishPoolScreen extends Screen {
             int gy = gridY + (i / cols) * rowH;
             cx[i] = gx;
             cy[i] = gy;
-            Config.Tier t = c.tiers.get(selLevel);
             Punishes.P pp = Punishes.get(id);
-            boolean on = inPool(t, id);
-            int acc = on ? (pp != null && pp.extreme ? Ui.WARN : Ui.GOOD) : Ui.DIM;
-            // toggle button (name)
-            FancyButton tog = new FancyButton(gx, gy, cellW - 20, rowH - 2, Component.literal(Punishes.name(id)), b -> {
+            boolean extreme = pp != null && pp.extreme;
+            // checkbox cell (name) - selection state read live every frame
+            addRenderableWidget(new FancyButton(gx, gy, cellW - 20, rowH - 2, Component.literal(Punishes.name(id)), b -> {
                 toggle(id);
-                rebuild();
-            });
-            tog.accent(acc);
-            addRenderableWidget(tog);
+            }).check(() -> inPool(Config.get().tiers.get(selLevel), id)).accent(() -> extreme ? Ui.WARN : Ui.GOOD));
             // per-punishment test
             addRenderableWidget(new FancyButton(gx + cellW - 18, gy, 16, rowH - 2, Component.literal("▶"), b -> test(id)).accent(Ui.WARN));
         }

@@ -35,11 +35,10 @@ public class PunishTiersScreen extends Screen {
             Config.Tier t = c.tiers.get(i);
             int y = rowTop + i * rowH;
             int x = lx;
-            addRenderableWidget(new FancyButton(x, y, onW, 20, Component.literal(t.enabled ? "On" : "Off"), b -> {
+            addRenderableWidget(new FancyButton(x, y, onW, 20, Component.literal("On"), b -> {
                 t.enabled = !t.enabled;
-                b.setMessage(Component.literal(t.enabled ? "On" : "Off"));
                 Config.save();
-            }).accent(t.enabled ? Ui.GOOD : Ui.DIM));
+            }).toggle(() -> t.enabled));
             x += onW + gap;
 
             EditBox name = field(x, y, nameW, "name", t.name);

@@ -72,18 +72,23 @@ public final class Ui {
         g.fill(x + w - 1, y, x + w, y + h, a(0.5f, mix(ACCENT, 0x000000, 0.6f)));
     }
 
-    /** Glowing title text. */
+    /** Crisp title text: a single tight drop-shadow, no fuzzy halo. */
     public static void glowText(GuiGraphics g, net.minecraft.client.gui.Font f, String s, int x, int y, int color, float scale) {
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         g.pose().scale(scale);
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0) continue;
-                g.drawString(f, s, dx, dy, a(0.18f, color), false);
-            }
-        }
+        g.drawString(f, s, 1, 1, a(0.85f, 0x000000), false);
         g.drawString(f, s, 0, 0, a(1f, color), false);
         g.pose().popMatrix();
+    }
+
+    /** A pill-shaped mini switch: filled track + knob that sits right when on, left when off. */
+    public static void switchKnob(GuiGraphics g, int x, int y, int w, int h, boolean on) {
+        int track = on ? GOOD : 0x4A3A40;
+        g.fill(x, y + 1, x + w, y + h - 1, a(1f, mix(track, 0x000000, 0.25f)));
+        g.fill(x, y, x + w, y + 1, a(0.8f, mix(track, 0xFFFFFF, 0.2f)));
+        int kw = h - 2;
+        int kx = on ? x + w - kw - 1 : x + 1;
+        g.fill(kx, y + 1, kx + kw, y + h - 1, a(1f, on ? 0xFFFFFF : 0xBFB2B6));
     }
 }
