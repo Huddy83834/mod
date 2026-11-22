@@ -53,6 +53,8 @@ public class PunishFxClientTest implements FabricClientGameTest {
             throw new RuntimeException(e);
         }
 
+        configTests();
+
         ctx.getInput().resizeWindow(960, 540); // auto GUI scale -> 480x270, the common 1080p size
         ctx.waitTicks(5);
 
@@ -75,6 +77,26 @@ public class PunishFxClientTest implements FabricClientGameTest {
         if (!failures.isEmpty()) throw new AssertionError("Punish FX checks failed:\n" + String.join("\n", failures));
     }
 
+    // ------------------------------------------------------------------ config
+
+    private void configTests() {
+        Config d = Config.defaults();
+        for (int i = 0; i < d.tiers.size(); i++) {
+            Config.Tier t = d.tiers.get(i);
+            boolean allValid = t.pool.stream().allMatch(id -> com.punishfx.Punishes.get(id) != null);
+            check(allValid && !com.punishfx.Punishes.poolFor(t).isEmpty(), "default level " + (i + 1) + " only uses real punishments " + t.pool);
+        }
+        // an old save (pre-1.2) with removed punishments in its pool
+        Config.Tier old = new Config.Tier();
+        old.pool = new ArrayList<>(List.of("nausea", "blind", "fake_ban", "kick_title", "vertigo", "frozen", "troll_rain"));
+        Config.migratePool(old);
+        check(old.pool.equals(List.of("drunk", "blackout", "spin", "frozen", "glitch")), "old saved pools are migrated " + old.pool);
+        Config.Tier dead = new Config.Tier();
+        dead.pool = new ArrayList<>(List.of("fake_ban", "kick_title"));
+        Config.migratePool(dead);
+        check(dead.pool.isEmpty() && !com.punishfx.Punishes.poolFor(dead).isEmpty(), "a pool of only removed punishments falls back to 'any'");
+    }
+
     // ------------------------------------------------------------------ movement
 
     private Vec3 pos(ClientGameTestContext ctx) {
@@ -83,7 +105,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
 
     /** Walk forward (W) for 25 ticks facing +Z with a punishment on; returns {sideways, forward} metres. */
     private double[] walk(ClientGameTestContext ctx, TestServerContext server, String id) {
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(3);
         server.runCommand("tp @a 0.5 101 0.5 0 0");
         ctx.waitTicks(15);
@@ -126,7 +148,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
         check(blend > 0.3f, "drunk: nausea warp is active (blend " + fmt(blend) + ")");
         check(ControlState.drunk > 0.5f, "drunk: camera sway/tilt active (" + fmt(ControlState.drunk) + ")");
 
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(5);
         boolean cleared = ctx.computeOnClient(mc -> mc.player.getEffect(MobEffects.NAUSEA) == null);
         check(cleared, "nausea removed when drunk ends (no leftover effect)");
@@ -143,7 +165,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
     }
 
     private void effect(ClientGameTestContext ctx, String id, int wait) {
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(8);
         ctx.runOnClient(mc -> PunishManager.force(id, 0));
         ctx.waitTicks(wait);
@@ -164,7 +186,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
     }
 
     private void effectShots(ClientGameTestContext ctx) {
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(10);
         shot(ctx, "fx_00_baseline");
 
@@ -197,7 +219,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
         effect(ctx, "no_hud", 5);
 
         // flashbang should last noticeably longer than the level's own duration
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(5);
         ctx.runOnClient(mc -> PunishManager.force("flashbang", 0));
         ctx.waitTicks(2);
@@ -208,16 +230,16 @@ public class PunishFxClientTest implements FabricClientGameTest {
         check(len >= (long) (Config.get().tiers.get(0).seconds * 1000 * 1.5), "flashbang lasts longer (" + len + "ms)");
 
         // the leave/close countdown (cancelled straight after the shot!)
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(5);
         ctx.runOnClient(mc -> PunishManager.force("close_game", 0));
         ctx.waitTicks(15);
         shot(ctx, "fx_zz_close_countdown");
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(5);
         boolean pending = ctx.computeOnClient(mc -> PunishManager.extremePending());
         check(!pending, "close-game countdown can be cancelled");
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(30);
     }
 
@@ -235,7 +257,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
         boolean banner = ctx.computeOnClient(mc -> PunishManager.donorShowing() && PunishManager.donor.equals("Huddy83834"));
         check(banner, "donation shows the banner with who paid (" + PunishManager.donor + " " + PunishManager.donorAmount + ")");
         shot(ctx, "fx_donation_banner");
-        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(80); // let the banner time out
     }
 
@@ -269,13 +291,17 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.waitTicks(4);
         String cls = ctx.computeOnClient(mc -> mc.screen == null ? "none" : mc.screen.getClass().getSimpleName());
         check(cls.equals("PunishPoolScreen"), "sidebar 'Punishments' opens that page (" + cls + ")");
+        ctx.clickScreenButton("All");
+        ctx.waitTicks(2);
+        check(Config.get().tiers.get(0).pool.isEmpty(), "'All' sets level 1 to every punishment");
         ctx.clickScreenButton("Frozen");
         ctx.waitTicks(2);
         check(!Config.get().tiers.get(0).pool.isEmpty() && !Config.get().tiers.get(0).pool.contains("frozen"),
-                "unticking 'Frozen' removes it from level 1");
-        ctx.clickScreenButton("All");
+                "unticking 'Frozen' removes it from level 1 " + Config.get().tiers.get(0).pool);
+        ctx.clickScreenButton("Frozen");
         ctx.waitTicks(2);
-        check(Config.get().tiers.get(0).pool.isEmpty(), "'All' resets level 1 to every punishment");
+        check(Config.get().tiers.get(0).pool.isEmpty(), "ticking it back restores 'every punishment'");
+        ctx.runOnClient(mc -> Config.reset());
         ctx.setScreen(() -> null);
         ctx.waitTicks(3);
 

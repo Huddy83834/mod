@@ -21,7 +21,7 @@ public class PunishTiersScreen extends PfxFrame {
     protected void initPage() {
         Config c = Config.get();
         int gap = 4;
-        wName = Math.max(50, cw - (wOn + wAmt + wSec + wCnt + wTest + wDel + gap * 6));
+        wName = Math.max(50, Math.min(150, cw - (wOn + wAmt + wSec + wCnt + wTest + wDel + gap * 6)));
         colOn = cx;
         colName = colOn + wOn + gap;
         colAmt = colName + wName + gap;

@@ -91,6 +91,14 @@ public class FancyButton extends Button {
             g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, Ui.a(0.3f, acc()));
         }
         int col = isHot ? 0xFFFFFF : !this.active ? 0x5E5054 : hov ? 0xFFFFFF : Ui.TEXT;
+        if (s.equals("\u25B6")) { // a crisp drawn "play" triangle (the font glyph is too wide for tiny buttons)
+            int th = Math.min(7, h - 6), tx = x + (w - (th / 2 + 1)) / 2 + 1, ty = y + (h - th) / 2;
+            for (int i = 0; i < th; i++) {
+                int len = Math.min(i, th - 1 - i) + 1;
+                g.fill(tx, ty + i, tx + len, ty + i + 1, Ui.a(1f, col));
+            }
+            return;
+        }
         String t = Ui.fit(f, s, w - 8);
         g.drawString(f, t, x + (w - f.width(t)) / 2 + 1, y + (h - 8) / 2, Ui.a(1f, col), false);
     }

@@ -96,6 +96,7 @@ public final class Config {
                 if (c != null) {
                     c.fix();
                     INSTANCE = c;
+                    save(); // write back the cleaned-up pools so the file matches what the mod uses
                     return;
                 }
             }
@@ -132,6 +133,7 @@ public final class Config {
             if (t.seconds <= 0) t.seconds = 8;
             if (t.count < 1) t.count = 1;
             if (t.pool == null) t.pool = new ArrayList<>();
+            migratePool(t);
         }
         if (customPatterns == null) customPatterns = new ArrayList<>();
         if (incomingWords == null) incomingWords = d.incomingWords;
@@ -175,12 +177,35 @@ public final class Config {
 
     public static Config defaults() {
         Config c = new Config();
-        // light -> brutal. Pools left mostly open; the big two (leave/close) are opt-in only.
-        c.tiers.add(tier("Mild", 50_000, 6, 1, "nausea", "vertigo", "jitter", "sluggish", "fog"));
-        c.tiers.add(tier("Annoying", 250_000, 8, 1, "drunk", "inverted_controls", "spin", "static", "disco_eyes", "no_hud"));
-        c.tiers.add(tier("Harsh", 1_000_000, 10, 2, "negative", "blind", "cracked_screen", "tunnel_vision", "random_jumps", "flashbang", "earthquake"));
-        c.tiers.add(tier("Brutal", 5_000_000, 12, 2, "blackout", "troll_rain", "fake_crash", "censored", "frozen", "vertigo", "disco_eyes"));
-        c.tiers.add(tier("Insane", 10_000_000, 15, 3, "negative", "drunk", "inverted_controls", "earthquake", "troll_rain", "fake_ban", "static"));
+        // light -> brutal. The big two (leave server / close game) are opt-in only.
+        c.tiers.add(tier("Mild", 50_000, 6, 1, "jitter", "sluggish", "fog", "disco_eyes", "spin"));
+        c.tiers.add(tier("Annoying", 250_000, 8, 1, "drunk", "inverted_controls", "glitch", "tunnel_vision", "no_hud", "flashbang"));
+        c.tiers.add(tier("Harsh", 1_000_000, 10, 2, "negative", "inverted_controls", "frozen", "drunk", "flashbang", "tunnel_vision", "glitch"));
+        c.tiers.add(tier("Brutal", 5_000_000, 12, 2, "blackout", "frozen", "negative", "fake_lag", "drunk", "inverted_controls", "disco_eyes"));
+        c.tiers.add(tier("Insane", 10_000_000, 15, 3, "negative", "drunk", "inverted_controls", "fake_lag", "blackout", "frozen", "glitch", "jitter"));
         return c;
+    }
+
+    /** Punishments that were removed or merged, and what an old pool entry now means. */
+    private static final java.util.Map<String, String> RENAMED = java.util.Map.ofEntries(
+            java.util.Map.entry("nausea", "drunk"), java.util.Map.entry("sick", "drunk"),
+            java.util.Map.entry("random_jumps", "drunk"), java.util.Map.entry("vertigo", "spin"),
+            java.util.Map.entry("blind", "blackout"), java.util.Map.entry("darkness", "blackout"),
+            java.util.Map.entry("earthquake", "jitter"), java.util.Map.entry("static", "glitch"),
+            java.util.Map.entry("cracked_screen", "glitch"), java.util.Map.entry("censored", "glitch"),
+            java.util.Map.entry("fake_crash", "glitch"), java.util.Map.entry("troll_rain", "glitch"),
+            java.util.Map.entry("rain_bugs", "glitch"), java.util.Map.entry("heartbeat", "jitter"));
+
+    /** Rewrites a level's pool so it only names punishments that exist (old saves included). */
+    public static void migratePool(Tier t) {
+        if (t.pool == null || t.pool.isEmpty()) return;
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (String raw : t.pool) {
+            if (raw == null) continue;
+            String id = raw.toLowerCase(java.util.Locale.ROOT).trim();
+            id = RENAMED.getOrDefault(id, id);
+            if (Punishes.get(id) != null) out.add(id); // drops kick_title / fake_ban and anything unknown
+        }
+        t.pool = new ArrayList<>(out); // empty = any punishment, so a level can never end up doing nothing
     }
 }

@@ -97,7 +97,7 @@ public final class PunishOverlay {
 
     /** The field of view itself narrows (GameRendererMixin); this darkens the rim to sell it. */
     private static void tunnel(GuiGraphics g, int w, int h, float vis) {
-        stretch(g, TUNNEL, w, h, A(0.92f * vis, 0x000000));
+        stretch(g, TUNNEL, w, h, A(0.72f * vis, 0x000000));
     }
 
     private static void flashbang(GuiGraphics g, int w, int h, long now, float vis, float p) {
