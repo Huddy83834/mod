@@ -42,40 +42,18 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
-      - name: Probe internals
+      - name: Probe gametest API
         if: always()
         shell: bash
         run: |
           set +e +o pipefail
-          J=""
-          for f in $(find / -name "*.jar" -path "*minecraft*" 2>/dev/null | grep -i -E "merged|client" | grep -v sources); do
-            if unzip -l "$f" 2>/dev/null | grep -q "net/minecraft/client/Options.class"; then J="$f"; break; fi
+          G=$(find / -name "fabric-client-gametest-api-v1*.jar" 2>/dev/null | grep -v sources | head -1)
+          echo "GT=$G"
+          [ -z "$G" ] && exit 0
+          for c in $(unzip -l "$G" | awk '{print $4}' | grep -E "^net/fabricmc/fabric/api/client/gametest/v1/.*\.class$" | grep -v '\$' | sed 's/\.class$//; s#/#.#g'); do
+            echo "@@@@@ $c"; javap -cp "$G" "$c" 2>&1 | grep -vE "^Compiled" | head -60
           done
-          [ -z "$J" ] && echo "no jar" && exit 0
-          P() { echo "@@@@@ $1"; }
-          P "KeyboardInput"; javap -p -c -cp "$J" net.minecraft.client.player.KeyboardInput 2>&1 | grep -vE "^\s+[0-9]+: (aload|iload|astore|istore|dup|pop|ifeq|ifne|goto|iconst|fconst|fload|fstore|ireturn|areturn|return|i2f|fmul|fsub|fadd|fneg)" | head -120
-          P "ClientInput"; javap -p -cp "$J" net.minecraft.client.player.ClientInput 2>&1
-          P "LocalPlayer members"; javap -p -cp "$J" net.minecraft.client.player.LocalPlayer 2>&1 | grep -iE "input|spinning|confusion|portal|modify|aiStep|xxa|zza" | head -40
-          P "LocalPlayer input calls"; javap -p -c -cp "$J" net.minecraft.client.player.LocalPlayer 2>&1 | awk '/^  [a-z].*\(/{m=$0} /ClientInput|KeyboardInput|modifyInput|getMoveVector|keyPresses|moveVector/{print m " ::: " $0}' | head -60
-          P "LocalPlayer confusion body"; javap -p -c -cp "$J" net.minecraft.client.player.LocalPlayer 2>&1 | awk '/handleConfusionTransitionEffect\(/{f=1} f{print} f&&/^$/{exit}' | grep -E "invoke|getfield|putfield|ldc|bipush|sipush" | head -60
-          P "GameRenderer fov"; javap -p -cp "$J" net.minecraft.client.renderer.GameRenderer 2>&1 | grep -iE "fov|Fov" | head -20
-          P "GameRenderer fov body"; javap -p -c -cp "$J" net.minecraft.client.renderer.GameRenderer 2>&1 | awk '/ getFov\(/{f=1} f{print} f&&/^$/{exit}' | grep -E "invoke|getfield|putfield|ldc" | head -40
-          P "GameRenderer spinning"; javap -p -c -cp "$J" net.minecraft.client.renderer.GameRenderer 2>&1 | awk '/^  [a-z].*\(/{m=$0} /spinningEffectIntensity|NAUSEA|screenEffectScale/{print m " ::: " $0}' | head -30
-          P "Camera rotation"; javap -p -c -cp "$J" net.minecraft.client.Camera 2>&1 | awk '/ rotation\(\);/{f=1} f{print} f&&/^$/{exit}' | head -12
-          P "Camera fields"; javap -p -cp "$J" net.minecraft.client.Camera 2>&1 | grep -E "Quaternion|Vector3f|private|protected" | head -30
-          P "MobEffectInstance"; javap -p -cp "$J" net.minecraft.world.effect.MobEffectInstance 2>&1 | grep -iE "endsWithin|getDuration|blend|isInfinite" | head -20
-          P "RenderPipeline statics"; javap -p -cp "$J" com.mojang.blaze3d.pipeline.RenderPipeline 2>&1 | grep -E "static" | head -20
-          P "RenderPipeline.Builder"; javap -cp "$J" 'com.mojang.blaze3d.pipeline.RenderPipeline$Builder' 2>&1 | head -60
-          P "RenderPipeline.Snippet"; javap -cp "$J" 'com.mojang.blaze3d.pipeline.RenderPipeline$Snippet' 2>&1 | head -20
-          P "RenderPipelines snippets"; javap -p -cp "$J" net.minecraft.client.renderer.RenderPipelines 2>&1 | grep -E "SNIPPET| GUI;| GUI_" | head -40
-          P "RenderPipelines clinit GUI"; javap -p -c -cp "$J" net.minecraft.client.renderer.RenderPipelines 2>&1 | grep -E "GUI_SNIPPET|core/gui|position_color|pipeline/gui\b|pipeline/gui\"" | head -20
-          P "BlendFunction"; javap -p -cp "$J" com.mojang.blaze3d.pipeline.BlendFunction 2>&1 | head -30
-          P "Factor classes"; unzip -l "$J" | grep -iE "SourceFactor|DestFactor|LogicOp|BlendFunction" | awk '{print $4}'
-          P "SourceFactor"; javap -cp "$J" com.mojang.blaze3d.platform.SourceFactor 2>&1 | head -30
-          P "DestFactor"; javap -cp "$J" com.mojang.blaze3d.platform.DestFactor 2>&1 | head -30
-          P "DefaultVertexFormat"; javap -cp "$J" com.mojang.blaze3d.vertex.DefaultVertexFormat 2>&1 | grep -E "POSITION_COLOR" | head -5
-          P "GuiGraphics fill pipeline"; javap -cp "$J" net.minecraft.client.gui.GuiGraphics 2>&1 | grep -E "RenderPipeline, int, int, int, int, int\)" | head -5
-          P "END"
+          echo "@@@@@ END"
           exit 0
       - uses: actions/upload-artifact@v4
         with:
