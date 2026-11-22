@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "punishfx",
+  "version": "${version}",
+  "name": "Punish FX",
+  "description": "Punishes you when someone donates to you - inverted controls, drunk screen, and much worse. Levels and durations you choose. Client-side only.",
+  "authors": ["You"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.punishfx.PunishFxClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
