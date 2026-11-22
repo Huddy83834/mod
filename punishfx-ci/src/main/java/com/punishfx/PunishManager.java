@@ -1,7 +1,6 @@
 package com.punishfx;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.Holder;
@@ -60,7 +59,17 @@ public final class PunishManager {
     public static String banner = "";
     public static long bannerUntil = 0;
 
+    // Donor banner: who paid, how much, and what they triggered.
+    public static String donor = "";
+    public static String donorAmount = "";
+    public static String donorSub = "";
+    public static long donorUntil = 0;
+
     private PunishManager() {}
+
+    public static boolean donorShowing() {
+        return !donor.isEmpty() && System.currentTimeMillis() < donorUntil;
+    }
 
     public static List<Active> active() {
         return ACTIVE;
@@ -102,6 +111,22 @@ public final class PunishManager {
         if (level < 0 || level >= c.tiers.size()) return;
         Config.Tier t = c.tiers.get(level);
         List<String> ids = Punishes.pick(t, Math.max(1, t.count));
+        if (ids.isEmpty()) return;
+
+        // Announce who paid and how much, once per donation.
+        if (c.announce) {
+            List<String> names = new ArrayList<>();
+            for (String id : ids) names.add(Punishes.name(id));
+            donor = (player == null || player.isBlank()) ? "Someone" : player;
+            donorAmount = Money.full(amount);
+            donorSub = String.join("  ·  ", names);
+            donorUntil = System.currentTimeMillis() + 3400;
+            Minecraft mc = Minecraft.getInstance();
+            if (c.sounds && mc.player != null) {
+                playSound(mc, "minecraft:block.note_block.pling", 0.8f, 0.6f);
+                playSound(mc, "minecraft:entity.villager.no", 0.7f, 0.8f);
+            }
+        }
         for (String id : ids) start(id, level, player, amount);
     }
 
@@ -122,12 +147,9 @@ public final class PunishManager {
         if (p.extreme) {
             pendingExtreme = p;
             pendingUntil = now + (c.confirmExtreme ? 5000 : 1200);
-            announce(p, "⚠ " + p.name.toUpperCase());
             return;
         }
         if (p.cat == Punishes.Cat.ACTION) {
-            // instant, non-extreme actions (kick to menu / fake ban)
-            announce(p, p.name);
             runAction(Minecraft.getInstance(), p);
             return;
         }
@@ -137,19 +159,6 @@ public final class PunishManager {
         ACTIVE.removeIf(a -> a.p.id.equals(id));
         Active a = new Active(p, now, now + (long) (dur * 1000), level);
         ACTIVE.add(a);
-        announce(p, p.name);
-    }
-
-    private static void announce(Punishes.P p, String text) {
-        Config c = Config.get();
-        if (!c.announce) return;
-        banner = text;
-        bannerUntil = System.currentTimeMillis() + 2600;
-        Minecraft mc = Minecraft.getInstance();
-        if (c.sounds && mc.player != null) {
-            playSound(mc, "minecraft:block.note_block.pling", 0.8f, 0.6f);
-            playSound(mc, "minecraft:entity.villager.no", 0.7f, 0.8f);
-        }
     }
 
     // ------------------------------------------------------------------ tick
@@ -160,6 +169,7 @@ public final class PunishManager {
             ACTIVE.clear();
             pendingExtreme = null;
             restoreHud(mc);
+            applyFov(mc, false);
             ControlState.clear();
             APPLIED.clear();
             return;
@@ -176,73 +186,67 @@ public final class PunishManager {
 
         ACTIVE.removeIf(a -> now >= a.end);
 
-        boolean anyControl = false, wantHud = false;
-        boolean wNausea = false, wBlind = false, wDark = false, wSlug = false;
+        boolean anyControl = false, wantHud = false, wantTunnel = false;
+        boolean wNausea = false;
         drunkAngle = (float) (Math.sin(now / 420.0) * 0.8 + Math.sin(now / 137.0) * 0.4);
         ControlState.clear();
 
         for (Active a : ACTIVE) {
             switch (a.p.id) {
-                case "inverted_controls" -> anyControl = true;
+                // --- movement (input mixin) ---
+                case "inverted_controls" -> {
+                    ControlState.invert = true;
+                    anyControl = true;
+                }
                 case "frozen" -> {
                     ControlState.freeze = true;
                     anyControl = true;
                 }
-                case "random_jumps" -> {
+                case "sluggish" -> {
+                    ControlState.slow = 0.35f;
                     anyControl = true;
-                    if (tick % 15 == 0) ControlState.jumpPulse = true;
                 }
                 case "drunk" -> {
-                    anyControl = true;
                     ControlState.stumble = drunkAngle;
                     wNausea = true;
+                    anyControl = true;
                 }
+                // --- effect ---
                 case "nausea" -> wNausea = true;
-                case "blind" -> wBlind = true;
-                case "darkness" -> wDark = true;
-                case "sluggish" -> wSlug = true;
+                // --- camera / view ---
                 case "spin" -> mc.player.setYRot(mc.player.getYRot() + 7f);
-                case "vertigo" -> {
-                    mc.player.setXRot((float) (Math.sin(now / 260.0) * 35));
-                    mc.player.setYRot(mc.player.getYRot() + (float) Math.sin(now / 500.0) * 1.5f);
+                case "jitter" -> {
+                    ControlState.shake = 3.2f;
+                    anyControl = true;
+                }
+                case "glitch" -> {
+                    // snap the view left/right in jerky back-and-forth swings
+                    ControlState.slide = (float) (Math.sin(now / 85.0) * 12 + Math.sin(now / 37.0) * 5);
+                    anyControl = true;
+                    if (tick % 12 == 0) playSound(mc, "minecraft:block.sculk_sensor.clicking", 0.25f, 1.9f);
                 }
                 case "no_hud" -> wantHud = true;
-                case "jitter" -> mc.player.setYRot(mc.player.getYRot() + (R.nextFloat() - 0.5f) * 1.1f);
-                case "earthquake" -> {
-                    if (tick % 8 == 0) playSound(mc, "minecraft:entity.generic.explode", 0.3f, 0.6f);
-                    mc.player.setYRot(mc.player.getYRot() + (R.nextFloat() - 0.5f) * 2.4f);
-                }
-                case "heartbeat" -> {
-                    if (tick % 16 == 0) playSound(mc, "minecraft:entity.warden.heartbeat", 1f, 1f);
-                }
-                case "static", "glitch" -> {
-                    if (tick % 10 == 0) playSound(mc, "minecraft:block.sculk_sensor.clicking", 0.3f, 1.8f);
-                }
+                case "tunnel_vision" -> wantTunnel = true;
+                // --- real lag: actually stall the client thread in short bursts ---
                 case "fake_lag" -> {
-                    if (tick % 20 == 0) playSound(mc, "minecraft:block.note_block.bass", 0.3f, 0.5f);
-                }
-                case "fog" -> wDark = true;
-                case "sick" -> wNausea = true;
-                case "fake_crash" -> {
-                    if (a.progress() < 0.05f && !a.fired) {
-                        a.fired = true;
-                        playSound(mc, "minecraft:block.anvil.land", 0.6f, 0.5f);
+                    if (tick % 16 == 0) {
+                        try {
+                            Thread.sleep(130 + R.nextInt(220));
+                        } catch (InterruptedException ignored) {
+                            Thread.currentThread().interrupt();
+                        }
                     }
                 }
-                default -> { }
+                default -> { } // negative, disco_eyes, flashbang, blackout, fog = overlay only
             }
         }
 
         applyOrRemove(mc, MobEffects.NAUSEA, wNausea, 0);
-        applyOrRemove(mc, MobEffects.BLINDNESS, wBlind, 0);
-        applyOrRemove(mc, MobEffects.DARKNESS, wDark, 0);
-        applyOrRemove(mc, MobEffects.SLOWNESS, wSlug, 3);
-        applyOrRemove(mc, MobEffects.MINING_FATIGUE, wSlug, 2);
-        applyOrRemove(mc, MobEffects.WEAKNESS, wSlug, 1);
 
         ControlState.active = anyControl;
         if (wantHud) hideHud(mc);
         else restoreHud(mc);
+        applyFov(mc, wantTunnel);
     }
 
     /** Keeps a real Minecraft effect applied (fresh every tick, no HUD icon) while wanted, and removes it the moment it is not. */
@@ -281,17 +285,28 @@ public final class PunishManager {
         }
     }
 
+    /** No non-extreme instant actions remain (nothing here may disconnect from a server). */
     private static void runAction(Minecraft mc, Punishes.P p) {
-        switch (p.id) {
-            case "kick_title" -> {
-                mc.disconnectFromWorld(Component.literal("Punish FX"));
-                mc.setScreenAndShow(new TitleScreen());
+    }
+
+    // ---- Tunnel vision: genuinely clamp the player's FOV, then restore it ----
+    private static boolean fovChanged;
+    private static int savedFov;
+
+    private static void applyFov(Minecraft mc, boolean want) {
+        try {
+            if (want) {
+                if (!fovChanged) {
+                    savedFov = mc.options.fov().get();
+                    fovChanged = true;
+                }
+                mc.options.fov().set(30);
+            } else if (fovChanged) {
+                mc.options.fov().set(savedFov);
+                fovChanged = false;
             }
-            case "fake_ban" -> {
-                mc.disconnectFromWorld(Component.literal("Punish FX"));
-                mc.setScreenAndShow(new FakeBanScreen());
-            }
-            default -> { }
+        } catch (Throwable ignored) {
+            fovChanged = false;
         }
     }
 

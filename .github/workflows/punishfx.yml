@@ -42,6 +42,23 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
+      - name: Probe APIs
+        if: always()
+        shell: bash
+        run: |
+          set +e +o pipefail
+          J=""
+          for f in $(find / -name "*.jar" -path "*minecraft*" 2>/dev/null | grep -i -E "merged|client" | grep -v sources); do
+            if unzip -l "$f" 2>/dev/null | grep -q "net/minecraft/client/Options.class"; then J="$f"; break; fi
+          done
+          [ -z "$J" ] && echo "no jar" && exit 0
+          echo "JAR=$J"
+          echo "===== Options (fov)"; javap -cp "$J" net.minecraft.client.Options 2>&1 | grep -iE "fov|OptionInstance" | head -20
+          echo "===== OptionInstance"; javap -cp "$J" net.minecraft.client.OptionInstance 2>&1 | grep -E "public|get|set" | grep -vE "lambda|\\$" | head -30
+          echo "===== Camera"; javap -cp "$J" net.minecraft.client.Camera 2>&1 | grep -E "public|protected" | grep -vE "lambda|\\$" | head -40
+          echo "===== RenderSystem (blend/color)"; javap -cp "$J" com.mojang.blaze3d.systems.RenderSystem 2>&1 | grep -iE "blend|setShaderColor|disableBlend|enableBlend" | head -25
+          echo "===== GuiGraphics (blit/fill/flush/pose)"; javap -cp "$J" net.minecraft.client.gui.GuiGraphics 2>&1 | grep -E "public" | grep -iE "fill|blit|flush|pose|drawSpecial|nextStratum" | grep -vE "lambda|\\$" | head -40
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: punishfx-jar

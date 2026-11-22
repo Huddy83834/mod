@@ -30,8 +30,51 @@ public final class PunishOverlay {
             } catch (Exception ignored) {
             }
         }
+        donorBanner(g, font, w, now);
         banner(g, font, w, now);
         countdown(g, font, w, h, now);
+    }
+
+    /** "<player> paid you $X" + the punishment names, shown for a few seconds. */
+    private static void donorBanner(GuiGraphics g, Font font, int w, long now) {
+        if (now >= PunishManager.donorUntil || PunishManager.donor.isEmpty()) return;
+        long left = PunishManager.donorUntil - now;
+        float vis = Math.min(1f, Math.min(left / 400f, (now - (PunishManager.donorUntil - 3400)) / 160f));
+        if (vis <= 0) return;
+
+        String who = PunishManager.donor;
+        String amt = PunishManager.donorAmount;
+        String sub = PunishManager.donorSub;
+
+        float scale = 1.7f;
+        String head = who + " paid you";
+        int headW = (int) (font.width(head + " ") * scale);
+        int amtW = (int) (font.width(amt) * (scale + 0.5f));
+        int lineW = headW + amtW;
+        int subW = font.width(sub);
+        int bw = Math.max(lineW, subW) + 40;
+        int x = w / 2 - bw / 2;
+        int y = 12;
+        int bh = 52;
+
+        // backing card
+        g.fillGradient(x, y, x + bw, y + bh, A(0.88f * vis, 0x1C0609), A(0.88f * vis, 0x0A0205));
+        g.fill(x, y, x + bw, y + 2, A(vis, Ui.ACCENT));
+        g.fill(x, y + bh - 2, x + bw, y + bh, A(0.7f * vis, Ui.ACCENT2));
+        g.fill(x, y, x + 2, y + bh, A(vis, Ui.ACCENT));
+        g.fill(x + bw - 2, y, x + bw, y + bh, A(vis, Ui.ACCENT));
+        // coin pulse dot
+        float pulse = 0.6f + 0.4f * (float) Math.sin(now / 160.0);
+        disc(g, x + 16, y + 17, 6, A(vis, 0xFFD24A));
+        disc(g, x + 16, y + 17, 6f + pulse * 2, A(0.3f * vis, 0xFFD24A));
+        g.drawString(font, "$", x + 14, y + 12, A(vis, 0x5A3A00), false);
+
+        // "<who> paid you  $AMOUNT"
+        int tx = x + 30;
+        Ui.glowText(g, font, head, tx, y + 10, 0xFFCDD2, scale);
+        Ui.glowText(g, font, amt, tx + headW, y + 7, 0x6BFF9E, scale + 0.5f);
+        // punishment names
+        g.drawString(font, sub, x + 30, y + bh - 16, A(0.95f * vis, 0xE8C8CC), false);
     }
 
     // ------------------------------------------------------------------ one punishment
@@ -39,23 +82,11 @@ public final class PunishOverlay {
     public static void drawOne(GuiGraphics g, Font font, String id, int w, int h, long now, float vis, float p) {
         switch (id) {
             case "negative" -> negative(g, w, h, now, vis);
+            case "disco_eyes" -> disco(g, w, h, now, vis);
+            case "tunnel_vision" -> tunnel(g, w, h, now, vis);
             case "flashbang" -> flashbang(g, w, h, vis, p);
             case "blackout" -> blackout(g, font, w, h, now, vis);
             case "fog" -> fog(g, w, h, now, vis);
-            case "sick", "drunk" -> sick(g, w, h, now, vis);
-            case "tunnel_vision" -> tunnel(g, w, h, now, vis);
-            case "censored" -> censor(g, font, w, h, now, vis);
-            case "cracked_screen" -> cracks(g, w, h, vis);
-            case "static" -> tvStatic(g, font, w, h, now, vis);
-            case "disco_eyes" -> disco(g, w, h, now, vis);
-            case "heartbeat" -> heartbeat(g, w, h, now, vis);
-            case "earthquake" -> quake(g, w, h, now, vis);
-            case "jitter" -> jitter(g, w, h, now, vis);
-            case "glitch" -> glitch(g, w, h, now, vis);
-            case "fake_lag" -> fakeLag(g, font, w, h, now, vis);
-            case "troll_rain" -> trollRain(g, w, h, now, vis);
-            case "rain_bugs" -> bugs(g, w, h, now, vis);
-            case "fake_crash" -> fakeCrash(g, font, w, h, vis);
             default -> { }
         }
     }

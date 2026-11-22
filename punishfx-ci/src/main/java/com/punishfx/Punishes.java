@@ -28,43 +28,28 @@ public final class Punishes {
     private static final Random R = new Random();
 
     static {
-        // effects (real Minecraft overlays, applied client-side)
+        // effects
         add("nausea", "Nausea", "The whole world warps and spins.", Cat.EFFECT);
-        add("blind", "Blinded", "You can barely see a thing.", Cat.EFFECT);
-        add("darkness", "Darkness", "Darkness closes in in heavy pulses.", Cat.EFFECT);
-        add("sluggish", "Sluggish", "Slow, weak and clumsy to the bone.", Cat.EFFECT);
+        add("sluggish", "Sluggish", "Your movement is dragged down to a crawl.", Cat.EFFECT);
         // control (movement mixin)
         add("inverted_controls", "Inverted Controls", "Forward is back, left is right.", Cat.CONTROL);
         add("frozen", "Frozen", "You can't move at all.", Cat.CONTROL);
-        add("random_jumps", "Jumpy Legs", "Your legs keep jumping on their own.", Cat.CONTROL);
-        add("drunk", "Drunk", "Stumbling, spinning and green. Try to walk straight.", Cat.CONTROL);
-        // camera
+        add("drunk", "Drunk", "Stumbling, swaying and queasy. Try to walk straight.", Cat.CONTROL);
+        // camera / view
         add("spin", "Spin Cycle", "Your camera spins out of your control.", Cat.CAMERA);
-        add("vertigo", "Vertigo", "The horizon tilts and sways sickeningly.", Cat.CAMERA);
+        add("jitter", "Jitter", "Your whole view shakes and judders.", Cat.CAMERA);
+        add("glitch", "Glitch", "The view snaps and slides back and forth.", Cat.CAMERA);
         // hud
         add("no_hud", "HUD Gone", "Your whole HUD disappears.", Cat.HUD);
-        // visual overlays
-        add("negative", "Inverted Colors", "The screen flips to a sickly photo-negative.", Cat.VISUAL);
+        // view / render
+        add("negative", "Inverted Colors", "Your colours are actually inverted.", Cat.VISUAL);
+        add("tunnel_vision", "Tunnel Vision", "Your FOV clamps down to a narrow tunnel.", Cat.VISUAL);
+        add("disco_eyes", "Disco Eyes", "Your whole screen cycles through RGB.", Cat.VISUAL);
+        add("fake_lag", "Lag Spike", "Your game actually stutters and freezes.", Cat.VISUAL);
         add("flashbang", "Flashbang", "A blinding white flash fills the screen.", Cat.VISUAL);
         add("blackout", "Blackout", "The screen goes pitch black.", Cat.VISUAL);
-        add("cracked_screen", "Cracked Screen", "Your screen looks shattered.", Cat.VISUAL);
-        add("tunnel_vision", "Tunnel Vision", "Everything but a tiny center blacks out.", Cat.VISUAL);
-        add("static", "TV Static", "Buzzing static fills the screen.", Cat.VISUAL);
-        add("troll_rain", "Troll Rain", "Mocking faces pour down the screen.", Cat.VISUAL);
-        add("fake_crash", "Fake Crash", "A fake game-crash report appears.", Cat.VISUAL);
-        add("censored", "Censored", "Big black censor bars cover your view.", Cat.VISUAL);
-        add("disco_eyes", "Disco Eyes", "The whole screen strobes colors.", Cat.VISUAL);
-        add("earthquake", "Earthquake", "The screen shakes violently and rumbles.", Cat.VISUAL);
-        add("jitter", "Jitter", "A constant, maddening little shake.", Cat.VISUAL);
-        add("heartbeat", "Heartbeat", "Red pulses and a pounding heartbeat.", Cat.VISUAL);
-        add("sick", "Sickness", "A nauseating green haze over everything.", Cat.VISUAL);
         add("fog", "Blinding Fog", "A thick dark fog rolls in.", Cat.VISUAL);
-        add("fake_lag", "Lag Spike", "Fake stutter, freezes and a ping spike.", Cat.VISUAL);
-        add("rain_bugs", "Bug Swarm", "Bugs crawl all over your screen.", Cat.VISUAL);
-        add("glitch", "Glitch", "The screen tears and glitches out.", Cat.VISUAL);
-        // actions
-        add("kick_title", "Kick to Menu", "Boots you out to the main menu.", Cat.ACTION);
-        add("fake_ban", "Fake Ban", "A convincing fake \"you are banned\" screen.", Cat.ACTION);
+        // actions (extreme, off by default, with a cancel countdown)
         addExtreme("leave_server", "Leave Server", "Disconnects you from the server (off by default).");
         addExtreme("close_game", "Close Minecraft", "Quits the game, with a 5-second cancel (off by default).");
     }
