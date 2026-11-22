@@ -162,26 +162,17 @@ public final class PunishOverlay {
     // ------------------------------------------------------------------ the punishments
 
     private static void negative(GuiGraphics g, int w, int h, long now, float vis) {
-        // "colours inverted / broken signal": the whole screen pushed to a wrong, shifting complementary hue
-        boolean flip = (now / 650) % 2 == 0;          // flips which complementary dominates
-        float fl = ((now / 55) % 13) < 11 ? 1f : 0.45f; // occasional dropout flicker
-        int hueA = flip ? 0x00E6C8 : 0xE0109A;        // teal <-> magenta
-        int hueB = flip ? 0xE0109A : 0x00E6C8;
-        g.fill(0, 0, w, h, A(0.52f * vis * fl, hueA));
-        g.fillGradient(0, 0, w, h, A(0.30f * vis, hueB), A(0.42f * vis, 0x3010C0));
-        g.fill(0, 0, w, h, A(0.14f * vis, 0xFFF000));
-        // bold chromatic aberration: red ghost shoved one way, cyan the other
-        int ca = (int) (5 + 3 * Math.sin(now / 230.0));
+        // Steady photo-negative look (not animated): a heavy complementary wash so the
+        // world reads as "wrong colours", with faint static chromatic fringing.
+        g.fill(0, 0, w, h, A(0.55f * vis, 0x00E6C8));            // teal base
+        g.fillGradient(0, 0, w, h, A(0.34f * vis, 0xE0109A), A(0.34f * vis, 0x2A10C0)); // magenta->indigo
+        g.fill(0, 0, w, h, A(0.12f * vis, 0xFFF000));            // yellow cast
+        // fixed chromatic fringe (no movement)
         for (int y = 0; y < h; y += 3) {
-            g.fill(ca, y, w, y + 2, A(0.16f * vis, 0xFF0030));
-            g.fill(0, y + 1, w - ca, y + 3, A(0.16f * vis, 0x00C8FF));
+            g.fill(4, y, w, y + 2, A(0.12f * vis, 0xFF0030));
+            g.fill(0, y + 1, w - 4, y + 3, A(0.12f * vis, 0x00C8FF));
         }
-        // bright rolling sync bar
-        int by = (int) ((now / 5) % (h + 60)) - 30;
-        g.fillGradient(0, by, w, by + 26, A(0, 0xFFFFFF), A(0.28f * vis, 0xFFFFFF));
-        g.fillGradient(0, by + 26, w, by + 52, A(0.28f * vis, 0xFFFFFF), A(0, 0xFFFFFF));
-        for (int y = 0; y < h; y += 3) g.fill(0, y, w, y + 1, A(0.12f * vis, 0x000000));
-        vignette(g, w, h, flip ? 0x100030 : 0x300010, 0.4f * vis);
+        vignette(g, w, h, 0x1A0030, 0.35f * vis);
     }
 
     private static void flashbang(GuiGraphics g, int w, int h, float vis, float p) {
