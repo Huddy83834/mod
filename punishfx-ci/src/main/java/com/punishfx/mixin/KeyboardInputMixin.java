@@ -2,22 +2,24 @@ package com.punishfx.mixin;
 
 import com.punishfx.ControlState;
 import net.minecraft.client.player.ClientInput;
+import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Messes with movement input for the "inverted controls", "frozen", "sluggish" and "drunk" punishments. */
-@Mixin(ClientInput.class)
-public abstract class ClientInputMixin {
-    @Shadow public Input keyPresses;
-    @Shadow protected Vec2 moveVector;
+/**
+ * Movement punishments. In 1.21.11 the player's input is a {@link KeyboardInput}, whose tick()
+ * reads the keys into {@code keyPresses} and {@code moveVector} WITHOUT calling the base tick(),
+ * so we change both right after it runs. LocalPlayer then turns that vector into real movement.
+ */
+@Mixin(KeyboardInput.class)
+public abstract class KeyboardInputMixin extends ClientInput {
 
     @Inject(method = "tick", at = @At("TAIL"))
-    private void punishfx$tick(CallbackInfo ci) {
+    private void punishfx$afterTick(CallbackInfo ci) {
         if (!ControlState.active) return;
 
         if (ControlState.freeze) {
@@ -31,25 +33,24 @@ public abstract class ClientInputMixin {
         boolean jump = k.jump(), shift = k.shift(), sprint = k.sprint();
         Vec2 mv = this.moveVector;
 
-        // Inverted controls: swap the pressed keys AND flip the computed vector so
-        // whichever one the player uses downstream, movement is reversed.
         if (ControlState.invert) {
             boolean t = fwd; fwd = back; back = t;
             t = left; left = right; right = t;
             mv = new Vec2(-mv.x, -mv.y);
+            sprint = false; // can't sprint backwards
         }
 
-        // Drunk stumble: rotate the movement vector so "straight" drifts around.
         float ang = ControlState.stumble;
         if (ang != 0f && (mv.x != 0f || mv.y != 0f)) {
             float cos = (float) Math.cos(ang), sin = (float) Math.sin(ang);
             mv = new Vec2(mv.x * cos - mv.y * sin, mv.x * sin + mv.y * cos);
         }
 
-        // Sluggish: genuinely slow the player by shrinking the movement vector
-        // (the client then walks and reports slower, which the server accepts).
         float slow = ControlState.slow;
-        if (slow < 0.999f) mv = new Vec2(mv.x * slow, mv.y * slow);
+        if (slow < 0.999f) {
+            mv = new Vec2(mv.x * slow, mv.y * slow);
+            sprint = false;
+        }
 
         this.keyPresses = new Input(fwd, back, left, right, jump, shift, sprint);
         this.moveVector = mv;

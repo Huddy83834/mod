@@ -7,7 +7,13 @@ import java.util.Random;
 
 /** The list of every punishment, with how each one is categorized so the manager knows how to run it. */
 public final class Punishes {
-    public enum Cat { EFFECT, CONTROL, CAMERA, HUD, VISUAL, ACTION }
+    /** Groups used by the punishments screen. */
+    public enum Cat {
+        MOVEMENT("Movement", 0x3DDC84), VIEW("Camera & view", 0x4FB8F7), SCREEN("Screen", 0xC77DFF), ACTION("Extreme", 0xFFAA33);
+        public final String label;
+        public final int color;
+        Cat(String label, int color) { this.label = label; this.color = color; }
+    }
 
     public static final class P {
         public final String id, name, desc;
@@ -28,30 +34,27 @@ public final class Punishes {
     private static final Random R = new Random();
 
     static {
-        // effects
-        add("nausea", "Nausea", "The whole world warps and spins.", Cat.EFFECT);
-        add("sluggish", "Sluggish", "Your movement is dragged down to a crawl.", Cat.EFFECT);
-        // control (movement mixin)
-        add("inverted_controls", "Inverted Controls", "Forward is back, left is right.", Cat.CONTROL);
-        add("frozen", "Frozen", "You can't move at all.", Cat.CONTROL);
-        add("drunk", "Drunk", "Stumbling, swaying and queasy. Try to walk straight.", Cat.CONTROL);
-        // camera / view
-        add("spin", "Spin Cycle", "Your camera spins out of your control.", Cat.CAMERA);
-        add("jitter", "Jitter", "Your whole view shakes and judders.", Cat.CAMERA);
-        add("glitch", "Glitch", "The view snaps and slides back and forth.", Cat.CAMERA);
-        // hud
-        add("no_hud", "HUD Gone", "Your whole HUD disappears.", Cat.HUD);
-        // view / render
-        add("negative", "Inverted Colors", "Your colours are actually inverted.", Cat.VISUAL);
-        add("tunnel_vision", "Tunnel Vision", "Your FOV clamps down to a narrow tunnel.", Cat.VISUAL);
-        add("disco_eyes", "Disco Eyes", "Your whole screen cycles through RGB.", Cat.VISUAL);
-        add("fake_lag", "Lag Spike", "Your game actually stutters and freezes.", Cat.VISUAL);
-        add("flashbang", "Flashbang", "A blinding white flash fills the screen.", Cat.VISUAL);
-        add("blackout", "Blackout", "The screen goes pitch black.", Cat.VISUAL);
-        add("fog", "Blinding Fog", "A thick dark fog rolls in.", Cat.VISUAL);
-        // actions (extreme, off by default, with a cancel countdown)
-        addExtreme("leave_server", "Leave Server", "Disconnects you from the server (off by default).");
-        addExtreme("close_game", "Close Minecraft", "Quits the game, with a 5-second cancel (off by default).");
+        // movement (KeyboardInputMixin)
+        add("inverted_controls", "Inverted Controls", "W walks backwards, A goes right. Everything is flipped.", Cat.MOVEMENT);
+        add("frozen", "Frozen", "You can't move or jump at all.", Cat.MOVEMENT);
+        add("sluggish", "Sluggish", "You crawl along at a third of your normal speed.", Cat.MOVEMENT);
+        add("drunk", "Drunk", "Nausea warp, a swaying tilted camera and stumbling feet.", Cat.MOVEMENT);
+        // camera & view (CameraMixin / GameRendererMixin)
+        add("spin", "Spin Cycle", "Your camera spins round and round.", Cat.VIEW);
+        add("jitter", "Jitter", "Your whole view shakes and judders nonstop.", Cat.VIEW);
+        add("glitch", "Glitch", "The view snaps back and forth while the screen tears.", Cat.VIEW);
+        add("tunnel_vision", "Tunnel Vision", "Your field of view clamps down into a narrow tunnel.", Cat.VIEW);
+        // screen
+        add("negative", "Inverted Colors", "Every colour on your screen is truly inverted.", Cat.SCREEN);
+        add("disco_eyes", "Disco Eyes", "Your whole screen cycles through RGB.", Cat.SCREEN);
+        add("flashbang", "Flashbang", "A bang, then a long blinding white-out.", Cat.SCREEN);
+        add("blackout", "Blackout", "The screen goes pitch black.", Cat.SCREEN);
+        add("fog", "Blinding Fog", "A thick grey fog rolls in.", Cat.SCREEN);
+        add("no_hud", "HUD Gone", "Your hotbar, health and crosshair vanish.", Cat.SCREEN);
+        add("fake_lag", "Lag Spike", "Your game genuinely stutters and freezes.", Cat.SCREEN);
+        // extreme (off by default, with a cancel countdown)
+        addExtreme("leave_server", "Leave Server", "Disconnects you from the server. Off by default.");
+        addExtreme("close_game", "Close Minecraft", "Quits the game after a 5-second cancel window. Off by default.");
     }
 
     private Punishes() {}

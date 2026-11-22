@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "punishfx-test",
+  "version": "1.0.0",
+  "name": "Punish FX in-game tests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": ["com.punishfx.test.PunishFxClientTest"]
+  },
+  "depends": { "punishfx": "*", "fabric-api": "*" }
+}

@@ -84,6 +84,25 @@ public class PunishFxClient implements ClientModInitializer {
         });
     }
 
+    /** The key currently bound to "cancel punishments", as the player sees it. */
+    public static String cancelKeyName() {
+        return keyName(cancelKey, "\\");
+    }
+
+    /** The key currently bound to "open Punish FX settings". */
+    public static String settingsKeyName() {
+        return keyName(settingsKey, "K");
+    }
+
+    private static String keyName(KeyMapping k, String fallback) {
+        try {
+            String s = k == null ? "" : k.getTranslatedKeyMessage().getString();
+            return s.isBlank() ? fallback : s;
+        } catch (Throwable t) {
+            return fallback;
+        }
+    }
+
     private static int say(CommandContext<FabricClientCommandSource> ctx, String s) {
         ctx.getSource().sendFeedback(Component.literal("§c[Punish FX]§r " + s));
         return 1;

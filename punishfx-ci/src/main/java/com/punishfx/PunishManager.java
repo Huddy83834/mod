@@ -153,12 +153,24 @@ public final class PunishManager {
             runAction(Minecraft.getInstance(), p);
             return;
         }
+        if (id.equals("flashbang")) dur *= 1.6; // the white-out lingers longer than the rest
         if (!c.stack) ACTIVE.clear();
         while (ACTIVE.size() >= c.maxActive) ACTIVE.remove(0);
         // don't double up the same punishment
         ACTIVE.removeIf(a -> a.p.id.equals(id));
         Active a = new Active(p, now, now + (long) (dur * 1000), level);
         ACTIVE.add(a);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            switch (id) {
+                case "flashbang" -> {
+                    playSound(mc, "minecraft:entity.generic.explode", 1f, 1.3f);
+                    playSound(mc, "minecraft:entity.firework_rocket.blast", 1f, 0.6f);
+                }
+                case "drunk" -> playSound(mc, "minecraft:entity.generic.drink", 0.9f, 0.9f);
+                default -> { }
+            }
+        }
     }
 
     // ------------------------------------------------------------------ tick
@@ -169,7 +181,6 @@ public final class PunishManager {
             ACTIVE.clear();
             pendingExtreme = null;
             restoreHud(mc);
-            applyFov(mc, false);
             ControlState.clear();
             APPLIED.clear();
             return;
@@ -186,14 +197,13 @@ public final class PunishManager {
 
         ACTIVE.removeIf(a -> now >= a.end);
 
-        boolean anyControl = false, wantHud = false, wantTunnel = false;
-        boolean wNausea = false;
+        boolean anyControl = false, wantHud = false, wantNausea = false;
         drunkAngle = (float) (Math.sin(now / 420.0) * 0.8 + Math.sin(now / 137.0) * 0.4);
         ControlState.clear();
 
         for (Active a : ACTIVE) {
             switch (a.p.id) {
-                // --- movement (input mixin) ---
+                // --- movement (KeyboardInputMixin) ---
                 case "inverted_controls" -> {
                     ControlState.invert = true;
                     anyControl = true;
@@ -203,30 +213,27 @@ public final class PunishManager {
                     anyControl = true;
                 }
                 case "sluggish" -> {
-                    ControlState.slow = 0.35f;
+                    ControlState.slow = 0.33f;
                     anyControl = true;
                 }
                 case "drunk" -> {
-                    ControlState.stumble = drunkAngle;
-                    wNausea = true;
+                    float env = envelope(a, now, 1500, 1200);
+                    ControlState.stumble = drunkAngle * env;
+                    ControlState.drunk = Math.max(ControlState.drunk, env);
+                    wantNausea = true;
                     anyControl = true;
+                    if (tick % 70 == 35) playSound(mc, "minecraft:entity.player.burp", 0.8f, 0.8f + R.nextFloat() * 0.3f);
                 }
-                // --- effect ---
-                case "nausea" -> wNausea = true;
-                // --- camera / view ---
+                // --- camera & view (CameraMixin / GameRendererMixin) ---
                 case "spin" -> mc.player.setYRot(mc.player.getYRot() + 7f);
-                case "jitter" -> {
-                    ControlState.shake = 3.2f;
-                    anyControl = true;
-                }
+                case "jitter" -> ControlState.shake = 3.2f * envelope(a, now, 300, 400);
                 case "glitch" -> {
-                    // snap the view left/right in jerky back-and-forth swings
+                    // jerky back-and-forth snaps of the whole view
                     ControlState.slide = (float) (Math.sin(now / 85.0) * 12 + Math.sin(now / 37.0) * 5);
-                    anyControl = true;
                     if (tick % 12 == 0) playSound(mc, "minecraft:block.sculk_sensor.clicking", 0.25f, 1.9f);
                 }
+                case "tunnel_vision" -> ControlState.fovMul = Math.min(ControlState.fovMul, 1f - 0.6f * envelope(a, now, 900, 900));
                 case "no_hud" -> wantHud = true;
-                case "tunnel_vision" -> wantTunnel = true;
                 // --- real lag: actually stall the client thread in short bursts ---
                 case "fake_lag" -> {
                     if (tick % 16 == 0) {
@@ -237,28 +244,41 @@ public final class PunishManager {
                         }
                     }
                 }
-                default -> { } // negative, disco_eyes, flashbang, blackout, fog = overlay only
+                default -> { } // negative, disco_eyes, flashbang, blackout, fog = drawn by the overlay
             }
         }
 
-        applyOrRemove(mc, MobEffects.NAUSEA, wNausea, 0);
+        keepEffect(mc, MobEffects.NAUSEA, wantNausea);
 
         ControlState.active = anyControl;
         if (wantHud) hideHud(mc);
         else restoreHud(mc);
-        applyFov(mc, wantTunnel);
     }
 
-    /** Keeps a real Minecraft effect applied (fresh every tick, no HUD icon) while wanted, and removes it the moment it is not. */
-    private static void applyOrRemove(Minecraft mc, Holder<MobEffect> eff, boolean want, int amp) {
+    /** 0 -> 1 over {@code inMs}, holds, then 1 -> 0 over the last {@code outMs} of a punishment. */
+    static float envelope(Active a, long now, long inMs, long outMs) {
+        float in = Math.min(1f, (now - a.start) / (float) inMs);
+        float out = Math.min(1f, (a.end - now) / (float) outMs);
+        return Math.max(0f, Math.min(in, out));
+    }
+
+    /**
+     * Keeps a real effect on the player while wanted. It is given a long duration and only
+     * topped up when it runs low: effects like nausea fade OUT once they are about to end, so
+     * re-applying a short one every tick (what the old version did) never let the warp show.
+     * It is removed the moment it is no longer wanted.
+     */
+    private static void keepEffect(Minecraft mc, Holder<MobEffect> eff, boolean want) {
         LocalPlayer p = mc.player;
         if (p == null) return;
         if (want) {
-            p.addEffect(new MobEffectInstance(eff, 25, amp, false, false, false));
+            MobEffectInstance cur = p.getEffect(eff);
+            if (cur == null || (!cur.isInfiniteDuration() && cur.getDuration() < 400)) {
+                p.addEffect(new MobEffectInstance(eff, 1200, 0, false, false, false));
+            }
             APPLIED.add(eff);
-        } else if (APPLIED.contains(eff)) {
+        } else if (APPLIED.remove(eff)) {
             p.removeEffect(eff);
-            APPLIED.remove(eff);
         }
     }
 
@@ -287,27 +307,6 @@ public final class PunishManager {
 
     /** No non-extreme instant actions remain (nothing here may disconnect from a server). */
     private static void runAction(Minecraft mc, Punishes.P p) {
-    }
-
-    // ---- Tunnel vision: genuinely clamp the player's FOV, then restore it ----
-    private static boolean fovChanged;
-    private static int savedFov;
-
-    private static void applyFov(Minecraft mc, boolean want) {
-        try {
-            if (want) {
-                if (!fovChanged) {
-                    savedFov = mc.options.fov().get();
-                    fovChanged = true;
-                }
-                mc.options.fov().set(30);
-            } else if (fovChanged) {
-                mc.options.fov().set(savedFov);
-                fovChanged = false;
-            }
-        } catch (Throwable ignored) {
-            fovChanged = false;
-        }
     }
 
     // ------------------------------------------------------------------ sound

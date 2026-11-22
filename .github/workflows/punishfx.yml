@@ -7,9 +7,13 @@ on:
       - '.github/workflows/punishfx.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     defaults:
       run:
         working-directory: punishfx-ci
@@ -42,20 +46,38 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
-      - name: Probe gametest API
-        if: always()
-        shell: bash
-        run: |
-          set +e +o pipefail
-          G=$(find / -name "fabric-client-gametest-api-v1*.jar" 2>/dev/null | grep -v sources | head -1)
-          echo "GT=$G"
-          [ -z "$G" ] && exit 0
-          for c in $(unzip -l "$G" | awk '{print $4}' | grep -E "^net/fabricmc/fabric/api/client/gametest/v1/.*\.class$" | grep -v '\$' | sed 's/\.class$//; s#/#.#g'); do
-            echo "@@@@@ $c"; javap -cp "$G" "$c" 2>&1 | grep -vE "^Compiled" | head -60
-          done
-          echo "@@@@@ END"
-          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: punishfx-jar
-          path: punishfx-ci/build/libs/punishfx-1.1.0.jar
+          path: punishfx-ci/build/libs/punishfx-1.2.0.jar
+      - name: Install a virtual display
+        shell: bash
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri libglx-mesa0 mesa-utils > /dev/null
+      - name: Run the mod inside a real Minecraft client
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set +e
+          xvfb-run -a -s "-screen 0 1920x1080x24" gradle runClientGameTest --no-daemon -Ploader_version=${{ steps.ver.outputs.loader }} "-Pfabric_api_version=${{ steps.ver.outputs.api }}" > gametest.log 2>&1
+          code=$?
+          echo "----- results -----"
+          grep -E "PUNISHFX-TEST" gametest.log
+          echo "----- problems -----"
+          grep -iE "mixin.*(error|fail|could not)|Exception|Caused by|FAILED|OpenGL" gametest.log | grep -v "PUNISHFX-TEST" | head -60
+          echo "exit=$code"
+          exit $code
+      - name: Publish screenshots to the ci-shots branch
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p /tmp/shots
+          find . -path "*punishfx-shots*" -name "*.png" -exec cp {} /tmp/shots/ \;
+          cp gametest.log /tmp/shots/ 2>/dev/null || true
+          ls /tmp/shots
+          cd /tmp/shots
+          git init -q
+          git checkout -q -b ci-shots
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "punishfx in-game run ${{ github.run_id }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-shots

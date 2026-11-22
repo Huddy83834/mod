@@ -18,6 +18,16 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 }
 
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = "punishfx-test"
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+    }
+}
+
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") {

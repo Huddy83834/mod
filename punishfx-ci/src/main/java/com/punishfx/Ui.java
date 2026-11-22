@@ -82,6 +82,47 @@ public final class Ui {
         g.pose().popMatrix();
     }
 
+    /** Draws {@code s}, cut short with "..." if it is wider than {@code maxW}. */
+    public static void text(GuiGraphics g, net.minecraft.client.gui.Font f, String s, int x, int y, int rgb, int maxW) {
+        g.drawString(f, fit(f, s, maxW), x, y, a(1f, rgb), false);
+    }
+
+    public static String fit(net.minecraft.client.gui.Font f, String s, int maxW) {
+        if (s == null) return "";
+        if (maxW <= 0) return "";
+        if (f.width(s) <= maxW) return s;
+        String dots = "...";
+        String cut = f.plainSubstrByWidth(s, Math.max(0, maxW - f.width(dots)));
+        return cut.stripTrailing() + dots;
+    }
+
+    /** A small all-caps section heading with a hairline running to the right. */
+    public static void section(GuiGraphics g, net.minecraft.client.gui.Font f, String s, int x, int y, int w) {
+        String t = s.toUpperCase();
+        g.drawString(f, t, x, y, a(1f, 0xB88A92), false);
+        int lx = x + f.width(t) + 6;
+        if (lx < x + w) g.fill(lx, y + 4, x + w, y + 5, a(0.35f, ACCENT));
+    }
+
+    /** The card behind a settings row: label on top, a dim description under it. */
+    public static void rowCard(GuiGraphics g, net.minecraft.client.gui.Font f, int x, int y, int w, int h,
+                               String label, String desc, boolean hovered, int bar, int rightReserve) {
+        int base = hovered ? CARD_HI : CARD;
+        g.fillGradient(x, y, x + w, y + h, a(1f, mix(base, 0xFFFFFF, 0.06f)), a(1f, mix(base, 0x000000, 0.2f)));
+        g.fill(x, y, x + w, y + 1, a(0.5f, mix(base, 0xFFFFFF, 0.15f)));
+        g.fill(x, y + h - 1, x + w, y + h, a(0.6f, 0x000000));
+        g.fill(x, y + 1, x + 2, y + h - 1, a(1f, bar));
+        int maxW = w - 12 - rightReserve;
+        boolean twoLines = desc != null && !desc.isEmpty() && h >= 22;
+        if (twoLines) {
+            int ty = y + (h - 19) / 2;
+            text(g, f, label, x + 8, ty, hovered ? 0xFFFFFF : TEXT, maxW);
+            text(g, f, desc, x + 8, ty + 10, 0x8C7E82, maxW);
+        } else {
+            text(g, f, label, x + 8, y + (h - 8) / 2, hovered ? 0xFFFFFF : TEXT, maxW);
+        }
+    }
+
     /** A pill-shaped mini switch: filled track + knob that sits right when on, left when off. */
     public static void switchKnob(GuiGraphics g, int x, int y, int w, int h, boolean on) {
         int track = on ? GOOD : 0x4A3A40;
