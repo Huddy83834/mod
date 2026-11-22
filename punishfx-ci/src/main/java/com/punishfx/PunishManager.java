@@ -15,7 +15,10 @@ import net.minecraft.world.effect.MobEffects;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.IdentityHashMap;
 import java.util.Random;
+import java.util.Set;
+import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Chooses, runs and expires punishments. Everything here is client-side only. */
@@ -44,6 +47,7 @@ public final class PunishManager {
     private static final CopyOnWriteArrayList<Active> ACTIVE = new CopyOnWriteArrayList<>();
     private static final Random R = new Random();
     private static long tick = 0;
+    private static final Set<Holder<MobEffect>> APPLIED = Collections.newSetFromMap(new IdentityHashMap<>());
     private static float drunkAngle = 0;
 
     // extreme (leave/close) pending countdown
@@ -148,6 +152,7 @@ public final class PunishManager {
             pendingExtreme = null;
             restoreHud(mc);
             ControlState.clear();
+            APPLIED.clear();
             return;
         }
         long now = System.currentTimeMillis();
@@ -163,6 +168,7 @@ public final class PunishManager {
         ACTIVE.removeIf(a -> now >= a.end);
 
         boolean anyControl = false, wantHud = false;
+        boolean wNausea = false, wBlind = false, wDark = false, wSlug = false;
         drunkAngle = (float) (Math.sin(now / 420.0) * 0.8 + Math.sin(now / 137.0) * 0.4);
         ControlState.clear();
 
@@ -180,16 +186,12 @@ public final class PunishManager {
                 case "drunk" -> {
                     anyControl = true;
                     ControlState.stumble = drunkAngle;
-                    refreshEffect(mc, MobEffects.NAUSEA, a, 0);
+                    wNausea = true;
                 }
-                case "nausea" -> refreshEffect(mc, MobEffects.NAUSEA, a, 0);
-                case "blind" -> refreshEffect(mc, MobEffects.BLINDNESS, a, 0);
-                case "darkness" -> refreshEffect(mc, MobEffects.DARKNESS, a, 0);
-                case "sluggish" -> {
-                    refreshEffect(mc, MobEffects.SLOWNESS, a, 3);
-                    refreshEffect(mc, MobEffects.MINING_FATIGUE, a, 2);
-                    refreshEffect(mc, MobEffects.WEAKNESS, a, 1);
-                }
+                case "nausea" -> wNausea = true;
+                case "blind" -> wBlind = true;
+                case "darkness" -> wDark = true;
+                case "sluggish" -> wSlug = true;
                 case "spin" -> mc.player.setYRot(mc.player.getYRot() + 7f);
                 case "vertigo" -> {
                     mc.player.setXRot((float) (Math.sin(now / 260.0) * 35));
@@ -210,7 +212,8 @@ public final class PunishManager {
                 case "fake_lag" -> {
                     if (tick % 20 == 0) playSound(mc, "minecraft:block.note_block.bass", 0.3f, 0.5f);
                 }
-                case "fog", "sick" -> refreshEffect(mc, MobEffects.DARKNESS, a, 0);
+                case "fog" -> wDark = true;
+                case "sick" -> wNausea = true;
                 case "fake_crash" -> {
                     if (a.progress() < 0.05f && !a.fired) {
                         a.fired = true;
@@ -221,17 +224,28 @@ public final class PunishManager {
             }
         }
 
+        applyOrRemove(mc, MobEffects.NAUSEA, wNausea, 0);
+        applyOrRemove(mc, MobEffects.BLINDNESS, wBlind, 0);
+        applyOrRemove(mc, MobEffects.DARKNESS, wDark, 0);
+        applyOrRemove(mc, MobEffects.SLOWNESS, wSlug, 3);
+        applyOrRemove(mc, MobEffects.MINING_FATIGUE, wSlug, 2);
+        applyOrRemove(mc, MobEffects.WEAKNESS, wSlug, 1);
+
         ControlState.active = anyControl;
         if (wantHud) hideHud(mc);
         else restoreHud(mc);
     }
 
-    private static void refreshEffect(Minecraft mc, Holder<MobEffect> eff, Active a, int amp) {
+    /** Keeps a real Minecraft effect applied (fresh every tick, no HUD icon) while wanted, and removes it the moment it is not. */
+    private static void applyOrRemove(Minecraft mc, Holder<MobEffect> eff, boolean want, int amp) {
         LocalPlayer p = mc.player;
         if (p == null) return;
-        int ticksLeft = (int) Math.max(10, (a.end - System.currentTimeMillis()) / 50);
-        if (tick % 10 == 0 || !p.hasEffect(eff)) {
-            p.addEffect(new MobEffectInstance(eff, ticksLeft + 40, amp, false, false, false));
+        if (want) {
+            p.addEffect(new MobEffectInstance(eff, 25, amp, false, false, false));
+            APPLIED.add(eff);
+        } else if (APPLIED.contains(eff)) {
+            p.removeEffect(eff);
+            APPLIED.remove(eff);
         }
     }
 

@@ -45,4 +45,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: punishfx-jar
-          path: punishfx-ci/build/libs/punishfx-1.0.0.jar
+          path: punishfx-ci/build/libs/punishfx-1.1.0.jar
