@@ -176,8 +176,8 @@ public final class Config {
     public static Config defaults() {
         Config c = new Config();
         // light -> brutal. Pools left mostly open; the big two (leave/close) are opt-in only.
-        c.tiers.add(tier("Mild", 50_000, 6, 1, "nausea", "tilt", "jitter", "sluggish", "fog"));
-        c.tiers.add(tier("Annoying", 250_000, 8, 1, "drunk", "inverted_controls", "spin", "static", "zoom", "sticky_keys"));
+        c.tiers.add(tier("Mild", 50_000, 6, 1, "nausea", "vertigo", "jitter", "sluggish", "fog"));
+        c.tiers.add(tier("Annoying", 250_000, 8, 1, "drunk", "inverted_controls", "spin", "static", "disco_eyes", "no_hud"));
         c.tiers.add(tier("Harsh", 1_000_000, 10, 2, "negative", "blind", "cracked_screen", "tunnel_vision", "random_jumps", "flashbang", "earthquake"));
         c.tiers.add(tier("Brutal", 5_000_000, 12, 2, "blackout", "troll_rain", "fake_crash", "censored", "frozen", "vertigo", "disco_eyes"));
         c.tiers.add(tier("Insane", 10_000_000, 15, 3, "negative", "drunk", "inverted_controls", "earthquake", "troll_rain", "fake_ban", "static"));
