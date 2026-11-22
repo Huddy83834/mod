@@ -151,8 +151,7 @@ public class PunishPoolScreen extends PfxFrame {
         Config.Tier t = c.tiers.get(selLevel);
         int chosen = 0;
         for (Punishes.P p : Punishes.all()) if (inPool(t, p.id)) chosen++;
-        String sum = t.name + " " + Money.compact(t.minAmount) + "+  " + fmt(t.seconds) + "s  x" + t.count
-                + (t.pool.isEmpty() ? "" : "  " + chosen + " picked");
+        String sum = t.name + "  " + Money.compact(t.minAmount) + "+  " + fmt(t.seconds) + "s  x" + t.count;
         int legendW = 0;
         if (legend) for (Punishes.Cat cat : Punishes.Cat.values())
             legendW += this.font.width(cat == Punishes.Cat.VIEW ? "Camera" : cat.label) + 15;
