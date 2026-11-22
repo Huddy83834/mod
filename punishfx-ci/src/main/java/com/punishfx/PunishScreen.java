@@ -11,6 +11,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
+import java.util.function.DoubleSupplier;
 
 /** Punish FX global settings, with a custom neon UI. */
 public class PunishScreen extends Screen {
@@ -39,9 +40,17 @@ public class PunishScreen extends Screen {
         }).accent(get.getAsBoolean() ? Ui.GOOD : Ui.DIM));
     }
 
-    private void slider(double min, double max, double step, double cur, DoubleConsumer set, DoubleFunction<String> label) {
+    private void stepper(double[] vals, DoubleSupplier get, DoubleConsumer set, DoubleFunction<String> label) {
         int[] p = next();
-        addRenderableWidget(new FancySlider(p[0], p[1], colW, 18, min, max, step, cur, set, label));
+        addRenderableWidget(new FancyButton(p[0], p[1], colW, 18, Component.literal(label.apply(get.getAsDouble())), b -> {
+            double cur = get.getAsDouble();
+            int idx = 0;
+            for (int i = 0; i < vals.length; i++) if (Math.abs(vals[i] - cur) < 1e-6) idx = i;
+            double nv = vals[(idx + 1) % vals.length];
+            set.accept(nv);
+            Config.save();
+            b.setMessage(Component.literal(label.apply(nv)));
+        }).accent(Ui.ACCENT2));
     }
 
     @Override
@@ -75,8 +84,8 @@ public class PunishScreen extends Screen {
         toggle("Stack", () -> c.stack, v -> c.stack = v);
         toggle("Combine pays", () -> c.combine, v -> c.combine = v);
         toggle("Confirm extreme", () -> c.confirmExtreme, v -> c.confirmExtreme = v);
-        slider(0.25, 3.0, 0.05, c.lengthScale, v -> c.lengthScale = v, v -> "Length " + Math.round(v * 100) + "%");
-        slider(1, 10, 1, c.maxActive, v -> c.maxActive = (int) v, v -> "Max at once " + (int) v);
+        stepper(new double[]{0.5, 0.75, 1.0, 1.5, 2.0, 3.0}, () -> c.lengthScale, v -> c.lengthScale = v, v -> "Length " + Math.round(v * 100) + "%");
+        stepper(new double[]{1, 2, 3, 4, 6, 8, 10}, () -> c.maxActive, v -> c.maxActive = (int) v, v -> "Max at once " + (int) v);
 
         int bw = (pw - 24 - 4 * 5) / 5;
         int bx = px + 12;
@@ -133,10 +142,6 @@ public class PunishScreen extends Screen {
         g.drawString(this.font, "it hurts when they pay you", px + 12 + (int) (this.font.width("PUNISH FX") * 1.5f) + 10, py + 15, Ui.a(1f, Ui.DIM), false);
         g.drawString(this.font, "GLOBAL", px + 12, py + 34, Ui.a(1f, Ui.DIM), false);
         g.fill(px + 12 + this.font.width("GLOBAL") + 6, py + 38, px + pw - 12, py + 39, Ui.a(0.4f, Ui.ACCENT));
-    }
-
-    private static int a(float al, int rgb) {
-        return Ui.a(al, rgb);
     }
 
     @Override

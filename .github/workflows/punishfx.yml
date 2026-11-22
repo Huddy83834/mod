@@ -42,21 +42,6 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
-      - name: Probe widgets
-        if: always()
-        shell: bash
-        run: |
-          set +e +o pipefail
-          J=""
-          for f in $(find / -name "*.jar" -path "*minecraft*" 2>/dev/null | grep -i -E "merged|client" | grep -v sources); do
-            if unzip -l "$f" 2>/dev/null | grep -q "net/minecraft/client/gui/components/AbstractWidget.class"; then J="$f"; break; fi
-          done
-          [ -z "$J" ] && echo "no jar" && exit 0
-          for c in net.minecraft.client.gui.components.AbstractWidget net.minecraft.client.gui.components.AbstractButton net.minecraft.client.gui.components.AbstractSliderButton; do
-            echo "===== $c"
-            javap -cp "$J" "$c" 2>&1 | grep -E "renderWidget|renderContents|updateWidgetNarration|mouseClicked|mouseDragged|onClick|protected|public" | grep -vE "lambda|\$" | head -60
-          done
-          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: punishfx-jar

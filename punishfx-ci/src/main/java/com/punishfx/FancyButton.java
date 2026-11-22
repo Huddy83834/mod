@@ -20,12 +20,18 @@ public class FancyButton extends Button {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    protected void renderContents(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         boolean hov = isHoveredOrFocused() && this.active;
         int base = !this.active ? 0x160C10 : hov ? Ui.CARD_HI : Ui.CARD;
-        Ui.card(g, x, y, w, h, base);
-        // accent bar on the left
+        // opaque body (covers the vanilla button sprite underneath)
+        g.fillGradient(x, y, x + w, y + h, Ui.a(1f, Ui.mix(base, 0xFFFFFF, 0.08f)), Ui.a(1f, Ui.mix(base, 0x000000, 0.25f)));
+        int edge = Ui.a(0.6f, Ui.mix(base, 0x000000, 0.5f));
+        g.fill(x, y, x + w, y + 1, edge);
+        g.fill(x, y + h - 1, x + w, y + h, edge);
+        g.fill(x, y, x + 1, y + h, edge);
+        g.fill(x + w - 1, y, x + w, y + h, edge);
+        // accent bar + hover glow
         g.fill(x + 1, y + 1, x + 3, y + h - 1, Ui.a(this.active ? 1f : 0.4f, accent));
         if (hov) {
             g.fill(x + 1, y + 1, x + w - 1, y + 2, Ui.a(0.55f, accent));

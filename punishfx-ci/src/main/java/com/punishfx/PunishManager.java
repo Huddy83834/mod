@@ -74,6 +74,15 @@ public final class PunishManager {
         return Math.max(0, (pendingUntil - System.currentTimeMillis() + 999) / 1000);
     }
 
+    public static long extremeMillisLeft() {
+        return Math.max(0, pendingUntil - System.currentTimeMillis());
+    }
+
+    /** Total length of the current pending countdown, so the overlay can draw a progress bar. */
+    public static long extremeTotalMillis() {
+        return Config.get().confirmExtreme ? 5000 : 1200;
+    }
+
     public static Punishes.P pendingExtreme() {
         return pendingExtreme;
     }
