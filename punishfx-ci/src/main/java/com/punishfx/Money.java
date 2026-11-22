@@ -63,6 +63,6 @@ public final class Money {
     }
 
     public static String format(double v) {
-        return Config.get().shortAmounts ? compact(v) : full(v);
+        return full(v);
     }
 }
