@@ -131,22 +131,26 @@ public final class PunishOverlay {
     // ------------------------------------------------------------------ the punishments
 
     private static void negative(GuiGraphics g, int w, int h, long now, float vis) {
-        // broken "inverted colours" look: strong complementary wash, RGB split, rolling bright bar, flicker
-        float fl = ((now / 70) % 11) < 9 ? 1f : 0.55f;
-        g.fill(0, 0, w, h, A(0.5f * vis * fl, 0x00E6B0));
-        g.fill(0, 0, w, h, A(0.28f * vis, 0xE000A0));
-        g.fill(0, 0, w, h, A(0.12f * vis, 0xFFFF00));
-        // RGB split bands
-        for (int y = 0; y < h; y += 4) {
-            int off = (int) (3 + 2 * Math.sin(y * 0.1 + now / 200.0));
-            g.fill(off, y, w, y + 2, A(0.10f * vis, 0xFF0000));
-            g.fill(0, y + 1, w - off, y + 3, A(0.10f * vis, 0x00A0FF));
+        // "colours inverted / broken signal": the whole screen pushed to a wrong, shifting complementary hue
+        boolean flip = (now / 650) % 2 == 0;          // flips which complementary dominates
+        float fl = ((now / 55) % 13) < 11 ? 1f : 0.45f; // occasional dropout flicker
+        int hueA = flip ? 0x00E6C8 : 0xE0109A;        // teal <-> magenta
+        int hueB = flip ? 0xE0109A : 0x00E6C8;
+        g.fill(0, 0, w, h, A(0.52f * vis * fl, hueA));
+        g.fillGradient(0, 0, w, h, A(0.30f * vis, hueB), A(0.42f * vis, 0x3010C0));
+        g.fill(0, 0, w, h, A(0.14f * vis, 0xFFF000));
+        // bold chromatic aberration: red ghost shoved one way, cyan the other
+        int ca = (int) (5 + 3 * Math.sin(now / 230.0));
+        for (int y = 0; y < h; y += 3) {
+            g.fill(ca, y, w, y + 2, A(0.16f * vis, 0xFF0030));
+            g.fill(0, y + 1, w - ca, y + 3, A(0.16f * vis, 0x00C8FF));
         }
-        // rolling bright scan bar
-        int by = (int) ((now / 6) % (h + 40)) - 20;
-        g.fillGradient(0, by, w, by + 20, A(0, 0xFFFFFF), A(0.18f * vis, 0xFFFFFF));
-        g.fillGradient(0, by + 20, w, by + 40, A(0.18f * vis, 0xFFFFFF), A(0, 0xFFFFFF));
-        for (int y = 0; y < h; y += 3) g.fill(0, y, w, y + 1, A(0.08f * vis, 0x000000));
+        // bright rolling sync bar
+        int by = (int) ((now / 5) % (h + 60)) - 30;
+        g.fillGradient(0, by, w, by + 26, A(0, 0xFFFFFF), A(0.28f * vis, 0xFFFFFF));
+        g.fillGradient(0, by + 26, w, by + 52, A(0.28f * vis, 0xFFFFFF), A(0, 0xFFFFFF));
+        for (int y = 0; y < h; y += 3) g.fill(0, y, w, y + 1, A(0.12f * vis, 0x000000));
+        vignette(g, w, h, flip ? 0x100030 : 0x300010, 0.4f * vis);
     }
 
     private static void flashbang(GuiGraphics g, int w, int h, float vis, float p) {
@@ -239,42 +243,49 @@ public final class PunishOverlay {
     private static void cracks(GuiGraphics g, int w, int h, float vis) {
         Random r = new Random(777);
         float cx = w * 0.46f, cy = h * 0.42f;
-        // dark bruise + bright impact core
-        glow(g, cx, cy, 26, 0x101014, 0.5f * vis);
-        glow(g, cx, cy, 10, 0xFFFFFF, 0.7f * vis);
-        // concentric shard rings (irregular polygons)
-        for (int ring = 1; ring <= 4; ring++) {
-            float rad = ring * 16 + r.nextInt(8);
-            int segs = 14;
-            float px = cx + rad, py = cy;
-            float prevA = 0;
-            for (int i = 1; i <= segs; i++) {
-                float ang = (float) (i / (float) segs * Math.PI * 2);
-                float rr = rad * (0.8f + r.nextFloat() * 0.4f);
-                float nx = cx + (float) Math.cos(ang) * rr, ny = cy + (float) Math.sin(ang) * rr;
-                line(g, px, py, nx, ny, 1.2f, A(vis * 0.6f, 0xD8DCE6));
-                px = nx;
-                py = ny;
-            }
-        }
-        // radial branching cracks
-        int lines = 12;
+        // frosted shatter zone + dark bruise + hot white impact core
+        glow(g, cx, cy, 34, 0x0A0A0E, 0.45f * vis);
+        disc(g, cx, cy, 16, A(0.12f * vis, 0xE8ECF4));
+        glow(g, cx, cy, 12, 0xFFFFFF, 0.8f * vis);
+        // store radial endpoints so we can web them with concentric chords (glass look)
+        int lines = 16;
+        float[] ex = new float[lines], ey = new float[lines];
         for (int i = 0; i < lines; i++) {
-            double ang = i / (float) lines * Math.PI * 2 + r.nextGaussian() * 0.1;
+            double ang = i / (float) lines * Math.PI * 2 + r.nextGaussian() * 0.08;
             float x = cx, y = cy;
             int segs = 5 + r.nextInt(4);
             for (int s = 0; s < segs; s++) {
-                ang += (r.nextDouble() - 0.5) * 0.5;
-                float len = 20 + r.nextInt(45);
+                ang += (r.nextDouble() - 0.5) * 0.45;
+                float len = 16 + r.nextInt(40);
                 float nx = x + (float) Math.cos(ang) * len, ny = y + (float) Math.sin(ang) * len;
-                line(g, x, y, nx, ny, 1.6f, A(vis * 0.8f, 0xC6CAD4));
-                line(g, x, y, nx, ny, 0.6f, A(vis * 0.9f, 0xFFFFFF));
+                line(g, x, y, nx, ny, 2f, A(vis * 0.85f, 0xB9BECB));
+                line(g, x, y, nx, ny, 0.7f, A(vis * 0.95f, 0xFFFFFF));
                 if (r.nextInt(3) == 0) {
-                    float ba = ang + (r.nextBoolean() ? 0.6 : -0.6);
-                    line(g, nx, ny, nx + (float) Math.cos(ba) * len * 0.5f, ny + (float) Math.sin(ba) * len * 0.5f, 1f, A(vis * 0.6f, 0xB0B6C0));
+                    double ba = ang + (r.nextBoolean() ? 0.6 : -0.6);
+                    line(g, nx, ny, nx + (float) Math.cos(ba) * len * 0.5f, ny + (float) Math.sin(ba) * len * 0.5f, 1f, A(vis * 0.55f, 0xADB3C0));
                 }
                 x = nx;
                 y = ny;
+            }
+            ex[i] = x;
+            ey[i] = y;
+        }
+        // concentric webbing: chords between neighbouring radial cracks at a few radii
+        for (float frac : new float[]{0.3f, 0.55f, 0.8f}) {
+            for (int i = 0; i < lines; i++) {
+                int j = (i + 1) % lines;
+                float ax = cx + (ex[i] - cx) * frac, ay = cy + (ey[i] - cy) * frac;
+                float bx = cx + (ex[j] - cx) * frac, by = cy + (ey[j] - cy) * frac;
+                line(g, ax, ay, bx, by, 1f, A(vis * 0.5f, 0xC6CAD4));
+            }
+        }
+        // a couple of secondary star-cracks
+        for (int k = 0; k < 2; k++) {
+            float sx = cx + (r.nextFloat() - 0.5f) * 120, sy = cy + (r.nextFloat() - 0.5f) * 90;
+            disc(g, sx, sy, 3, A(0.5f * vis, 0xFFFFFF));
+            for (int i = 0; i < 6; i++) {
+                double a = i * Math.PI / 3 + r.nextFloat();
+                line(g, sx, sy, sx + (float) Math.cos(a) * (12 + r.nextInt(16)), sy + (float) Math.sin(a) * (12 + r.nextInt(16)), 0.8f, A(0.6f * vis, 0xD8DCE6));
             }
         }
     }
@@ -304,19 +315,34 @@ public final class PunishOverlay {
     }
 
     private static void disco(GuiGraphics g, int w, int h, long now, float vis) {
-        // sweeping colored spotlights + beat strobe
-        float beat = (float) Math.exp(-((now % 500) / 500.0) * 5);
-        g.fill(0, 0, w, h, A((0.12f + 0.18f * beat) * vis, Ui.hsv((now % 700) / 700f, 0.9f, 1f)));
-        for (int i = 0; i < 6; i++) {
-            double ang = Math.sin(now / 900.0 * (0.6 + i * 0.1) + i) * 1.1;
-            int col = Ui.hsv((i / 6f + now / 3000f) % 1f, 0.85f, 1f);
-            float cxp = w * (i + 0.5f) / 6f;
-            for (int k = 0; k < 6; k++) {
-                float d1 = h * k / 6f, d2 = h * (k + 1) / 6f;
-                float wdt = 10 + k * 14;
-                float mx = cxp + (float) Math.sin(ang) * (d1 + d2) / 2;
-                rect(g, mx, (d1 + d2) / 2, wdt, d2 - d1 + 1, (float) ang, A(0.06f * vis, col));
+        // dark club + beat strobe + vivid sweeping spotlight cones from the top edge
+        float beat = (float) Math.exp(-((now % 480) / 480.0) * 5);
+        g.fill(0, 0, w, h, A((0.30f + 0.10f * beat) * vis, 0x05000A));
+        g.fill(0, 0, w, h, A(0.14f * beat * vis, Ui.hsv((now % 600) / 600f, 0.9f, 1f)));
+        int beams = 5;
+        for (int i = 0; i < beams; i++) {
+            float baseX = w * (i + 0.5f) / beams;
+            float sweep = (float) Math.sin(now / 820.0 * (0.7 + i * 0.13) + i * 1.9) * w * 0.28f;
+            int col = Ui.hsv((i / (float) beams + now / 2600f) % 1f, 0.85f, 1f);
+            // cone: wedges widening toward the floor, drawn as stacked rotated rects
+            float apexX = baseX, apexY = -4;
+            for (int k = 0; k < 10; k++) {
+                float f0 = k / 10f, f1 = (k + 1) / 10f;
+                float y0 = apexY + f0 * (h + 10), y1 = apexY + f1 * (h + 10);
+                float midX = apexX + sweep * (f0 + f1) / 2f;
+                float wdt = 6 + (f0 + f1) * 34;
+                float ang = (float) Math.atan2(sweep, h);
+                rect(g, midX, (y0 + y1) / 2, wdt, y1 - y0 + 1, ang, A((0.10f + 0.08f * beat) * vis, col));
             }
+            // bright core + a glowing spot where it hits the floor
+            float floorX = baseX + sweep;
+            glow(g, floorX, h * 0.72f, 26, col, 0.22f * vis);
+            disc(g, floorX, h * 0.72f, 5, A(0.5f * vis, 0xFFFFFF));
+        }
+        // sparkle flecks on the beat
+        if (beat > 0.4f) {
+            Random r = new Random(now / 120);
+            for (int i = 0; i < 18; i++) disc(g, r.nextInt(w), r.nextInt(h), 1.5f, A(0.7f * beat * vis, 0xFFFFFF));
         }
     }
 
@@ -342,31 +368,57 @@ public final class PunishOverlay {
     }
 
     private static void quake(GuiGraphics g, int w, int h, long now, float vis) {
-        vignette(g, w, h, 0x000000, 0.3f * vis);
-        // falling dust specks
-        Random r = new Random(now / 60);
-        for (int i = 0; i < 40; i++) {
+        float rumble = 0.5f + 0.5f * (float) Math.sin(now / 90.0);
+        // hazard tint pulsing at top and bottom
+        int band = h / 3;
+        g.fillGradient(0, 0, w, band, A((0.28f + 0.18f * rumble) * vis, 0x5A1A00), A(0, 0x5A1A00));
+        g.fillGradient(0, h - band, w, h, A(0, 0x5A1A00), A((0.28f + 0.18f * rumble) * vis, 0x5A1A00));
+        vignette(g, w, h, 0x000000, (0.35f + 0.15f * rumble) * vis);
+        // falling dust + chunky debris
+        Random r = new Random(now / 55);
+        for (int i = 0; i < 55; i++) {
             int x = r.nextInt(w);
-            int y = (int) ((r.nextInt(h) + now / 10) % h);
-            g.fill(x, y, x + 1, y + 2, A(0.3f * vis, 0x9A8F82));
+            int y = (int) ((r.nextInt(h) + now / 8) % h);
+            int s = r.nextInt(5) == 0 ? 2 : 1;
+            g.fill(x, y, x + s, y + s + 1, A(0.35f * vis, r.nextBoolean() ? 0x9A8F82 : 0x6E655A));
         }
-        // creeping edge cracks
+        // multiple creeping cracks from every edge, thicker, with branches
         Random cr = new Random(42);
-        for (int i = 0; i < 6; i++) {
-            float x = cr.nextFloat() * w, y = cr.nextBoolean() ? 0 : h;
-            float ang = (float) (Math.PI / 2 + cr.nextGaussian() * 0.5) * (y == 0 ? 1 : -1);
-            float len = 30 + (float) (Math.min(1, now % 4000 / 4000.0) * 60);
-            line(g, x, y, x + (float) Math.cos(ang) * len, y + (float) Math.sin(ang) * len, 1.5f, A(0.5f * vis, 0x101010));
+        float grow = (float) Math.min(1, (now % 3500) / 3500.0);
+        for (int i = 0; i < 8; i++) {
+            int edge = i % 4;
+            float x = edge == 0 ? cr.nextFloat() * w : edge == 1 ? w : edge == 2 ? cr.nextFloat() * w : 0;
+            float y = edge == 0 ? 0 : edge == 1 ? cr.nextFloat() * h : edge == 2 ? h : cr.nextFloat() * h;
+            double ang = Math.atan2(h / 2f - y, w / 2f - x) + cr.nextGaussian() * 0.3;
+            float len = (40 + cr.nextInt(40)) * (0.4f + grow);
+            float px = x, py = y;
+            for (int s = 0; s < 4; s++) {
+                ang += cr.nextGaussian() * 0.35;
+                float nx = px + (float) Math.cos(ang) * len / 4, ny = py + (float) Math.sin(ang) * len / 4;
+                line(g, px, py, nx, ny, 2f, A(0.6f * vis, 0x0A0806));
+                line(g, px, py, nx, ny, 0.8f, A(0.4f * vis, 0x3A322A));
+                px = nx;
+                py = ny;
+            }
         }
     }
 
     private static void jitter(GuiGraphics g, int w, int h, long now, float vis) {
-        // thin vibrating frame + faint ghost edges
-        int j = (int) (Math.sin(now / 40.0) * 2);
-        g.fill(0, 0, w, 2 + Math.abs(j), A(0.25f * vis, 0x000000));
-        g.fill(0, h - 2 - Math.abs(j), w, h, A(0.25f * vis, 0x000000));
-        g.fill(0, 0, 2 + Math.abs(j), h, A(0.15f * vis, 0xFF4040));
-        g.fill(w - 2 - Math.abs(j), 0, w, h, A(0.15f * vis, 0x4080FF));
+        // can't-focus double vision: whole screen doubled into shaking red/cyan ghosts
+        int jx = (int) (Math.sin(now / 33.0) * 5 + Math.sin(now / 11.0) * 2);
+        int jy = (int) (Math.cos(now / 29.0) * 4);
+        g.fill(jx, jy, w + jx, h + jy, A(0.16f * vis, 0xFF0022));
+        g.fill(-jx, -jy, w - jx, h - jy, A(0.16f * vis, 0x00D0FF));
+        // juddering doubled scanlines
+        for (int y = 0; y < h; y += 5) {
+            int o = (int) (Math.sin(y * 0.3 + now / 40.0) * 4);
+            g.fill(o, y, w, y + 1, A(0.10f * vis, 0xFFFFFF));
+        }
+        // trembling frame
+        int b = 2 + Math.abs(jx);
+        g.fill(0, 0, w, b, A(0.3f * vis, 0x000000));
+        g.fill(0, h - b, w, h, A(0.3f * vis, 0x000000));
+        vignette(g, w, h, 0x000000, 0.25f * vis);
     }
 
     private static void glitch(GuiGraphics g, int w, int h, long now, float vis) {
@@ -412,29 +464,6 @@ public final class PunishOverlay {
         }
     }
 
-    private static void troll(GuiGraphics g, float cx, float cy, float s, float rot) {
-        var pose = g.pose();
-        pose.pushMatrix();
-        pose.translate(cx, cy);
-        pose.rotate(rot);
-        disc(g, 0, 0, s, A(1f, 0xF2E9C0));
-        // outline
-        for (int i = 0; i < 36; i++) {
-            double a = i * Math.PI / 18;
-            g.fill((int) (Math.cos(a) * s), (int) (Math.sin(a) * s), (int) (Math.cos(a) * s) + 1, (int) (Math.sin(a) * s) + 1, A(1f, 0x2A2418));
-        }
-        // eyes
-        disc(g, -s * 0.35f, -s * 0.2f, s * 0.16f, A(1f, 0x000000));
-        disc(g, s * 0.35f, -s * 0.2f, s * 0.16f, A(1f, 0x000000));
-        // big grin: an arc of teeth
-        for (int i = -4; i <= 4; i++) {
-            float gx = i * s * 0.17f;
-            float gy = s * 0.15f + Math.abs(i) * s * 0.05f;
-            g.fill((int) (gx - s * 0.07f), (int) gy, (int) (gx + s * 0.07f), (int) (gy + s * 0.3f), A(1f, 0x2A2418));
-        }
-        pose.popMatrix();
-    }
-
     private static void trollRain(GuiGraphics g, int w, int h, long now, float vis) {
         Random r = new Random(9001);
         for (int i = 0; i < 16; i++) {
@@ -444,24 +473,33 @@ public final class PunishOverlay {
             float y = ((now / 1000f * speed + phase) % (h + 50)) - 25;
             float s = 9 + r.nextFloat() * 11;
             float rot = (float) Math.sin(now / 400.0 + i) * 0.3f;
-            var save = vis;
-            trollAlpha(g, x, y, s, rot, save);
+            trollAlpha(g, x, y, s, rot, vis);
         }
     }
 
     private static void trollAlpha(GuiGraphics g, float cx, float cy, float s, float rot, float vis) {
-        // same as troll but alpha-scaled
         var pose = g.pose();
         pose.pushMatrix();
         pose.translate(cx, cy);
         pose.rotate(rot);
+        // face
         disc(g, 0, 0, s, A(vis, 0xF2E9C0));
-        disc(g, -s * 0.35f, -s * 0.2f, s * 0.16f, A(vis, 0x000000));
-        disc(g, s * 0.35f, -s * 0.2f, s * 0.16f, A(vis, 0x000000));
-        for (int i = -4; i <= 4; i++) {
-            float gx = i * s * 0.17f;
-            float gy = s * 0.12f + Math.abs(i) * s * 0.05f;
-            g.fill((int) (gx - s * 0.07f), (int) gy, (int) (gx + s * 0.07f), (int) (gy + s * 0.32f), A(vis, 0x2A2418));
+        disc(g, 0, 0, s * 0.92f, A(vis * 0.25f, 0xC9BE92)); // soft inner shade
+        // brows + eyes
+        disc(g, -s * 0.36f, -s * 0.22f, s * 0.17f, A(vis, 0x1A160E));
+        disc(g, s * 0.36f, -s * 0.22f, s * 0.17f, A(vis, 0x1A160E));
+        disc(g, -s * 0.31f, -s * 0.27f, s * 0.05f, A(vis, 0xFFFFFF));
+        disc(g, s * 0.41f, -s * 0.27f, s * 0.05f, A(vis, 0xFFFFFF));
+        // the big smug grin: corners curl UP, dropping in the middle (a wide U) + a white tooth line
+        for (float t = -1f; t <= 1f; t += 0.13f) {
+            float gx = t * s * 0.64f;
+            float gy = s * 0.42f - (t * t) * s * 0.40f;
+            disc(g, gx, gy, s * 0.11f, A(vis, 0x1A160E));
+        }
+        for (float t = -0.8f; t <= 0.8f; t += 0.13f) {
+            float gx = t * s * 0.56f;
+            float gy = s * 0.37f - (t * t) * s * 0.36f;
+            disc(g, gx, gy, s * 0.05f, A(vis, 0xF8F4E4));
         }
         pose.popMatrix();
     }
