@@ -9,7 +9,7 @@ import java.util.Random;
 
 /** The goal bar (top/bottom: across; sides: up), and the "GOAL REACHED!" celebration. */
 public final class GoalsHud {
-    private static final int HW = 260, HH = 44; // across
+    private static final int HW = 320, HH = 44; // across
     private static final int VW = 124, VH = 180; // up the side
 
     private GoalsHud() {}
@@ -116,7 +116,7 @@ public final class GoalsHud {
             int col = m.done ? 0xFFD24A : 0xFFFFFF;
             g.fill(mx - 1, barY - 2, mx + 1, barY + barH + 2, Ui.a(1f, col));
             String label = (m.done ? "✔ " : "") + Money.compact(m.amount) + (m.text.isBlank() ? "" : " " + m.text);
-            label = Ui.fit(font, label, (int) (110 / ls));
+            label = Ui.fit(font, label, (int) (84 / ls));
             int tw = (int) (font.width(label) * ls);
             int lx = Math.max(0, Math.min(w - tw, mx - tw / 2));
             // two rows of labels so neighbours don't overlap
