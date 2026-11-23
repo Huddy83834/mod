@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  * and the current page on the right, so everything always lives in the same place.
  */
 public abstract class PfxFrame extends Screen {
-    public enum Page { GENERAL, LEVELS, PUNISHMENTS, CUSTOMIZE, TOP_DONORS, STREAM }
+    public enum Page { GENERAL, LEVELS, PUNISHMENTS, CUSTOMIZE, GAMES, TOP_DONORS, STREAM }
 
     protected final Screen parent;
     private final Page page;
@@ -52,6 +52,7 @@ public abstract class PfxFrame extends Screen {
             case CUSTOMIZE -> new CustomizeScreen(parent);
             case TOP_DONORS -> new TopDonorsScreen(parent);
             case STREAM -> new StreamScreen(parent);
+            case GAMES -> new GamesScreen(parent);
         };
     }
 
@@ -86,12 +87,13 @@ public abstract class PfxFrame extends Screen {
         Config c = Config.get();
         int x = px + 7, w = sw - 14;
         int y = py + 34;
-        // six pages: tighter buttons on small windows so they never run into Enabled/Test/Stop
-        int step = ph >= 260 ? 22 : 20, nh = ph >= 260 ? 20 : 18;
+        // seven pages: tighter buttons on small windows so they never run into Enabled/Test/Stop
+        int step = ph >= 300 ? 22 : ph >= 260 ? 19 : 17, nh = ph >= 300 ? 20 : ph >= 260 ? 17 : 16;
         addNav(x, y, w, nh, "General", Page.GENERAL);
         addNav(x, y += step, w, nh, "Levels", Page.LEVELS);
         addNav(x, y += step, w, nh, "Punishments", Page.PUNISHMENTS);
         addNav(x, y += step, w, nh, "Customize", Page.CUSTOMIZE);
+        addNav(x, y += step, w, nh, "Wheel & Case", Page.GAMES);
         addNav(x, y += step, w, nh, "Top Donors", Page.TOP_DONORS);
         addNav(x, y += step, w, nh, StreamSession.live() ? "Stream \u25cf" : "Stream", Page.STREAM);
 
@@ -147,7 +149,7 @@ public abstract class PfxFrame extends Screen {
         float ls = sw < 100 ? 1.25f : 1.5f;
         Ui.glowText(g, this.font, "PUNISH", px + 8, py + 9, Ui.ACCENT, ls);
         Ui.glowText(g, this.font, "FX", px + 8 + (int) (this.font.width("PUNISH ") * ls), py + 9, 0xFFFFFF, ls);
-        g.drawString(this.font, "v1.4", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
+        g.drawString(this.font, "v1.5", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
 
         // page title + subtitle
         Ui.glowText(g, this.font, heading, cx, py + 9, 0xFFFFFF, 1.4f);
@@ -174,7 +176,18 @@ public abstract class PfxFrame extends Screen {
 
     protected record Toggle(String label, String desc, BooleanSupplier get, Consumer<Boolean> set) implements Row {}
 
-    protected record Choice(String label, String desc, String[] names, IntSupplier get, IntConsumer set) implements Row {}
+    /** A setting with named options. {@code descs} (optional) explains each option; it replaces {@code desc}. */
+    protected record Choice(String label, String desc, String[] names, IntSupplier get, IntConsumer set, String[] descs) implements Row {
+        protected Choice(String label, String desc, String[] names, IntSupplier get, IntConsumer set) {
+            this(label, desc, names, get, set, null);
+        }
+
+        String shownDesc() {
+            if (descs == null) return desc;
+            int i = get.getAsInt();
+            return i >= 0 && i < descs.length ? descs[i] : desc;
+        }
+    }
 
     protected record Action(String label, String desc, Supplier<String> button, int accent, Runnable run) implements Row {}
 
@@ -289,7 +302,7 @@ public abstract class PfxFrame extends Screen {
             if (r instanceof Header || r instanceof Toggle) continue; // toggles draw their own row
             boolean hov = mouseX >= cx && mouseX < cx + listW && mouseY >= p[1] && mouseY < p[1] + p[2];
             String label = r instanceof Choice c ? c.label() : r instanceof Action a ? a.label() : ((Text) r).label();
-            String desc = r instanceof Choice c ? c.desc() : r instanceof Action a ? a.desc() : ((Text) r).desc();
+            String desc = r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : ((Text) r).desc();
             int bar = r instanceof Choice ? Ui.ACCENT2 : r instanceof Action a ? Ui.resolve(a.accent()) : Ui.ACCENT;
             Ui.rowCard(g, this.font, cx, p[1], listW, p[2], label, desc, hov, bar, rightReserve(r));
             if (r instanceof Text) {
@@ -314,7 +327,7 @@ public abstract class PfxFrame extends Screen {
             // rows too short for their description show it in the footer on hover
             boolean hov = mouseX >= cx && mouseX < cx + listW && mouseY >= p[1] && mouseY < p[1] + p[2];
             if (hov && p[2] < 22) {
-                String d = r instanceof Toggle t ? t.desc() : r instanceof Choice c ? c.desc() : r instanceof Action a ? a.desc() : r instanceof Text t ? t.desc() : null;
+                String d = r instanceof Toggle t ? t.desc() : r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : r instanceof Text t ? t.desc() : null;
                 if (d != null && !d.isEmpty()) footer = d;
             }
         }

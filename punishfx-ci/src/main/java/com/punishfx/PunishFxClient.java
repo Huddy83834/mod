@@ -159,6 +159,14 @@ public class PunishFxClient implements ClientModInitializer {
                                     + " donations in " + RecapScreen.length(r.duration()) + ". /pfx recap to see it again.");
                         }))
                         .then(ClientCommandManager.literal("status").executes(ctx -> streamStatus(ctx))))
+                .then(ClientCommandManager.literal("wheel").executes(ctx -> {
+                    PunishManager.force("spin_wheel", 0);
+                    return say(ctx, "Spinning the wheel (test).");
+                }))
+                .then(ClientCommandManager.literal("case").executes(ctx -> {
+                    PunishManager.force("case_open", 0);
+                    return say(ctx, "Opening a case (test).");
+                }))
                 .then(ClientCommandManager.literal("recap").executes(ctx -> {
                     if (StreamSession.history().isEmpty()) return say(ctx, "No streams yet. /pfx stream start when you go live.");
                     pendingScreen = new RecapScreen(null);

@@ -154,6 +154,7 @@ public class PunishPoolScreen extends PfxFrame {
             case VIEW -> "Camera";
             case SCREEN -> "Screen";
             case HOTBAR -> "Hotbar";
+            case GAMES -> "Games";
             case ACTION -> "Extreme";
         };
     }
@@ -201,7 +202,7 @@ public class PunishPoolScreen extends PfxFrame {
             }
         }
         if (footer == null && mouseY >= cy && mouseY < cy + 18 && mouseX >= cx + cw - 132)
-            footer = mouseX < cx + cw - 80 ? "Let this level use any punishment except the opt-in ones (Butterfingers, Leave, Close)." : "Pick 5 random punishments for this level.";
+            footer = mouseX < cx + cw - 80 ? "Any punishment except the opt-in ones (Wheel, Case, Butterfingers, Leave, Close)." : "Pick 5 random punishments for this level.";
     }
 
     private static String fmt(double d) {

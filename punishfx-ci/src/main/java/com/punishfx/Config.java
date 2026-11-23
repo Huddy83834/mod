@@ -42,7 +42,7 @@ public final class Config {
     }
 
     // ---- main switches
-    public int configVersion = 1;
+    public int configVersion = 2;
     public boolean enabled = true;
     /** Play the warning sound + on-screen banner naming the punishment when it starts. */
     public boolean announce = true;
@@ -81,6 +81,58 @@ public final class Config {
     public int butterLevel = 0;            // 0 one item, 1 whole stack, 2 random slot
     public int upsideMode = 0;             // 0 flip, 1 slow roll
 
+    public int pixelRes = 3;               // index into ScreenFx.HEIGHTS (120p)
+    public int pixelPalette = 0;           // index into ScreenFx.PALETTE_NAMES
+    public boolean pixelDegrade = false;   // start sharp and get blockier
+
+    // ---- several donations at once (see PunishManager.OVERLAP_NAMES)
+    public int overlapMode = 0;
+    public int overlapWindow = 0;          // 0 while one is running, else OVERLAP_WINDOWS seconds
+    public int queueGap = 1;               // index into {0, 1, 3, 5} seconds
+    public boolean queueShow = true;
+    public int comboStep = 1;              // index into {+25%, +50%, +100%}
+
+    // ---- spin the wheel
+    public int wheelUse = 0;               // 0 when a level picks it, 1 every donation, 2..5 level N and up
+    public int wheelContents = 0;          // 0 the level's punishments, 1 every punishment
+    public int wheelSlots = 2;             // index into Games.WHEEL_SLOTS
+    public int wheelNothing = 1, wheelAgain = 1, wheelDouble = 1, wheelJackpot = 0;
+    public int wheelLuck = 0;              // 0 fair, 1 rigged (never Nothing), 2 teasing near-misses
+    public int wheelLength = 0;            // index into Games.LENGTHS
+    public int wheelColors = 1;            // index into Games.WHEEL_COLOR_NAMES
+    public int wheelRim = 3;               // index into Games.RIM_NAMES
+    public int wheelLabels = 2;            // 0 names, 1 icons, 2 icons + names
+    public int wheelFont = 0;              // index into TopDonorsHud.FONT_NAMES
+    public int wheelPointer = 1;           // index into Games.POINTER_NAMES
+    public String wheelTitle = "SPIN THE WHEEL";
+    public boolean wheelShowDonor = true;
+    public int wheelSpin = 2;              // index into Games.SPIN_SECONDS
+    public int wheelStyle = 0;             // 0 smooth, 1 bouncy, 2 slow tease
+    public int wheelTick = 1;              // index into Games.TICK_NAMES
+    public int wheelWin = 0;               // 0 confetti, 1 flash, 2 nothing
+    public int wheelBg = 1;                // 0 clear, 1 dim, 2 dark
+    public double wheelX = 0.5, wheelY = 0.55, wheelScale = 1.0;
+
+    // ---- case opening
+    public int caseUse = 0;
+    public int caseContents = 0;
+    public int caseRarity = 0;             // 0 how bad it is, 1 category, 2 random
+    public int caseOdds = 0;               // 0 real CS odds, 1 even, 2 generous
+    public int caseGold = 1;               // 0 off, 1 mega combo, 2 double time, 3 opens the wheel
+    public int caseSafe = 1;
+    public boolean caseLonger = true;      // rarer = lasts longer
+    public String caseTitle = "PUNISHMENT CASE";
+    public boolean caseShowDonor = true;
+    public int caseCard = 0;               // 0 CS, 1 flat, 2 minimal
+    public boolean caseIcons = true, caseNames = true, caseShowOdds = true;
+    public int caseColors = 0;             // 0 CS rarity colours, 1 theme, 2 rainbow
+    public int caseOpen = 2;               // index into Games.OPEN_SECONDS
+    public int caseStyle = 0;              // 0 CS, 1 slam, 2 tease
+    public int caseTick = 1;
+    public int caseWin = 0;
+    public int caseBg = 1;
+    public double caseX = 0.5, caseY = 0.5, caseScale = 1.0;
+
     // ---- stream mode
     public boolean streamHud = true;
     public boolean streamHudMoney = true, streamHudCount = true, streamHudTimer = true;
@@ -103,7 +155,11 @@ public final class Config {
     public boolean topBold = false, topItalic = false, topShadow = true, topMedals = true, topHideEmpty = false;
     public int topColor = 0;               // index into TopDonorsHud.COLOR_NAMES
     public int topBackground = 1;          // index into TopDonorsHud.BG_NAMES
-    public int topAmounts = 0;             // 0 short ($1.2M), 1 full ($1,200,000)
+    public int topAmounts = 0;             // 0 short ($1.2M), 1 full ($1,200,000), 2 hidden
+    public int topStyle = 0;               // 0 leaderboard, 1 just the top donator
+    public String topLabel = "TOP DONATOR";
+    public int topLabelPos = 0;            // 0 above the name, 1 before it, 2 after it
+    public boolean topCrown = true;
     public int topPeriod = 0;              // 0 all time, 1 today, 2 this session
     public double topScale = 1.0;
     /** Position as a fraction of the free space (0 = left/top edge, 1 = right/bottom edge). */
@@ -214,6 +270,56 @@ public final class Config {
         possessedLevel = clamp(possessedLevel, 0, 2);
         butterLevel = clamp(butterLevel, 0, 2);
         upsideMode = clamp(upsideMode, 0, 1);
+        pixelRes = clamp(pixelRes, 0, ScreenFx.HEIGHTS.length - 1);
+        pixelPalette = clamp(pixelPalette, 0, ScreenFx.PALETTE_NAMES.length - 1);
+        if (configVersion < 2) { // 1.5: "stack punishments" became "several donations at once"
+            if (!stack) overlapMode = 5;
+            configVersion = 2;
+        }
+        overlapMode = clamp(overlapMode, 0, PunishManager.OVERLAP_NAMES.length - 1);
+        overlapWindow = clamp(overlapWindow, 0, PunishManager.OVERLAP_WINDOWS.length - 1);
+        queueGap = clamp(queueGap, 0, 3);
+        comboStep = clamp(comboStep, 0, 2);
+        wheelUse = clamp(wheelUse, 0, 5);
+        wheelContents = clamp(wheelContents, 0, 1);
+        wheelSlots = clamp(wheelSlots, 0, Games.WHEEL_SLOTS.length - 1);
+        wheelNothing = clamp(wheelNothing, 0, 3);
+        wheelAgain = clamp(wheelAgain, 0, 2);
+        wheelDouble = clamp(wheelDouble, 0, 2);
+        wheelJackpot = clamp(wheelJackpot, 0, 1);
+        wheelLuck = clamp(wheelLuck, 0, 2);
+        wheelLength = clamp(wheelLength, 0, Games.LENGTHS.length - 1);
+        wheelColors = clamp(wheelColors, 0, Games.WHEEL_COLOR_NAMES.length - 1);
+        wheelRim = clamp(wheelRim, 0, Games.RIM_NAMES.length - 1);
+        wheelLabels = clamp(wheelLabels, 0, 2);
+        wheelFont = clamp(wheelFont, 0, 3);
+        wheelPointer = clamp(wheelPointer, 0, Games.POINTER_NAMES.length - 1);
+        if (wheelTitle == null) wheelTitle = "SPIN THE WHEEL";
+        wheelSpin = clamp(wheelSpin, 0, Games.SPIN_SECONDS.length - 1);
+        wheelStyle = clamp(wheelStyle, 0, 2);
+        wheelTick = clamp(wheelTick, 0, Games.TICK_NAMES.length - 1);
+        wheelWin = clamp(wheelWin, 0, 2);
+        wheelBg = clamp(wheelBg, 0, 2);
+        wheelX = Math.max(0.0, Math.min(1.0, wheelX));
+        wheelY = Math.max(0.0, Math.min(1.0, wheelY));
+        wheelScale = Math.max(0.5, Math.min(4.0, wheelScale));
+        caseUse = clamp(caseUse, 0, 5);
+        caseContents = clamp(caseContents, 0, 1);
+        caseRarity = clamp(caseRarity, 0, 2);
+        caseOdds = clamp(caseOdds, 0, 2);
+        caseGold = clamp(caseGold, 0, 3);
+        caseSafe = clamp(caseSafe, 0, 3);
+        if (caseTitle == null) caseTitle = "PUNISHMENT CASE";
+        caseCard = clamp(caseCard, 0, 2);
+        caseColors = clamp(caseColors, 0, 2);
+        caseOpen = clamp(caseOpen, 0, Games.OPEN_SECONDS.length - 1);
+        caseStyle = clamp(caseStyle, 0, 2);
+        caseTick = clamp(caseTick, 0, Games.TICK_NAMES.length - 1);
+        caseWin = clamp(caseWin, 0, 2);
+        caseBg = clamp(caseBg, 0, 2);
+        caseX = Math.max(0.0, Math.min(1.0, caseX));
+        caseY = Math.max(0.0, Math.min(1.0, caseY));
+        caseScale = Math.max(0.5, Math.min(4.0, caseScale));
         streamScale = Math.max(0.5, Math.min(4.0, streamScale));
         streamX = Math.max(0.0, Math.min(1.0, streamX));
         streamY = Math.max(0.0, Math.min(1.0, streamY));
@@ -225,7 +331,10 @@ public final class Config {
         topFont = clamp(topFont, 0, 3);
         topColor = clamp(topColor, 0, 7);
         topBackground = clamp(topBackground, 0, 3);
-        topAmounts = clamp(topAmounts, 0, 1);
+        topAmounts = clamp(topAmounts, 0, 2);
+        topStyle = clamp(topStyle, 0, 1);
+        if (topLabel == null) topLabel = "TOP DONATOR";
+        topLabelPos = clamp(topLabelPos, 0, 2);
         topPeriod = clamp(topPeriod, 0, 2);
         topScale = Math.max(0.5, Math.min(4.0, topScale));
         topX = Math.max(0.0, Math.min(1.0, topX));
@@ -270,9 +379,9 @@ public final class Config {
         Config c = new Config();
         // light -> brutal. The big two (leave server / close game) are opt-in only.
         c.tiers.add(tier("Mild", 50_000, 6, 1, "jitter", "sluggish", "fog", "disco_eyes", "spin", "possessed_hotbar", "chipmunk"));
-        c.tiers.add(tier("Annoying", 250_000, 8, 1, "drunk", "inverted_controls", "glitch", "tunnel_vision", "no_hud", "flashbang", "front_camera", "language", "hotbar_chaos"));
+        c.tiers.add(tier("Annoying", 250_000, 8, 1, "drunk", "inverted_controls", "glitch", "tunnel_vision", "no_hud", "flashbang", "front_camera", "language", "hotbar_chaos", "pixelated"));
         c.tiers.add(tier("Harsh", 1_000_000, 10, 2, "negative", "inverted_controls", "frozen", "drunk", "flashbang", "tunnel_vision", "glitch", "mirror", "hotbar_chaos"));
-        c.tiers.add(tier("Brutal", 5_000_000, 12, 2, "blackout", "frozen", "negative", "fake_lag", "drunk", "inverted_controls", "disco_eyes", "upside_down", "mirror"));
+        c.tiers.add(tier("Brutal", 5_000_000, 12, 2, "blackout", "frozen", "negative", "fake_lag", "drunk", "inverted_controls", "disco_eyes", "upside_down", "mirror", "pixelated"));
         c.tiers.add(tier("Insane", 10_000_000, 15, 3, "negative", "drunk", "inverted_controls", "fake_lag", "blackout", "frozen", "glitch", "jitter", "upside_down", "language"));
         return c;
     }

@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
+import java.util.List;
 import java.util.Random;
 
 /** Draws the on-screen punishments, the donor banner and the leave/close countdown. */
@@ -52,9 +53,47 @@ public final class PunishOverlay {
             } catch (Exception ignored) {
             }
         }
+        GameRender.render(g, font, w, h);
+        combo(g, font, w, now);
+        queue(g, font, now);
         donorBanner(g, font, w, now);
         banner(g, font, w, now);
         countdown(g, font, w, h, now);
+    }
+
+    /** "COMBO x3" while donations keep stacking up. */
+    private static void combo(GuiGraphics g, Font font, int w, long now) {
+        int n = PunishManager.comboCount;
+        if (n < 2 || now > PunishManager.comboUntil) return;
+        long left = PunishManager.comboUntil - now;
+        float vis = Math.min(1f, left / 400f);
+        float pulse = 1f + 0.15f * (float) Math.max(0, 1 - (3500 - left) / 300.0);
+        String t = "COMBO x" + n;
+        float s = 2.0f * pulse;
+        int tw = (int) (font.width(t) * s);
+        int y = Config.get().bannerPos == 0 ? 74 : 12;
+        int col = Ui.hsv((now % 1200) / 1200f, 0.65f, 1f);
+        Ui.glowText(g, font, t, w / 2 - tw / 2, y, Ui.mix(col, 0xFFFFFF, 0.25f), s);
+        int bw = 80, bx = w / 2 - bw / 2, by = y + (int) (9 * s) + 3;
+        g.fill(bx, by, bx + bw, by + 2, A(0.4f * vis, 0x000000));
+        g.fill(bx, by, bx + (int) (bw * Math.min(1f, left / 3500f)), by + 2, A(vis, col));
+    }
+
+    /** The donations waiting in line (Queue mode). */
+    private static void queue(GuiGraphics g, Font font, long now) {
+        if (!Config.get().queueShow) return;
+        List<PunishManager.Donation> q = PunishManager.queue();
+        if (q.isEmpty()) return;
+        PunishManager.Donation next = q.get(0);
+        String head = "UP NEXT";
+        String line = next.who() + "  " + Money.compact(next.amount()) + (q.size() > 1 ? "   +" + (q.size() - 1) + " more" : "");
+        int w = Math.max(font.width(head), font.width(line)) + 14;
+        int x = 4, y = 4;
+        g.fill(x, y, x + w, y + 26, A(0.75f, 0x000000));
+        g.fill(x, y, x + 2, y + 26, A(1f, Ui.ACCENT2));
+        float pulse = 0.6f + 0.4f * (float) Math.sin(now / 250.0);
+        g.drawString(font, head, x + 7, y + 4, A(pulse, Ui.ACCENT2), false);
+        g.drawString(font, line, x + 7, y + 15, A(1f, 0xFFFFFF), false);
     }
 
     public static void drawOne(GuiGraphics g, Font font, String id, int w, int h, long now, float vis, float p) {
