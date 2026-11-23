@@ -1,0 +1,604 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.5.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+Fabric Loom: 1.14.10
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileGametestJava
+> Task :deleteGameTestRunDir UP-TO-DATE
+> Task :acceptGameTestEula
+> Task :generateLog4jConfig
+> Task :generateRemapClasspath
+> Task :generateDLIConfig
+> Task :configureLaunch
+> Task :downloadAssets
+> Task :configureClientLaunch
+> Task :processGametestResources
+> Task :gametestClasses
+
+> Task :runClientGameTest
+[18:43:00] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 1.21.11 with Fabric Loader 0.20.1
+[18:43:00] [main/INFO] (FabricLoader) Loading 52 mods:
+	- fabric-api 0.141.6+1.21.11
+	- fabric-api-base 1.0.5+4ebb5c083e
+	- fabric-api-lookup-api-v1 1.6.114+20dc27073e
+	- fabric-biome-api-v1 17.1.1+4fc5413f3e
+	- fabric-block-api-v1 1.1.10+4ebb5c083e
+	- fabric-block-view-api-v2 1.0.39+4ebb5c083e
+	- fabric-client-gametest-api-v1 4.3.5+bfe9fcf43e
+	- fabric-command-api-v2 2.4.7+6b42a6003e
+	- fabric-content-registries-v0 10.2.14+4fc5413f3e
+	- fabric-convention-tags-v1 2.1.55+7f945d5b3e
+	- fabric-convention-tags-v2 2.17.3+8ef948ba3e
+	- fabric-crash-report-info-v1 0.3.23+4ebb5c083e
+	- fabric-data-attachment-api-v1 1.8.48+eed0806f3e
+	- fabric-data-generation-api-v1 23.5.0+88d7da613e
+	- fabric-dimensions-v1 4.0.28+4fc5413f3e
+	- fabric-entity-events-v1 3.1.1+1d0ab4303e
+	- fabric-events-interaction-v0 4.1.1+3b89ecf63e
+	- fabric-game-rule-api-v1 2.0.3+4fc5413f3e
+	- fabric-gametest-api-v1 3.1.27+4fc5413f3e
+	- fabric-item-api-v1 11.6.0+67f17bb43e
+	- fabric-item-group-api-v1 4.2.36+4fc5413f3e
+	- fabric-key-binding-api-v1 1.1.7+4fc5413f3e
+	- fabric-lifecycle-events-v1 2.6.15+4ebb5c083e
+	- fabric-loot-api-v2 3.0.73+3f89f5a53e
+	- fabric-loot-api-v3 2.0.20+78c8b4663e
+	- fabric-message-api-v1 6.1.12+4ebb5c083e
+	- fabric-model-loading-api-v1 6.0.15+4fc5413f3e
+	- fabric-networking-api-v1 5.1.6+6b6d71a53e
+	- fabric-object-builder-api-v1 21.1.40+4fc5413f3e
+	- fabric-particles-v1 4.2.12+4fc5413f3e
+	- fabric-recipe-api-v1 8.2.4+4ebb5c083e
+	- fabric-registry-sync-v0 6.2.6+1718722b3e
+	- fabric-renderer-api-v1 8.0.3+f4ffd2e53e
+	- fabric-renderer-indigo 5.0.3+f4ffd2e53e
+	- fabric-rendering-fluids-v1 3.1.43+4ebb5c083e
+	- fabric-rendering-v1 16.2.10+0290ad933e
+	- fabric-resource-conditions-api-v1 5.0.35+4fc5413f3e
+	- fabric-resource-loader-v0 3.3.4+4fc5413f3e
+	- fabric-resource-loader-v1 1.0.10+78c8b4663e
+	- fabric-screen-api-v1 3.1.7+4ebb5c083e
+	- fabric-screen-handler-api-v1 1.3.162+4fc5413f3e
+	- fabric-serialization-api-v1 1.0.5+4ebb5c083e
+	- fabric-sound-api-v1 1.0.51+4fc5413f3e
+	- fabric-tag-api-v1 1.3.0+88d7da613e
+	- fabric-transfer-api-v1 6.0.25+4fc5413f3e
+	- fabric-transitive-access-wideners-v1 7.1.0+014c8cec3e
+	- fabricloader 0.20.1
+	- java 21
+	- minecraft 1.21.11
+	- mixinextras 0.5.5
+	- punishfx 1.10.0
+	- punishfx-test 1.0.0
+[18:43:00] [main/INFO] (FabricLoader/Mixin) SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.17.5+mixin.0.8.7/cef8519a91129d0c21fa03bb9378f0e8ca810e5/sponge-mixin-0.17.5+mixin.0.8.7.jar Service=Knot/Fabric Env=CLIENT
+[18:43:00] [main/INFO] (FabricLoader/Mixin) Loaded Fabric development mappings for mixin remapper!
+[18:43:01] [main/INFO] (FabricLoader/MixinExtras|Service) Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.5).
+[18:43:03] [Datafixer Bootstrap/INFO] (Minecraft) 287 Datafixer optimizations took 686 milliseconds
+[18:43:08] [Render thread/INFO] (Minecraft) Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[18:43:08] [Render thread/INFO] (Minecraft) Setting user: Player0
+[18:43:09] [Render thread/INFO] (Indigo) [Indigo] Registering Indigo renderer!
+[18:43:09] [Render thread/ERROR] (Minecraft) Illegal option value 0 for Anisotropic Filtering
+[18:43:09] [Render thread/INFO] (Minecraft) Backend library: LWJGL version 3.3.3-snapshot
+[18:43:10] [Render thread/INFO] (Minecraft) Using optional rendering extensions: GL_ARB_buffer_storage, GL_KHR_debug, GL_ARB_vertex_attrib_binding, GL_ARB_direct_state_access, GL_EXT_texture_filter_anisotropic
+[18:43:10] [Render thread/ERROR] (Minecraft) Error while loading the narrator
+
+com.mojang.text2speech.Narrator$InitializeException: Failed to load library flite
+	at knot//com.mojang.text2speech.NarratorLinux$FliteLibrary.loadNative(NarratorLinux.java:81)
+	at knot//com.mojang.text2speech.NarratorLinux.<init>(NarratorLinux.java:18)
+	at knot//com.mojang.text2speech.Narrator.getNarrator(Narrator.java:41)
+	at knot//net.minecraft.client.GameNarrator.<init>(GameNarrator.java:20)
+	at knot//net.minecraft.client.Minecraft.<init>(Minecraft.java:702)
+	at knot//net.minecraft.client.main.Main.main(Main.java:234)
+	at net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider.launch(MinecraftGameProvider.java:517)
+	at net.fabricmc.loader.impl.launch.knot.Knot.launch(Knot.java:72)
+	at net.fabricmc.loader.impl.launch.knot.KnotClient.main(KnotClient.java:23)
+	at net.fabricmc.devlaunchinjector.Main.main(Main.java:86)
+Caused by: java.lang.UnsatisfiedLinkError: Unable to load library 'flite':
+libflite.so: cannot open shared object file: No such file or directory
+libflite.so: cannot open shared object file: No such file or directory
+Native library (linux-x86-64/libflite.so) not found in resource path (/home/runner/work/mod/mod/punishfx-ci/build/classes/java/gametest:/home/runner/work/mod/mod/punishfx-ci/build/resources/gametest:/home/runner/.gradle/caches/fabric-loom/1.21.11/loom.mappings.1_21_11.layered+hash.2198-v2/mappings.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm/9.10.1/ada2141c0cc52ee8f5c48cd5fa4ce0e794f22236/asm-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-analysis/9.10.1/8d49f14d51f632cb1d87c88d1ceaf50db0d8af1b/asm-analysis-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-commons/9.10.1/4229e4c55fd8e01c23f9fe9884075cc628aacc50/asm-commons-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-tree/9.10.1/e244332a17564c1d1572449399a842de35881be2/asm-tree-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-util/9.10.1/7bb9d450e8d4cbf9f9e04096c44bbfe7fba80b15/asm-util-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.17.5+mixin.0.8.7/cef8519a91129d0c21fa03bb9378f0e8ca810e5/sponge-mixin-0.17.5+mixin.0.8.7.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.github.llamalad7/mixinextras-fabric/0.5.5/d1055b99c0ab08a8403fe2da3d79ca28e6340a76/mixinextras-fabric-0.5.5.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/dev-launch-injector/0.2.1+build.8/da8bef7e6e2f952da707f282bdb46882a0fce5e3/dev-launch-injector-0.2.1+build.8.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/fabric-log4j-util/1.0.2/ef0b3fb613356feb75a67d54f2fad6f03a006648/fabric-log4j-util-1.0.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/at.yawk.lz4/lz4-java/1.8.1/1f30a180ee04ccd53339a716aec13cae60a013b5/lz4-java-1.8.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.azure/azure-json/1.4.0/fcc1d354dbc3e0300e5276b1bf124d0247799cd8/azure-json-1.4.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.github.oshi/oshi-core/6.9.0/3224870731860cfcd7744581a05b559e94291e7/oshi-core-6.9.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.13.2/48b8230771e573b54ce6e867a9001e75977fe78e/gson-2.13.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.google.guava/failureaccess/1.0.3/aeaffd00d57023a2c947393ed251f0354f0985fc/failureaccess-1.0.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/33.5.0-jre/8699de25f2f979108d6c1b804a7ba38cda1116bc/guava-33.5.0-jre.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.ibm.icu/icu4j/77.1/38693cf0b1d7362a8b726af74dc06026a7c23809/icu4j-77.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.microsoft.azure/msal4j/1.23.1/6c722b514873b24a4e1ce9c22dca36ea3c22bdbe/msal4j-1.23.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/authlib/7.0.61/efee1e6b54e863108576eb3b3ae71144626aaefc/authlib-7.0.61.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/blocklist/1.0.10/5c685c5ffa94c4cd39496c7184c1d122e515ecef/blocklist-1.0.10.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/brigadier/1.3.10/d15b53a14cf20fdcaa98f731af5dda654452c010/brigadier-1.3.10.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/datafixerupper/9.0.19/4e91f9712fa1e83231d1501625381b0210a977da/datafixerupper-9.0.19.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/jtracy/1.0.37/a3fb649b2e2b2288d2978f0b0bc3d83f62809d1e/jtracy-1.0.37.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/jtracy/1.0.37/e1b4395227af41195da9e2ead13c48ee0b7d31cd/jtracy-1.0.37-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/logging/1.6.11/fd147240733010c158249d986323f9ef98977fe/logging-1.6.11.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/patchy/2.2.10/da05971b07cbb379d002cf7eaec6a2048211fefc/patchy-2.2.10.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/text2speech/1.18.11/e853a12cdd6ba4f4836e8f4bf3b37844a13482b6/text2speech-1.18.11.jar:/home/runner/.gradle/caches/modules-2/files-2.1/commons-codec/commons-codec/1.19.0/8c0dbe3ae883fceda9b50a6c76e745e548073388/commons-codec-1.19.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/commons-io/commons-io/2.20.0/36f3474daec2849c149e877614e7f979b2082cd2/commons-io-2.20.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-buffer/4.2.7.Final/5555ff561643bf2f8430fb57c24403c0efe15994/netty-buffer-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-codec-base/4.2.7.Final/915e381ebabcf115f1c7ff7032d55c48afb50210/netty-codec-base-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-codec-compression/4.2.7.Final/572341bc1ca90fd9d6e47f1d2694aab5258566e9/netty-codec-compression-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-codec-http/4.2.7.Final/b734c108854099c421fd94d92d9f865e4d4da853/netty-codec-http-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-common/4.2.7.Final/11aa30df26af4fca3239ac1917f303a280f301e1/netty-common-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-handler/4.2.7.Final/7ad8a1f851e2e6fe93cdd091871fda2b81c03b5b/netty-handler-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-resolver/4.2.7.Final/5f3e5ef8de03992cd4fb46960dc0085ec1a12a12/netty-resolver-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-classes-epoll/4.2.7.Final/1075c09f48a78eef9d819fbfd9096b903fdd362a/netty-transport-classes-epoll-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-classes-kqueue/4.2.7.Final/bdec7c23c75caabd848426d073c09568e8d5f94e/netty-transport-classes-kqueue-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-epoll/4.2.7.Final/98d02251c98c8f07a23ac5ea27657d9e0ef57614/netty-transport-native-epoll-4.2.7.Final-linux-aarch_64.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-epoll/4.2.7.Final/e83998bfc10b5289d9bcbe807c4079ef0eed8e6f/netty-transport-native-epoll-4.2.7.Final-linux-x86_64.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-unix-common/4.2.7.Final/89953f04259ea7502cffb313630dd51e00e60669/netty-transport-native-unix-common-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport/4.2.7.Final/83ea548981d0d8c4a98027cc1a6f9624f902e142/netty-transport-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/it.unimi.dsi/fastutil/8.5.18/a6cff377eecc19c2037bf31568a6d7106b50ba1f/fastutil-8.5.18.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.java.dev.jna/jna-platform/5.17.0/a4934c44d25a9d8c2ddf4203affd20330cb3426f/jna-platform-5.17.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.java.dev.jna/jna/5.17.0/33d12735bef894440780fce64f9758d420c7bae2/jna-5.17.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.sf.jopt-simple/jopt-simple/5.0.4/4fdac2fbe92dfad86aa6e9301736f6b4342a3f5c/jopt-simple-5.0.4.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-compress/1.28.0/e482f2c7a88dac3c497e96aa420b6a769f59c8d7/commons-compress-1.28.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.19.0/d6524b169a6574cd253760c472d419b47bfd37e6/commons-lang3-3.19.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-api/2.25.2/292c1a2b1702f1e1e3adb13e1c57e5bff60335ff/log4j-api-2.25.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-core/2.25.2/d4d0ad2e51e03e531f784891fbfff1bae1e13a12/log4j-core-2.25.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-slf4j2-impl/2.25.2/5eec0c392661dee8a366baec17e8896900dd978f/log4j-slf4j2-impl-2.25.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.jcraft/jorbis/0.0.17/8872d22b293e8f5d7d56ff92be966e6dc28ebdc6/jorbis-0.0.17.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.joml/joml/1.10.8/fc0a71dad90a2cf41d82a76156a0e700af8e4f8d/joml-1.10.8.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.jspecify/jspecify/1.0.0/7425a601c1c7ec76645a78d22b8c6a627edee507/jspecify-1.0.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-freetype/3.3.3/a0db6c84a8becc8ca05f9dbfa985edc348a824c7/lwjgl-freetype-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-freetype/3.3.3/149070a5480900347071b7074779531f25a6e3dc/lwjgl-freetype-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-glfw/3.3.3/efa1eb78c5ccd840e9f329717109b5e892d72f8e/lwjgl-glfw-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-glfw/3.3.3/a03684c5e4b1b1dbbe0d29dbbdc27b985b6840f2/lwjgl-glfw-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-jemalloc/3.3.3/b543467b7ff3c6920539a88ee602d34098628be5/lwjgl-jemalloc-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-jemalloc/3.3.3/4f86728bf449b1dd61251c4e0ac01df1389cb51e/lwjgl-jemalloc-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-openal/3.3.3/daada81ceb5fc0c291fbfdd4433cb8d9423577f2/lwjgl-openal-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-openal/3.3.3/3037360cc4595079bea240af250b6d1a527e0905/lwjgl-openal-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-opengl/3.3.3/2f6b0147078396a58979125a4c947664e98293a/lwjgl-opengl-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-opengl/3.3.3/62c70a4b00ca5391882b0f4b787c1588d24f1c86/lwjgl-opengl-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-stb/3.3.3/25dd6161988d7e65f71d5065c99902402ee32746/lwjgl-stb-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-stb/3.3.3/fd1271ccd9d85eff2fa31f3fd543e02ccfaf5041/lwjgl-stb-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-tinyfd/3.3.3/82d755ca94b102e9ca77283b9e2dc46d1b15fbe5/lwjgl-tinyfd-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-tinyfd/3.3.3/d8d58daa0c3e5fd906fee96f5fddbcbc07cc308b/lwjgl-tinyfd-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl/3.3.3/29589b5f87ed335a6c7e7ee6a5775f81f97ecb84/lwjgl-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl/3.3.3/1713758e3660ba66e1e954396fd18126038b33c0/lwjgl-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/2.0.17/d9e58ac9c7779ba3bf8142aff6c830617a7fe60f/slf4j-api-2.0.17.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-2ae02fda0f/1.21.11-loom.mappings.1_21_11.layered+hash.2198-v2/minecraft-merged-2ae02fda0f-1.21.11-loom.mappings.1_21_11.layered+hash.2198-v2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-kqueue/4.2.7.Final/40868fd4e43bce2798245f790624b58803dc26b6/netty-transport-native-kqueue-4.2.7.Final-osx-x86_64.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-kqueue/4.2.7.Final/e5a0feef41410c8a5ae00c6cb4e0c99bd0aded6a/netty-transport-native-kqueue-4.2.7.Final-osx-aarch_64.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/fabric-loader/0.20.1/7c7f9831e9f27b303d5d08decb5f4258a9f03296/fabric-loader-0.20.1.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-api-4abd26ae/0.141.6+1.21.11/fabric-api-4abd26ae-0.141.6+1.21.11.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-transfer-api-v1-4abd26ae/6.0.25+4fc5413f3e/fabric-transfer-api-v1-4abd26ae-6.0.25+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-api-lookup-api-v1-4abd26ae/1.6.114+20dc27073e/fabric-api-lookup-api-v1-4abd26ae-1.6.114+20dc27073e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-command-api-v2-4abd26ae/2.4.7+6b42a6003e/fabric-command-api-v2-4abd26ae-2.4.7+6b42a6003e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-content-registries-v0-4abd26ae/10.2.14+4fc5413f3e/fabric-content-registries-v0-4abd26ae-10.2.14+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-data-generation-api-v1-4abd26ae/23.5.0+88d7da613e/fabric-data-generation-api-v1-4abd26ae-23.5.0+88d7da613e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-convention-tags-v1-4abd26ae/2.1.55+7f945d5b3e/fabric-convention-tags-v1-4abd26ae-2.1.55+7f945d5b3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-convention-tags-v2-4abd26ae/2.17.3+8ef948ba3e/fabric-convention-tags-v2-4abd26ae-2.17.3+8ef948ba3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-data-attachment-api-v1-4abd26ae/1.8.48+eed0806f3e/fabric-data-attachment-api-v1-4abd26ae-1.8.48+eed0806f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-entity-events-v1-4abd26ae/3.1.1+1d0ab4303e/fabric-entity-events-v1-4abd26ae-3.1.1+1d0ab4303e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-events-interaction-v0-4abd26ae/4.1.1+3b89ecf63e/fabric-events-interaction-v0-4abd26ae-4.1.1+3b89ecf63e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-game-rule-api-v1-4abd26ae/2.0.3+4fc5413f3e/fabric-game-rule-api-v1-4abd26ae-2.0.3+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-gametest-api-v1-4abd26ae/3.1.27+4fc5413f3e/fabric-gametest-api-v1-4abd26ae-3.1.27+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-item-api-v1-4abd26ae/11.6.0+67f17bb43e/fabric-item-api-v1-4abd26ae-11.6.0+67f17bb43e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-item-group-api-v1-4abd26ae/4.2.36+4fc5413f3e/fabric-item-group-api-v1-4abd26ae-4.2.36+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-recipe-api-v1-4abd26ae/8.2.4+4ebb5c083e/fabric-recipe-api-v1-4abd26ae-8.2.4+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-model-loading-api-v1-4abd26ae/6.0.15+4fc5413f3e/fabric-model-loading-api-v1-4abd26ae-6.0.15+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-renderer-indigo-4abd26ae/5.0.3+f4ffd2e53e/fabric-renderer-indigo-4abd26ae-5.0.3+f4ffd2e53e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-renderer-api-v1-4abd26ae/8.0.3+f4ffd2e53e/fabric-renderer-api-v1-4abd26ae-8.0.3+f4ffd2e53e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-rendering-v1-4abd26ae/16.2.10+0290ad933e/fabric-rendering-v1-4abd26ae-16.2.10+0290ad933e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-lifecycle-events-v1-4abd26ae/2.6.15+4ebb5c083e/fabric-lifecycle-events-v1-4abd26ae-2.6.15+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-loot-api-v2-4abd26ae/3.0.73+3f89f5a53e/fabric-loot-api-v2-4abd26ae-3.0.73+3f89f5a53e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-loot-api-v3-4abd26ae/2.0.20+78c8b4663e/fabric-loot-api-v3-4abd26ae-2.0.20+78c8b4663e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-message-api-v1-4abd26ae/6.1.12+4ebb5c083e/fabric-message-api-v1-4abd26ae-6.1.12+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-particles-v1-4abd26ae/4.2.12+4fc5413f3e/fabric-particles-v1-4abd26ae-4.2.12+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-object-builder-api-v1-4abd26ae/21.1.40+4fc5413f3e/fabric-object-builder-api-v1-4abd26ae-21.1.40+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-screen-handler-api-v1-4abd26ae/1.3.162+4fc5413f3e/fabric-screen-handler-api-v1-4abd26ae-1.3.162+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-registry-sync-v0-4abd26ae/6.2.6+1718722b3e/fabric-registry-sync-v0-4abd26ae-6.2.6+1718722b3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-networking-api-v1-4abd26ae/5.1.6+6b6d71a53e/fabric-networking-api-v1-4abd26ae-5.1.6+6b6d71a53e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-rendering-fluids-v1-4abd26ae/3.1.43+4ebb5c083e/fabric-rendering-fluids-v1-4abd26ae-3.1.43+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-tag-api-v1-4abd26ae/1.3.0+88d7da613e/fabric-tag-api-v1-4abd26ae-1.3.0+88d7da613e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-resource-loader-v0-4abd26ae/3.3.4+4fc5413f3e/fabric-resource-loader-v0-4abd26ae-3.3.4+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-resource-loader-v1-4abd26ae/1.0.10+78c8b4663e/fabric-resource-loader-v1-4abd26ae-1.0.10+78c8b4663e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-screen-api-v1-4abd26ae/3.1.7+4ebb5c083e/fabric-screen-api-v1-4abd26ae-3.1.7+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-api-base-4abd26ae/1.0.5+4ebb5c083e/fabric-api-base-4abd26ae-1.0.5+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-biome-api-v1-4abd26ae/17.1.1+4fc5413f3e/fabric-biome-api-v1-4abd26ae-17.1.1+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-block-api-v1-4abd26ae/1.1.10+4ebb5c083e/fabric-block-api-v1-4abd26ae-1.1.10+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-block-view-api-v2-4abd26ae/1.0.39+4ebb5c083e/fabric-block-view-api-v2-4abd26ae-1.0.39+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-client-gametest-api-v1-4abd26ae/4.3.5+bfe9fcf43e/fabric-client-gametest-api-v1-4abd26ae-4.3.5+bfe9fcf43e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-crash-report-info-v1-4abd26ae/0.3.23+4ebb5c083e/fabric-crash-report-info-v1-4abd26ae-0.3.23+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-dimensions-v1-4abd26ae/4.0.28+4fc5413f3e/fabric-dimensions-v1-4abd26ae-4.0.28+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-key-binding-api-v1-4abd26ae/1.1.7+4fc5413f3e/fabric-key-binding-api-v1-4abd26ae-1.1.7+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-resource-conditions-api-v1-4abd26ae/5.0.35+4fc5413f3e/fabric-resource-conditions-api-v1-4abd26ae-5.0.35+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-serialization-api-v1-4abd26ae/1.0.5+4ebb5c083e/fabric-serialization-api-v1-4abd26ae-1.0.5+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-sound-api-v1-4abd26ae/1.0.51+4fc5413f3e/fabric-sound-api-v1-4abd26ae-1.0.51+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-transitive-access-wideners-v1-4abd26ae/7.1.0+014c8cec3e/fabric-transitive-access-wideners-v1-4abd26ae-7.1.0+014c8cec3e.jar:/home/runner/work/mod/mod/punishfx-ci/build/classes/java/main:/home/runner/work/mod/mod/punishfx-ci/build/resources/main)
+	at knot//com.sun.jna.NativeLibrary.loadLibrary(NativeLibrary.java:325)
+	at knot//com.sun.jna.NativeLibrary.getInstance(NativeLibrary.java:481)
+	at knot//com.sun.jna.NativeLibrary.getInstance(NativeLibrary.java:423)
+	at knot//com.mojang.text2speech.NarratorLinux$FliteLibrary.loadNative(NarratorLinux.java:79)
+	... 9 more
+	Suppressed: java.lang.UnsatisfiedLinkError: libflite.so: cannot open shared object file: No such file or directory
+		at knot//com.sun.jna.Native.open(Native Method)
+		at knot//com.sun.jna.NativeLibrary.loadLibrary(NativeLibrary.java:213)
+		... 12 more
+	Suppressed: java.lang.UnsatisfiedLinkError: libflite.so: cannot open shared object file: No such file or directory
+		at knot//com.sun.jna.Native.open(Native Method)
+		at knot//com.sun.jna.NativeLibrary.loadLibrary(NativeLibrary.java:226)
+		... 12 more
+	Suppressed: java.io.IOException: Native library (linux-x86-64/libflite.so) not found in resource path (/home/runner/work/mod/mod/punishfx-ci/build/classes/java/gametest:/home/runner/work/mod/mod/punishfx-ci/build/resources/gametest:/home/runner/.gradle/caches/fabric-loom/1.21.11/loom.mappings.1_21_11.layered+hash.2198-v2/mappings.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm/9.10.1/ada2141c0cc52ee8f5c48cd5fa4ce0e794f22236/asm-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-analysis/9.10.1/8d49f14d51f632cb1d87c88d1ceaf50db0d8af1b/asm-analysis-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-commons/9.10.1/4229e4c55fd8e01c23f9fe9884075cc628aacc50/asm-commons-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-tree/9.10.1/e244332a17564c1d1572449399a842de35881be2/asm-tree-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-util/9.10.1/7bb9d450e8d4cbf9f9e04096c44bbfe7fba80b15/asm-util-9.10.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.17.5+mixin.0.8.7/cef8519a91129d0c21fa03bb9378f0e8ca810e5/sponge-mixin-0.17.5+mixin.0.8.7.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.github.llamalad7/mixinextras-fabric/0.5.5/d1055b99c0ab08a8403fe2da3d79ca28e6340a76/mixinextras-fabric-0.5.5.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/dev-launch-injector/0.2.1+build.8/da8bef7e6e2f952da707f282bdb46882a0fce5e3/dev-launch-injector-0.2.1+build.8.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/fabric-log4j-util/1.0.2/ef0b3fb613356feb75a67d54f2fad6f03a006648/fabric-log4j-util-1.0.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/at.yawk.lz4/lz4-java/1.8.1/1f30a180ee04ccd53339a716aec13cae60a013b5/lz4-java-1.8.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.azure/azure-json/1.4.0/fcc1d354dbc3e0300e5276b1bf124d0247799cd8/azure-json-1.4.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.github.oshi/oshi-core/6.9.0/3224870731860cfcd7744581a05b559e94291e7/oshi-core-6.9.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.13.2/48b8230771e573b54ce6e867a9001e75977fe78e/gson-2.13.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.google.guava/failureaccess/1.0.3/aeaffd00d57023a2c947393ed251f0354f0985fc/failureaccess-1.0.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/33.5.0-jre/8699de25f2f979108d6c1b804a7ba38cda1116bc/guava-33.5.0-jre.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.ibm.icu/icu4j/77.1/38693cf0b1d7362a8b726af74dc06026a7c23809/icu4j-77.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.microsoft.azure/msal4j/1.23.1/6c722b514873b24a4e1ce9c22dca36ea3c22bdbe/msal4j-1.23.1.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/authlib/7.0.61/efee1e6b54e863108576eb3b3ae71144626aaefc/authlib-7.0.61.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/blocklist/1.0.10/5c685c5ffa94c4cd39496c7184c1d122e515ecef/blocklist-1.0.10.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/brigadier/1.3.10/d15b53a14cf20fdcaa98f731af5dda654452c010/brigadier-1.3.10.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/datafixerupper/9.0.19/4e91f9712fa1e83231d1501625381b0210a977da/datafixerupper-9.0.19.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/jtracy/1.0.37/a3fb649b2e2b2288d2978f0b0bc3d83f62809d1e/jtracy-1.0.37.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/jtracy/1.0.37/e1b4395227af41195da9e2ead13c48ee0b7d31cd/jtracy-1.0.37-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/logging/1.6.11/fd147240733010c158249d986323f9ef98977fe/logging-1.6.11.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/patchy/2.2.10/da05971b07cbb379d002cf7eaec6a2048211fefc/patchy-2.2.10.jar:/home/runner/.gradle/caches/modules-2/files-2.1/com.mojang/text2speech/1.18.11/e853a12cdd6ba4f4836e8f4bf3b37844a13482b6/text2speech-1.18.11.jar:/home/runner/.gradle/caches/modules-2/files-2.1/commons-codec/commons-codec/1.19.0/8c0dbe3ae883fceda9b50a6c76e745e548073388/commons-codec-1.19.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/commons-io/commons-io/2.20.0/36f3474daec2849c149e877614e7f979b2082cd2/commons-io-2.20.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-buffer/4.2.7.Final/5555ff561643bf2f8430fb57c24403c0efe15994/netty-buffer-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-codec-base/4.2.7.Final/915e381ebabcf115f1c7ff7032d55c48afb50210/netty-codec-base-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-codec-compression/4.2.7.Final/572341bc1ca90fd9d6e47f1d2694aab5258566e9/netty-codec-compression-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-codec-http/4.2.7.Final/b734c108854099c421fd94d92d9f865e4d4da853/netty-codec-http-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-common/4.2.7.Final/11aa30df26af4fca3239ac1917f303a280f301e1/netty-common-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-handler/4.2.7.Final/7ad8a1f851e2e6fe93cdd091871fda2b81c03b5b/netty-handler-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-resolver/4.2.7.Final/5f3e5ef8de03992cd4fb46960dc0085ec1a12a12/netty-resolver-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-classes-epoll/4.2.7.Final/1075c09f48a78eef9d819fbfd9096b903fdd362a/netty-transport-classes-epoll-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-classes-kqueue/4.2.7.Final/bdec7c23c75caabd848426d073c09568e8d5f94e/netty-transport-classes-kqueue-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-epoll/4.2.7.Final/98d02251c98c8f07a23ac5ea27657d9e0ef57614/netty-transport-native-epoll-4.2.7.Final-linux-aarch_64.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-epoll/4.2.7.Final/e83998bfc10b5289d9bcbe807c4079ef0eed8e6f/netty-transport-native-epoll-4.2.7.Final-linux-x86_64.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-unix-common/4.2.7.Final/89953f04259ea7502cffb313630dd51e00e60669/netty-transport-native-unix-common-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport/4.2.7.Final/83ea548981d0d8c4a98027cc1a6f9624f902e142/netty-transport-4.2.7.Final.jar:/home/runner/.gradle/caches/modules-2/files-2.1/it.unimi.dsi/fastutil/8.5.18/a6cff377eecc19c2037bf31568a6d7106b50ba1f/fastutil-8.5.18.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.java.dev.jna/jna-platform/5.17.0/a4934c44d25a9d8c2ddf4203affd20330cb3426f/jna-platform-5.17.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.java.dev.jna/jna/5.17.0/33d12735bef894440780fce64f9758d420c7bae2/jna-5.17.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.sf.jopt-simple/jopt-simple/5.0.4/4fdac2fbe92dfad86aa6e9301736f6b4342a3f5c/jopt-simple-5.0.4.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-compress/1.28.0/e482f2c7a88dac3c497e96aa420b6a769f59c8d7/commons-compress-1.28.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.19.0/d6524b169a6574cd253760c472d419b47bfd37e6/commons-lang3-3.19.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-api/2.25.2/292c1a2b1702f1e1e3adb13e1c57e5bff60335ff/log4j-api-2.25.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-core/2.25.2/d4d0ad2e51e03e531f784891fbfff1bae1e13a12/log4j-core-2.25.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-slf4j2-impl/2.25.2/5eec0c392661dee8a366baec17e8896900dd978f/log4j-slf4j2-impl-2.25.2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.jcraft/jorbis/0.0.17/8872d22b293e8f5d7d56ff92be966e6dc28ebdc6/jorbis-0.0.17.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.joml/joml/1.10.8/fc0a71dad90a2cf41d82a76156a0e700af8e4f8d/joml-1.10.8.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.jspecify/jspecify/1.0.0/7425a601c1c7ec76645a78d22b8c6a627edee507/jspecify-1.0.0.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-freetype/3.3.3/a0db6c84a8becc8ca05f9dbfa985edc348a824c7/lwjgl-freetype-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-freetype/3.3.3/149070a5480900347071b7074779531f25a6e3dc/lwjgl-freetype-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-glfw/3.3.3/efa1eb78c5ccd840e9f329717109b5e892d72f8e/lwjgl-glfw-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-glfw/3.3.3/a03684c5e4b1b1dbbe0d29dbbdc27b985b6840f2/lwjgl-glfw-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-jemalloc/3.3.3/b543467b7ff3c6920539a88ee602d34098628be5/lwjgl-jemalloc-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-jemalloc/3.3.3/4f86728bf449b1dd61251c4e0ac01df1389cb51e/lwjgl-jemalloc-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-openal/3.3.3/daada81ceb5fc0c291fbfdd4433cb8d9423577f2/lwjgl-openal-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-openal/3.3.3/3037360cc4595079bea240af250b6d1a527e0905/lwjgl-openal-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-opengl/3.3.3/2f6b0147078396a58979125a4c947664e98293a/lwjgl-opengl-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-opengl/3.3.3/62c70a4b00ca5391882b0f4b787c1588d24f1c86/lwjgl-opengl-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-stb/3.3.3/25dd6161988d7e65f71d5065c99902402ee32746/lwjgl-stb-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-stb/3.3.3/fd1271ccd9d85eff2fa31f3fd543e02ccfaf5041/lwjgl-stb-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-tinyfd/3.3.3/82d755ca94b102e9ca77283b9e2dc46d1b15fbe5/lwjgl-tinyfd-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-tinyfd/3.3.3/d8d58daa0c3e5fd906fee96f5fddbcbc07cc308b/lwjgl-tinyfd-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl/3.3.3/29589b5f87ed335a6c7e7ee6a5775f81f97ecb84/lwjgl-3.3.3.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl/3.3.3/1713758e3660ba66e1e954396fd18126038b33c0/lwjgl-3.3.3-natives-linux.jar:/home/runner/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/2.0.17/d9e58ac9c7779ba3bf8142aff6c830617a7fe60f/slf4j-api-2.0.17.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-2ae02fda0f/1.21.11-loom.mappings.1_21_11.layered+hash.2198-v2/minecraft-merged-2ae02fda0f-1.21.11-loom.mappings.1_21_11.layered+hash.2198-v2.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-kqueue/4.2.7.Final/40868fd4e43bce2798245f790624b58803dc26b6/netty-transport-native-kqueue-4.2.7.Final-osx-x86_64.jar:/home/runner/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport-native-kqueue/4.2.7.Final/e5a0feef41410c8a5ae00c6cb4e0c99bd0aded6a/netty-transport-native-kqueue-4.2.7.Final-osx-aarch_64.jar:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/fabric-loader/0.20.1/7c7f9831e9f27b303d5d08decb5f4258a9f03296/fabric-loader-0.20.1.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-api-4abd26ae/0.141.6+1.21.11/fabric-api-4abd26ae-0.141.6+1.21.11.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-transfer-api-v1-4abd26ae/6.0.25+4fc5413f3e/fabric-transfer-api-v1-4abd26ae-6.0.25+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-api-lookup-api-v1-4abd26ae/1.6.114+20dc27073e/fabric-api-lookup-api-v1-4abd26ae-1.6.114+20dc27073e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-command-api-v2-4abd26ae/2.4.7+6b42a6003e/fabric-command-api-v2-4abd26ae-2.4.7+6b42a6003e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-content-registries-v0-4abd26ae/10.2.14+4fc5413f3e/fabric-content-registries-v0-4abd26ae-10.2.14+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-data-generation-api-v1-4abd26ae/23.5.0+88d7da613e/fabric-data-generation-api-v1-4abd26ae-23.5.0+88d7da613e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-convention-tags-v1-4abd26ae/2.1.55+7f945d5b3e/fabric-convention-tags-v1-4abd26ae-2.1.55+7f945d5b3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-convention-tags-v2-4abd26ae/2.17.3+8ef948ba3e/fabric-convention-tags-v2-4abd26ae-2.17.3+8ef948ba3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-data-attachment-api-v1-4abd26ae/1.8.48+eed0806f3e/fabric-data-attachment-api-v1-4abd26ae-1.8.48+eed0806f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-entity-events-v1-4abd26ae/3.1.1+1d0ab4303e/fabric-entity-events-v1-4abd26ae-3.1.1+1d0ab4303e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-events-interaction-v0-4abd26ae/4.1.1+3b89ecf63e/fabric-events-interaction-v0-4abd26ae-4.1.1+3b89ecf63e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-game-rule-api-v1-4abd26ae/2.0.3+4fc5413f3e/fabric-game-rule-api-v1-4abd26ae-2.0.3+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-gametest-api-v1-4abd26ae/3.1.27+4fc5413f3e/fabric-gametest-api-v1-4abd26ae-3.1.27+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-item-api-v1-4abd26ae/11.6.0+67f17bb43e/fabric-item-api-v1-4abd26ae-11.6.0+67f17bb43e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-item-group-api-v1-4abd26ae/4.2.36+4fc5413f3e/fabric-item-group-api-v1-4abd26ae-4.2.36+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-recipe-api-v1-4abd26ae/8.2.4+4ebb5c083e/fabric-recipe-api-v1-4abd26ae-8.2.4+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-model-loading-api-v1-4abd26ae/6.0.15+4fc5413f3e/fabric-model-loading-api-v1-4abd26ae-6.0.15+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-renderer-indigo-4abd26ae/5.0.3+f4ffd2e53e/fabric-renderer-indigo-4abd26ae-5.0.3+f4ffd2e53e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-renderer-api-v1-4abd26ae/8.0.3+f4ffd2e53e/fabric-renderer-api-v1-4abd26ae-8.0.3+f4ffd2e53e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-rendering-v1-4abd26ae/16.2.10+0290ad933e/fabric-rendering-v1-4abd26ae-16.2.10+0290ad933e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-lifecycle-events-v1-4abd26ae/2.6.15+4ebb5c083e/fabric-lifecycle-events-v1-4abd26ae-2.6.15+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-loot-api-v2-4abd26ae/3.0.73+3f89f5a53e/fabric-loot-api-v2-4abd26ae-3.0.73+3f89f5a53e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-loot-api-v3-4abd26ae/2.0.20+78c8b4663e/fabric-loot-api-v3-4abd26ae-2.0.20+78c8b4663e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-message-api-v1-4abd26ae/6.1.12+4ebb5c083e/fabric-message-api-v1-4abd26ae-6.1.12+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-particles-v1-4abd26ae/4.2.12+4fc5413f3e/fabric-particles-v1-4abd26ae-4.2.12+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-object-builder-api-v1-4abd26ae/21.1.40+4fc5413f3e/fabric-object-builder-api-v1-4abd26ae-21.1.40+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-screen-handler-api-v1-4abd26ae/1.3.162+4fc5413f3e/fabric-screen-handler-api-v1-4abd26ae-1.3.162+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-registry-sync-v0-4abd26ae/6.2.6+1718722b3e/fabric-registry-sync-v0-4abd26ae-6.2.6+1718722b3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-networking-api-v1-4abd26ae/5.1.6+6b6d71a53e/fabric-networking-api-v1-4abd26ae-5.1.6+6b6d71a53e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-rendering-fluids-v1-4abd26ae/3.1.43+4ebb5c083e/fabric-rendering-fluids-v1-4abd26ae-3.1.43+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-tag-api-v1-4abd26ae/1.3.0+88d7da613e/fabric-tag-api-v1-4abd26ae-1.3.0+88d7da613e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-resource-loader-v0-4abd26ae/3.3.4+4fc5413f3e/fabric-resource-loader-v0-4abd26ae-3.3.4+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-resource-loader-v1-4abd26ae/1.0.10+78c8b4663e/fabric-resource-loader-v1-4abd26ae-1.0.10+78c8b4663e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-screen-api-v1-4abd26ae/3.1.7+4ebb5c083e/fabric-screen-api-v1-4abd26ae-3.1.7+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-api-base-4abd26ae/1.0.5+4ebb5c083e/fabric-api-base-4abd26ae-1.0.5+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-biome-api-v1-4abd26ae/17.1.1+4fc5413f3e/fabric-biome-api-v1-4abd26ae-17.1.1+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-block-api-v1-4abd26ae/1.1.10+4ebb5c083e/fabric-block-api-v1-4abd26ae-1.1.10+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-block-view-api-v2-4abd26ae/1.0.39+4ebb5c083e/fabric-block-view-api-v2-4abd26ae-1.0.39+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-client-gametest-api-v1-4abd26ae/4.3.5+bfe9fcf43e/fabric-client-gametest-api-v1-4abd26ae-4.3.5+bfe9fcf43e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-crash-report-info-v1-4abd26ae/0.3.23+4ebb5c083e/fabric-crash-report-info-v1-4abd26ae-0.3.23+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-dimensions-v1-4abd26ae/4.0.28+4fc5413f3e/fabric-dimensions-v1-4abd26ae-4.0.28+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-key-binding-api-v1-4abd26ae/1.1.7+4fc5413f3e/fabric-key-binding-api-v1-4abd26ae-1.1.7+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-resource-conditions-api-v1-4abd26ae/5.0.35+4fc5413f3e/fabric-resource-conditions-api-v1-4abd26ae-5.0.35+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-serialization-api-v1-4abd26ae/1.0.5+4ebb5c083e/fabric-serialization-api-v1-4abd26ae-1.0.5+4ebb5c083e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-sound-api-v1-4abd26ae/1.0.51+4fc5413f3e/fabric-sound-api-v1-4abd26ae-1.0.51+4fc5413f3e.jar:/home/runner/work/mod/mod/punishfx-ci/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-transitive-access-wideners-v1-4abd26ae/7.1.0+014c8cec3e/fabric-transitive-access-wideners-v1-4abd26ae-7.1.0+014c8cec3e.jar:/home/runner/work/mod/mod/punishfx-ci/build/classes/java/main:/home/runner/work/mod/mod/punishfx-ci/build/resources/main)
+		at knot//com.sun.jna.Native.extractFromResourcePath(Native.java:1141)
+		at knot//com.sun.jna.NativeLibrary.loadLibrary(NativeLibrary.java:297)
+		... 12 more
+[18:43:10] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-view-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v1, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-item-group-api-v1, fabric-key-binding-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v2, fabric-loot-api-v3, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-screen-handler-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, punishfx
+[18:43:11] [Download-2/INFO] (Minecraft) Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: FabricMC
+[18:43:11] [Worker-Main-2/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[18:43:11] [Worker-Main-1/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[18:43:12] [Worker-Main-1/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+ALSA lib confmisc.c:855:(parse_card) [error.core] cannot find card '0'
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) [error.core] error evaluating strings
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) [error.core] error evaluating name
+[18:43:13] [Render thread/ERROR] (Minecraft) Error starting SoundSystem. Turning off sounds & music
+
+java.lang.IllegalStateException: Failed to open OpenAL device
+	at knot//com.mojang.blaze3d.audio.Library.openDeviceOrFallback(Library.java:292)
+	at knot//com.mojang.blaze3d.audio.Library.init(Library.java:150)
+	at knot//net.minecraft.client.sounds.SoundEngine.loadLibrary(SoundEngine.java:119)
+	at knot//net.minecraft.client.sounds.SoundEngine.reload(SoundEngine.java:109)
+	at knot//net.minecraft.client.sounds.SoundManager.apply(SoundManager.java:122)
+	at knot//net.minecraft.client.sounds.SoundManager.apply(SoundManager.java:41)
+	at knot//net.minecraft.server.packs.resources.SimplePreparableReloadListener.method_18790(SimplePreparableReloadListener.java:15)
+	at java.base/java.util.concurrent.CompletableFuture$UniAccept.tryFire(CompletableFuture.java:718)
+	at java.base/java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482)
+	at knot//net.minecraft.server.packs.resources.SimpleReloadInstance.method_67574(SimpleReloadInstance.java:59)
+	at knot//net.minecraft.util.thread.BlockableEventLoop.doRunTask(BlockableEventLoop.java:169)
+	at knot//net.minecraft.util.thread.ReentrantBlockableEventLoop.doRunTask(ReentrantBlockableEventLoop.java:23)
+	at knot//net.minecraft.util.thread.BlockableEventLoop.pollTask(BlockableEventLoop.java:143)
+	at knot//net.minecraft.util.thread.BlockableEventLoop.runAllTasks(BlockableEventLoop.java:124)
+	at knot//net.minecraft.client.Minecraft.runTick(Minecraft.java:1339)
+	at knot//net.minecraft.client.Minecraft.run$mixinextras$wrapped$282(Minecraft.java:966)
+	at knot//net.minecraft.client.Minecraft.mixinextras$bridge$run$mixinextras$wrapped$282$283(Minecraft.java)
+	at knot//net.minecraft.client.Minecraft.wrapMethod$zig000$fabric-client-gametest-api-v1$onRun(Minecraft.java:6164)
+	at knot//net.minecraft.client.Minecraft.run(Minecraft.java)
+	at knot//net.minecraft.client.main.Main.main(Main.java:250)
+	at net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider.launch(MinecraftGameProvider.java:517)
+	at net.fabricmc.loader.impl.launch.knot.Knot.launch(Knot.java:72)
+	at net.fabricmc.loader.impl.launch.knot.KnotClient.main(KnotClient.java:23)
+	at net.fabricmc.devlaunchinjector.Main.main(Main.java:86)
+[18:43:13] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5734:(snd_config_expand) [error.core] Evaluate error: No such file or directory
+ALSA lib pcm.c:2722:(snd_pcm_open_noupdate) [error.pcm] Unknown PCM default
+ALSA lib confmisc.c:855:(parse_card) [error.core] cannot find card '0'
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) [error.core] error evaluating strings
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) [error.core] error evaluating name
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5734:(snd_config_expand) [error.core] Evaluate error: No such file or directory
+ALSA lib pcm.c:2722:(snd_pcm_open_noupdate) [error.pcm] Unknown PCM default
+[18:43:13] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[18:43:13] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[18:43:13] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/beds.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/signs.png-atlas
+[18:43:14] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[18:43:14] [IO-Worker-1/INFO] (Minecraft) Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: FabricMC
+[18:43:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS default level 1 only uses real punishments [jitter, sluggish, fog, disco_eyes, spin, possessed_hotbar, chipmunk]
+[18:43:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS default level 2 only uses real punishments [drunk, inverted_controls, glitch, tunnel_vision, no_hud, flashbang, front_camera, language, hotbar_chaos, pixelated]
+[18:43:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS default level 3 only uses real punishments [negative, inverted_controls, frozen, drunk, flashbang, tunnel_vision, glitch, mirror, hotbar_chaos]
+[18:43:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS default level 4 only uses real punishments [blackout, frozen, negative, fake_lag, drunk, inverted_controls, disco_eyes, upside_down, mirror, pixelated]
+[18:43:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS default level 5 only uses real punishments [negative, drunk, inverted_controls, fake_lag, blackout, frozen, glitch, jitter, upside_down, language]
+[18:43:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS old saved pools are migrated [drunk, blackout, spin, frozen, glitch]
+[18:43:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS a pool of only removed punishments falls back to 'any'
+[18:43:19] [Render thread/INFO] (Minecraft) Loaded 1470 recipes
+[18:43:19] [Render thread/INFO] (Minecraft) Loaded 1584 advancements
+[18:43:19] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.GenericMessageScreen@4e65955e
+[18:43:19] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 65 new biomes in 1.532 ms
+[18:43:19] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 1.21.11
+[18:43:19] [Server thread/INFO] (Minecraft) Generating keypair
+[18:43:19] [Server thread/INFO] (Minecraft) Selecting global world spawn...
+[18:43:19] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[18:43:19] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Server thread/INFO] (Minecraft) Loading 47 chunks for player spawn...
+[18:43:20] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:20] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:21] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:21] [Server thread/INFO] (Minecraft) Time elapsed: 1493 ms
+[18:43:21] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: null screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:21] [Server thread/INFO] (Minecraft) Player0[local:E:26a60a15] logged in with entity id 1 at (-6.5, -60.0, -0.5)
+[18:43:21] [Server thread/INFO] (Minecraft) Player0 joined the game
+[18:43:21] [Server thread/INFO] (Minecraft) Changing view distance to 4, from 10
+[18:43:21] [Server thread/INFO] (Minecraft) Changing simulation distance to 5, from 0
+[18:43:21] [Render thread/INFO] (Minecraft) Loaded 2 advancements
+[18:43:21] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:21] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[18:43:21] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:21] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[18:43:21] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:21] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: net.minecraft.client.gui.screens.LevelLoadingScreen@f817cc
+[18:43:22] [Render thread/INFO] (fabric-client-gametest-api-v1) World loading finished: ClientLevel screen: null
+[18:43:22] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[18:43:23] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 16 reached during a single frame. New capacity will be 32.
+[18:43:24] [Server thread/INFO] (Minecraft) Set the time to 6000
+[18:43:24] [Server thread/INFO] (Minecraft) Set the weather to clear
+[18:43:24] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 32 reached during a single frame. New capacity will be 64.
+[18:43:25] [Server thread/INFO] (Minecraft) Successfully filled 6561 block(s)
+[18:43:25] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:43:28] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST move none               forward=  5.39 sideways=  0.00
+[18:43:28] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS normal walking moves forward (5.39m)
+[18:43:28] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:43:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST move inverted_controls  forward= -5.39 sideways=  0.00
+[18:43:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS inverted controls: W walks BACKWARDS (-5.39m)
+[18:43:31] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:43:33] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST move frozen             forward=  0.00 sideways=  0.00
+[18:43:33] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS frozen: can't move (0.00m)
+[18:43:33] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:43:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST move sluggish           forward=  1.78 sideways=  0.00
+[18:43:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS sluggish: much slower (1.78m vs 5.39m)
+[18:43:36] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:43:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST move drunk              forward=  5.17 sideways=  0.96
+[18:43:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS drunk: still walks, stumbling (5.17m fwd, 0.96m side)
+[18:43:40] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS drunk: nausea warp is active (blend 0.50)
+[18:43:40] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS drunk: camera sway/tilt active (1.00)
+[18:43:41] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS nausea removed when drunk ends (no leftover effect)
+[18:43:41] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:43:43] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST move sluggish           forward=  0.54 sideways=  0.00
+[18:43:43] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS Sluggish strength 'A tenth' is slower still (0.54m)
+[18:43:44] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:43:46] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST move none               forward=  5.39 sideways=  0.00
+[18:43:46] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS movement back to normal after punishments (5.39m)
+[18:43:46] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.000000, -60.000000, 0.000000
+[18:43:48] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 64 reached during a single frame. New capacity will be 128.
+[18:43:48] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[18:43:48] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_00_baseline -> fx_00_baseline.png
+[18:43:50] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_tunnel_vision -> fx_tunnel_vision.png
+[18:43:50] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS tunnel vision narrows the real FOV (70.00 -> 28.09)
+[18:43:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_negative -> fx_negative.png
+[18:43:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS inverted colors really inverts the screen (base 81,95,113, inverted 169,155,139)
+[18:43:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_disco_eyes -> fx_disco_eyes.png
+[18:43:53] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_flashbang -> fx_flashbang.png
+[18:43:54] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_blackout -> fx_blackout.png
+[18:43:55] [Server thread/WARN] (Minecraft) Can't keep up! Is the server overloaded? Running 2049ms or 40 ticks behind
+[18:43:57] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_fog -> fx_fog.png
+[18:44:01] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_drunk -> fx_drunk.png
+[18:44:01] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_glitch -> fx_glitch.png
+[18:44:02] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_jitter -> fx_jitter.png
+[18:44:03] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_spin -> fx_spin.png
+[18:44:04] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_no_hud -> fx_no_hud.png
+[18:44:04] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS flashbang lasts longer (9600ms)
+[18:44:06] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_zz_close_countdown -> fx_zz_close_countdown.png
+[18:44:06] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS close-game countdown can be cancelled
+[18:44:08] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:44:09] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_01_sky_baseline -> fx_01_sky_baseline.png
+[18:44:10] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS upside down: camera rolled over (180.00 deg)
+[18:44:10] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_upside_down -> fx_upside_down.png
+[18:44:10] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS upside down: sky moves from the top to the bottom (base top/bot blue 29.70/-18.56, flipped 0.77/27.07)
+[18:44:10] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS upside down: camera back to normal after
+[18:44:11] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS forced front camera: camera is third-person front (THIRD_PERSON_FRONT)
+[18:44:11] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_front_camera -> fx_front_camera.png
+[18:44:11] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS front camera: back to first person after (FIRST_PERSON)
+[18:44:11] [Server thread/INFO] (Minecraft) Successfully filled 64 block(s)
+[18:44:11] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:44:13] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_02_wall_baseline -> fx_02_wall_baseline.png
+[18:44:13] [Server thread/WARN] (Minecraft) Can't keep up! Is the server overloaded? Running 2009ms or 40 ticks behind
+[18:44:13] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_mirror -> fx_mirror.png
+[18:44:13] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS mirror world flips the picture (red left/right 58.01/-11.52 -> -9.26/65.31)
+[18:44:13] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS mirror world flips mouse look (turn +100 -> -15.00 deg)
+[18:44:15] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS mirror world flips A/D (A moved -4.16m on X, normally +)
+[18:44:15] [Server thread/INFO] (Minecraft) Successfully filled 64 block(s)
+[18:44:15] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:44:15] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS mouse look normal again after mirror (15.00)
+[18:44:15] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS mirror shader removed after ([])
+[18:44:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS language swap changes the game's text ("Back to Game" -> "Return t' th' battle")
+[18:44:16] [Server thread/INFO] (Minecraft) Saving and pausing game...
+[18:44:16] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:overworld
+[18:44:16] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:the_nether
+[18:44:16] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:the_end
+[18:44:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_language_pirate_menu -> fx_language_pirate_menu.png
+[18:44:17] [Server thread/INFO] (Minecraft) Saving and pausing game...
+[18:44:17] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:overworld
+[18:44:17] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:the_nether
+[18:44:17] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:the_end
+[18:44:17] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_language_upside_down_menu -> fx_language_upside_down_menu.png
+[18:44:18] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS language back to normal after ("Back to Game")
+[18:44:19] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS chipmunk mode: squeaky + goat sounds switched on, playing sounds works
+[18:44:19] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS chipmunk mode off after
+[18:44:19] [Server thread/INFO] (Minecraft) No items were found on player Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 1 [Diamond Sword] to Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 64 [Dirt] to Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 1 [Bow] to Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 32 [Steak] to Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 64 [Oak Planks] to Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 64 [Torch] to Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 1 [Water Bucket] to Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 1 [Shield] to Player0
+[18:44:19] [Server thread/INFO] (Minecraft) Gave 8 [Golden Apple] to Player0
+[18:44:19] [Render thread/INFO] (Minecraft) Loaded 15 advancements
+[18:44:20] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_03_hotbar_baseline -> fx_03_hotbar_baseline.png
+[18:44:24] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS possessed hotbar: selected slot keeps changing [0, 2, 5, 6, 7, 8]
+[18:44:25] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_hotbar_chaos -> fx_hotbar_chaos.png
+[18:44:27] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_hotbar_chaos_reroll -> fx_hotbar_chaos_reroll.png
+[18:44:27] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS hotbar chaos is visual only: your real items are untouched (slot 1 = diamond_sword)
+[18:44:27] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS hotbar chaos changes what the hotbar shows (21.20% of hotbar pixels)
+[18:44:32] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_butterfingers -> fx_butterfingers.png
+[18:44:32] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS butterfingers drops your items (dirt 64 -> 60)
+[18:44:32] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS butterfingers is opt-in only (never picked by 'All')
+[18:44:32] [Server thread/INFO] (Minecraft) Killed 2 entities
+[18:44:32] [Server thread/INFO] (Minecraft) Removed 232 item(s) from player Player0
+[18:44:33] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:44:34] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_04_floor_baseline -> fx_04_floor_baseline.png
+[18:44:34] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS pixelated turns on the 36p effect ([punishfx:fx/m0_r8_p0])
+[18:44:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_pixelated_36p -> fx_pixelated_36p.png
+[18:44:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS pixelated really lowers the resolution (detail 0.11 -> 0.05)
+[18:44:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_pixelated_96p_gameboy -> fx_pixelated_96p_gameboy.png
+[18:44:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS Game Boy colours: the picture is all green (3543/3569)
+[18:44:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_pixelated_72p_retro -> fx_pixelated_72p_retro.png
+[18:44:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS pixelated + mirror world run together ([punishfx:fx/m1_r6_p1])
+[18:44:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS pixelated effect removed after ([])
+[18:44:40] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS 'gets worse' starts sharp and gets blockier ([punishfx:fx/m0_r1_p0] -> [punishfx:fx/m0_r7_p0])
+[18:44:40] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:44:41] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:44:42] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_05_floor_baseline -> fx_05_floor_baseline.png
+[18:44:42] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_tiny_window -> fx_tiny_window.png
+[18:44:42] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS tiny window: the game shrinks into a box (inside 156.55, outside 14.25, box at 0.31,0.22 size 0.40)
+[18:44:44] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS tiny window: the box keeps moving (0.31,0.38 -> 0.13,0.16)
+[18:44:44] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_tiny_window_later -> fx_tiny_window_later.png
+[18:44:45] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_blurry -> fx_blurry.png
+[18:44:45] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS blurry really blurs (detail 0.11 -> 0.00)
+[18:44:46] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_fisheye -> fx_fisheye.png
+[18:44:46] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fisheye bends the view and darkens the edges (corner 182.46 -> 81.64)
+[18:44:47] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS screen effects stack (blur, fisheye, mirror+pixel, window): [punishfx:fx/blur_2, punishfx:fx/fisheye_3, punishfx:fx/m1_r5_p0, punishfx:fx/window_1_1]
+[18:44:47] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_everything_stacked -> fx_everything_stacked.png
+[18:44:47] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS all screen effects removed after
+[18:44:47] [Server thread/INFO] (Minecraft) Teleported Player0 to 0.500000, 101.000000, 0.500000
+[18:44:48] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS every punishment has a sound (all 0)
+[18:44:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS punishments play their sound when they start (silent: )
+[18:44:53] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS sounds repeat while a punishment runs (5 in 2s)
+[18:44:56] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS a muted punishment stays quiet (0 sounds)
+[18:44:58] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS 'Sounds while it runs' off: no repeating sounds (0)
+[18:44:59] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS wheel/case always land on the chosen slot; rigged never gives NOTHING; CS odds are right (ok [3195, 642, 126, 26, 11])
+[18:45:01] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_wheel_spinning_casino -> fx_wheel_spinning_casino.png
+[18:45:01] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS the wheel shows up and spins
+[18:45:03] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_wheel_result -> fx_wheel_result.png
+[18:45:03] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS the wheel's result really runs (language -> [language])
+[18:45:06] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS the wheel goes away after showing the result
+[18:45:08] [Server thread/WARN] (Minecraft) Can't keep up! Is the server overloaded? Running 2039ms or 40 ticks behind
+[18:45:10] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_wheel_rainbow_icons -> fx_wheel_rainbow_icons.png
+[18:45:12] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_wheel_gameshow_names -> fx_wheel_gameshow_names.png
+[18:45:14] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_case_opening -> fx_case_opening.png
+[18:45:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_case_result -> fx_case_result.png
+[18:45:16] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS the case opens and unboxes something (NOTHING! (Mil-Spec) You got lucky this time)
+[18:45:18] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_case_flat_rainbow -> fx_case_flat_rainbow.png
+[18:45:19] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS 'Every donation' makes a real donation spin the wheel
+[18:45:21] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_move_wheel -> ui_move_wheel.png
+[18:45:22] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_move_case -> ui_move_case.png
+[18:45:23] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - All at once: jitter:2.0s fog:4.0s | queue=0 combo=1 endA+=0 | Blinding Fog
+[18:45:23] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - Queue: jitter:2.0s | queue=1 combo=1 endA+=0 | queued - number 1 in line
+[18:45:25] [Server thread/WARN] (Minecraft) Can't keep up! Is the server overloaded? Running 2148ms or 42 ticks behind
+[18:45:26] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS queue: the next donation plays when the first ends (fog | queue=0)
+[18:45:26] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_queue_up_next -> fx_queue_up_next.png
+[18:45:27] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - Combo: jitter:3.0s fog:6.0s | queue=0 combo=2 endA+=1 | COMBO x2  ·  Blinding Fog
+[18:45:28] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_combo_x3 -> fx_combo_x3.png
+[18:45:28] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - Biggest wins: fog:4.0s | queue=0 combo=1 endA+=2 | new biggest!  ·  Blinding Fog
+[18:45:28] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS biggest wins: a smaller one doesn't punish (smaller than $300K - no punishment | active 1)
+[18:45:28] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - Add time: jitter:6.0s | queue=0 combo=1 endA+=4 | +4s to everything running
+[18:45:28] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - Replace: fog:4.0s | queue=0 combo=1 endA+=2 | replaces what was running  ·  Blinding Fog
+[18:45:29] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - Team up: fog:4.0s | queue=0 combo=1 endA+=2 | TEAM-UP $400K = Annoying  ·  Blinding Fog
+[18:45:29] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - First only: jitter:2.0s | queue=0 combo=1 endA+=0 | already going - just the banner
+[18:45:29] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS several at once - Surprise me: jitter:6.0s | queue=0 combo=1 endA+=4 | Surprise: Add time  ·  +4s to everything running
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS detects "Huddy83834 paid you $1,000,000." -> Huddy83834 1000000.0
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS real payment detected: "Bob paid you $1M."
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS real payment detected: "[Economy] Bob paid you $500,000."
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS real payment detected: "You have received $250,000 from Bob."
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS real payment detected: "$1,000 has been received from Bob."
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS real payment detected: "+$50,000 from Bob"
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS real payment detected: "Bob has sent you $1,000!"
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer: Bob paid you $1,000,000" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "[VIP] Spoofer » Bob paid you $1,000,000" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "<Spoofer> Bob paid you $1,000,000" (looks like a player typing in chat)
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer ➤ Bob paid you $1,000,000" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer → Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "[Spoofer -> me] Bob paid you $1M" (looks like a player typing in chat)
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer whispers to you: Bob paid you $1M" (looks like a private message)
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "* Spoofer Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "✦ Spoofer ✦ Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "~Nick Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "[Member] Spoofer: Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Bob paid you $1M lol" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer: You received $1M from Bob" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Bob paid you $1,000,000 was slain by Zombie" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer - Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer ┃ Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "[VIP] » Bob paid you $1M" (not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat))
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS fake chat line ignored: "Spoofer ⇒ You have received $250,000 from Bob." (looks like a private message)
+[18:45:30] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS a faked payment typed in chat does nothing
+[18:45:31] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS a real donation is added to the top donors board
+[18:45:31] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS donation shows the banner with who paid (Huddy83834 $1,000,000)
+[18:45:31] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_donation_banner -> fx_donation_banner.png
+[18:45:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS donation cooldown: a second donation only shows the banner (on cooldown, no punishment)
+[18:45:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS top donors are sorted and add up repeat donations
+[18:45:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_topdonors_default -> fx_topdonors_default.png
+[18:45:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_topdonors_thin_glass_rainbow -> fx_topdonors_thin_glass_rainbow.png
+[18:45:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_topdonors_illager_theme_gold -> fx_topdonors_illager_theme_gold.png
+[18:45:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_topdonator_above -> fx_topdonator_above.png
+[18:45:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_topdonator_before_hidden -> fx_topdonator_before_hidden.png
+[18:45:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_topdonator_after_custom -> fx_topdonator_after_custom.png
+[18:45:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_topdonors_3_hidden_amounts -> fx_topdonors_3_hidden_amounts.png
+[18:45:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS hidden amounts: the board leaves the money out (90 < 122 wide)
+[18:45:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS dragging moves the board (1.00,0.30 -> 0.50,0.73)
+[18:45:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS scrolling makes the board bigger (1.00 -> 1.20)
+[18:45:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_move_editor -> ui_move_editor.png
+[18:45:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS stream starts
+[18:45:41] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_stream_live_hud -> fx_stream_live_hud.png
+[18:45:41] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS stream counts donations ($3500000.0 from 2)
+[18:45:41] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS stream records which punishments ran (4)
+[18:45:42] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS ending the stream saves it to history
+[18:45:44] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_recap_480x270 -> ui_recap_480x270.png
+[18:45:45] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS recap Close button closes it (none)
+[18:45:45] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS 'Go live' on the Stream page starts a stream
+[18:45:46] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_stream_page_live -> ui_stream_page_live.png
+[18:45:47] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS 'End stream' ends it and shows the recap (RecapScreen)
+[18:45:47] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_recap_short_stream -> ui_recap_short_stream.png
+[18:45:50] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_move_live_counter -> ui_move_live_counter.png
+[18:45:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS presets: ready-made, saved and shared ones work and never touch detection (ok, code 1937 chars, imported as Shared preset)
+[18:45:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS 'Banner only' preset: shows who donated, doesn't punish
+[18:45:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_banner_only -> fx_banner_only.png
+[18:45:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway draw is fair: 3 tickets vs 1 wins 0.74675 of the time (should be 0.75)
+[18:45:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: paying the entry price gets you in, less doesn't ([bob, alex], "entered the giveaway!  ·  1 entry")
+[18:45:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: entries don't set off punishments
+[18:45:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: paying more gives more tickets, up to the limit (Bob=5 Alex=1 Steve=3)
+[18:45:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway entries are saved (survive a restart): 3 -> 3
+[18:45:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_box -> fx_giveaway_box.png
+[18:45:54] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_wheel_spinning -> fx_giveaway_wheel_spinning.png
+[18:45:58] [Render thread/INFO] (Minecraft) [System] [CHAT] [Punish FX] Steve won the giveaway! Prize: $5M  [Click to pay them]  (offline)  [Reroll]
+[18:45:58] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_wheel_winner -> fx_giveaway_wheel_winner.png
+[18:45:58] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: the wheel draws a winner from the entrants and gives the pay command (Steve | live=false | /pay Steve 5000000 | punishing=false)
+[18:46:07] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_case_drawing -> fx_giveaway_case_drawing.png
+[18:46:11] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_case_winner -> fx_giveaway_case_winner.png
+[18:46:11] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway case lands on the drawn winner (Grian)
+[18:46:21] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_elimination_drawing -> fx_giveaway_elimination_drawing.png
+[18:46:24] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_elimination_winner -> fx_giveaway_elimination_winner.png
+[18:46:24] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway elimination lands on the drawn winner (Grian)
+[18:46:33] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_raffle_drawing -> fx_giveaway_raffle_drawing.png
+[18:46:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_raffle_winner -> fx_giveaway_raffle_winner.png
+[18:46:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway raffle lands on the drawn winner (Grian)
+[18:46:45] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: 'the whole pot' prize adds up the entries; cancel works ($300K (the pot) / 300000 / live after cancel=false)
+[18:46:45] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS free entry: reads '!join' from chat and can't be faked (9 lines ok)
+[18:46:46] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: free entry by chat, the ban list and the minimum all work ([steve, alex] | Needs 1 more entry | is banned from giveaways | punished=true)
+[18:46:48] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_3rd_place_drawing -> fx_giveaway_3rd_place_drawing.png
+[18:46:51] [Render thread/INFO] (Minecraft) [System] [CHAT] [Punish FX] Jeb_ won 3rd place! Prize: $1M  [Click to pay them]  (offline)  [Reroll]
+[18:47:01] [Render thread/INFO] (Minecraft) [System] [CHAT] [Punish FX] Alex won 2nd place! Prize: $2M  [Click to pay them]  (offline)  [Reroll]
+[18:47:11] [Render thread/INFO] (Minecraft) [System] [CHAT] [Punish FX] Notch won 1st place! Prize: $5M  [Click to pay them]  (offline)  [Reroll]
+[18:47:11] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: draws 3rd, 2nd and 1st place, three different winners, each with their prize (1=Notch:/pay Notch 5000000 2=Alex:/pay Alex 2000000 3=Jeb_:/pay Jeb_ 1000000 | distinct=3 entrants=6)
+[18:47:11] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_1st_place_winner -> fx_giveaway_1st_place_winner.png
+[18:47:23] [Render thread/INFO] (Minecraft) [System] [CHAT] [Punish FX] Mumbo won the reroll 1st place! Prize: $5M  [Click to pay them]  (offline)  [Reroll]
+[18:47:23] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: reroll draws someone new for 1st (Notch -> Mumbo (was [Notch]))
+[18:47:24] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_giveaway_reroll -> fx_giveaway_reroll.png
+[18:47:31] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: last winner can't enter the next one (Mumbo in=false | won last time - sitting this one out)
+[18:47:31] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: the pot splits 50/30/20 between 1st, 2nd and 3rd (500000/300000/200000)
+[18:47:32] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS giveaway: cancelling a draw keeps the entries, ready to draw again
+[18:47:32] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS goals: the bar fills and celebrates a goal it passes (1500000.0 celebrating=Shoutouts next=Spin the wheel)
+[18:47:33] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_goal_reached_top_bar -> fx_goal_reached_top_bar.png
+[18:47:33] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS goals: donations fill the bar, and a goal can spin the wheel (2100000.0 wheel=true)
+[18:47:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_goal_wheel -> fx_goal_wheel.png
+[18:47:35] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_goal_bar_bottom -> fx_goal_bar_bottom.png
+[18:47:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_goal_bar_left -> fx_goal_bar_left.png
+[18:47:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_goal_bar_right -> fx_goal_bar_right.png
+[18:47:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS goals: a goal can open a giveaway; reset empties the bar (giveaway=true after reset=0.0)
+[18:47:36] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS wheel and case only use what you ticked (ok wheel=[drunk, frozen] case=[blur, fisheye, mirror])
+[18:47:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_pick_wheel_contents -> ui_pick_wheel_contents.png
+[18:47:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS presets: copy a ready-made one, copy your own, rename, save changes (ok 2 presets)
+[18:47:37] [Server thread/WARN] (Minecraft) Can't keep up! Is the server overloaded? Running 2019ms or 40 ticks behind
+[18:47:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_sections_first_open -> ui_sections_first_open.png
+[18:47:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_sections_second_open -> ui_sections_second_open.png
+[18:47:37] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS settings fold into sections, one open at a time (true, true)
+[18:47:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS case uses the rarity you pick for each punishment (ok {blur=2874, fisheye=114, mirror=12})
+[18:47:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS wheel: rarer = thinner slice, lands right every time (ok legendary 13.0%)
+[18:47:38] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_pick_case_rarity -> ui_pick_case_rarity.png
+[18:47:39] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_pick_wheel_rarity -> ui_pick_wheel_rarity.png
+[18:47:39] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_wheel_rarity_slices -> fx_wheel_rarity_slices.png
+[18:47:44] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_wheel_rarity_result -> fx_wheel_rarity_result.png
+[18:47:44] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS teach it: learns your server's payment wording from one example, and players can't fake it (unknown before=true | Learned! Payments like that now count - $1,500 from Steve | Learned! Payments like that now count - $2,500 from Jeb_ | x=25000 Alex y=900 Notch fake=blocked)
+[18:47:45] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_teach_screen -> ui_teach_screen.png
+[18:47:45] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS switching presets keeps the stream going (counter, settings, totals, running punishments): live=true total=3000000 hud=true scale=1.5 cancels+=0 punishing=true
+[18:47:46] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot fx_not_live_counter -> fx_not_live_counter.png
+[18:47:47] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_layout_editor -> ui_layout_editor.png
+[18:47:47] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS layout editor shows only what's on screen now (goal bar, live counter, top donors board)
+[18:47:47] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_layout_right_click_menu -> ui_layout_right_click_menu.png
+[18:47:48] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS layout editor: right-click menu changes the item's settings (style 0 -> 1)
+[18:47:48] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_layout_after_click -> ui_layout_after_click.png
+[18:47:49] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_layout_wheel_own_editor -> ui_layout_wheel_own_editor.png
+[18:47:49] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS clicking 'Sounds' toggles it (true -> false)
+[18:47:50] [Render thread/ERROR] (Minecraft) ########## GL ERROR ##########
+[18:47:50] [Render thread/ERROR] (Minecraft) @ Render
+[18:47:50] [Render thread/ERROR] (Minecraft) 65547: X11: Standard cursor shape unavailable
+[18:47:50] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS sidebar 'Punishments' opens that page (PunishPoolScreen)
+[18:47:50] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS 'All' sets level 1 to every punishment
+[18:47:50] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS unticking 'Frozen' removes it from level 1 [inverted_controls, sluggish, drunk, spin, jitter, glitch, tunnel_vision, mirror, upside_down, front_camera, fisheye, negative, disco_eyes, flashbang, blackout, fog, no_hud, fake_lag, window, blur, pixelated, language, chipmunk, possessed_hotbar, hotbar_chaos]
+[18:47:50] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS ticking it back restores 'every punishment'
+[18:47:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST PASS theme picker changes the colours (theme 1)
+[18:47:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_theme_violet_customize -> ui_theme_violet_customize.png
+[18:47:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_theme_violet_general -> ui_theme_violet_general.png
+[18:47:51] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_1_general -> ui_480x270_1_general.png
+[18:47:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_2_levels -> ui_480x270_2_levels.png
+[18:47:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_3_punishments -> ui_480x270_3_punishments.png
+[18:47:52] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_4_customize -> ui_480x270_4_customize.png
+[18:47:54] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_4b_wheel -> ui_480x270_4b_wheel.png
+[18:47:56] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_4c_case -> ui_480x270_4c_case.png
+[18:47:56] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_5_topdonors -> ui_480x270_5_topdonors.png
+[18:47:56] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_6_stream -> ui_480x270_6_stream.png
+[18:47:57] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_7_giveaway -> ui_480x270_7_giveaway.png
+[18:47:57] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_7b_goals -> ui_480x270_7b_goals.png
+[18:47:57] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_480x270_8_presets -> ui_480x270_8_presets.png
+[18:47:58] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_1_general -> ui_427x240_1_general.png
+[18:47:58] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_2_levels -> ui_427x240_2_levels.png
+[18:47:58] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_3_punishments -> ui_427x240_3_punishments.png
+[18:47:59] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_4_customize -> ui_427x240_4_customize.png
+[18:48:00] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_4b_wheel -> ui_427x240_4b_wheel.png
+[18:48:02] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_4c_case -> ui_427x240_4c_case.png
+[18:48:03] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_5_topdonors -> ui_427x240_5_topdonors.png
+[18:48:03] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_6_stream -> ui_427x240_6_stream.png
+[18:48:03] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_7_giveaway -> ui_427x240_7_giveaway.png
+[18:48:03] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_7b_goals -> ui_427x240_7b_goals.png
+[18:48:04] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_427x240_8_presets -> ui_427x240_8_presets.png
+[18:48:06] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_recap_427x240 -> ui_recap_427x240.png
+[18:48:07] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_1_general -> ui_640x360_1_general.png
+[18:48:07] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_2_levels -> ui_640x360_2_levels.png
+[18:48:08] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_3_punishments -> ui_640x360_3_punishments.png
+[18:48:08] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_4_customize -> ui_640x360_4_customize.png
+[18:48:10] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_4b_wheel -> ui_640x360_4b_wheel.png
+[18:48:12] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_4c_case -> ui_640x360_4c_case.png
+[18:48:12] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_5_topdonors -> ui_640x360_5_topdonors.png
+[18:48:13] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_6_stream -> ui_640x360_6_stream.png
+[18:48:13] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_7_giveaway -> ui_640x360_7_giveaway.png
+[18:48:13] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_7b_goals -> ui_640x360_7b_goals.png
+[18:48:13] [Server thread/WARN] (Minecraft) Can't keep up! Is the server overloaded? Running 2046ms or 40 ticks behind
+[18:48:14] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_640x360_8_presets -> ui_640x360_8_presets.png
+[18:48:17] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST shot ui_recap_640x360 -> ui_recap_640x360.png
+[18:48:17] [Server thread/INFO] (Minecraft) Player0 lost connection: Disconnected
+[18:48:17] [Server thread/INFO] (Minecraft) Player0 left the game
+[18:48:17] [Server thread/INFO] (Minecraft) Stopping singleplayer server as player logged out
+[18:48:17] [Server thread/INFO] (Minecraft) Stopping server
+[18:48:17] [Server thread/INFO] (Minecraft) Saving players
+[18:48:17] [Server thread/INFO] (Minecraft) Saving worlds
+[18:48:17] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:overworld
+[18:48:18] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:the_nether
+[18:48:18] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:the_end
+[18:48:18] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (New World): All chunks are saved
+[18:48:18] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[18:48:18] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[18:48:18] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[18:48:18] [Test thread/INFO] (Minecraft) [STDOUT]: PUNISHFX-TEST DONE failures=0
+[18:48:18] [Render thread/INFO] (Minecraft) Stopping!
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1795459370908.json
+
+BUILD SUCCESSFUL in 5m 30s
+11 actionable tasks: 8 executed, 3 up-to-date
