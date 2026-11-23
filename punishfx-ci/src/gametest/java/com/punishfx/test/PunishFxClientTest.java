@@ -105,6 +105,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
             giveawayTests(ctx);
             giveaway2Tests(ctx);
             goalTests(ctx);
+            simplerTests(ctx);
             uiShots(ctx);
         }
 
@@ -1348,6 +1349,76 @@ public class PunishFxClientTest implements FabricClientGameTest {
         check(r3.equals("giveaway=true after reset=0.0"), "goals: a goal can open a giveaway; reset empties the bar (" + r3 + ")");
         reset(ctx);
         ctx.runOnClient(mc -> { com.punishfx.Goals.celebrating = null; com.punishfx.GoalsHud.place(0); com.punishfx.Goals.add(3_000_000); });
+    }
+
+    // ------------------------------------------------------------------ 1.9: picks, simpler presets, folding sections
+
+    private void simplerTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        String picks = ctx.computeOnClient(mc -> {
+            Config c = Config.get();
+            c.wheelContents = 2; c.wheelPicks = new ArrayList<>(List.of("frozen", "drunk"));
+            c.caseContents = 2; c.casePicks = new ArrayList<>(List.of("mirror", "blur", "fisheye"));
+            StringBuilder bad = new StringBuilder();
+            java.util.Set<String> seenW = new java.util.TreeSet<>(), seenC = new java.util.TreeSet<>();
+            for (int i = 0; i < 60; i++) {
+                com.punishfx.Games.Game w = com.punishfx.Games.build(com.punishfx.Games.Kind.WHEEL, 2, "T", null, 1, -1, 1, 0, i);
+                for (com.punishfx.Games.Entry e : w.entries) if (!e.special()) { seenW.add(e.id); if (!c.wheelPicks.contains(e.id)) bad.append("wheel:").append(e.id).append(' '); }
+                com.punishfx.Games.Game k = com.punishfx.Games.build(com.punishfx.Games.Kind.CASE, 2, "T", null, 1, -1, 1, 0, i);
+                for (com.punishfx.Games.Entry e : k.reel) if (!e.special()) { seenC.add(e.id); if (!c.casePicks.contains(e.id)) bad.append("case:").append(e.id).append(' '); }
+            }
+            return bad.length() == 0 ? "ok wheel=" + seenW + " case=" + seenC : bad.toString();
+        });
+        check(picks.equals("ok wheel=[drunk, frozen] case=[blur, fisheye, mirror]"), "wheel and case only use what you ticked (" + picks + ")");
+
+        ctx.setScreen(() -> new com.punishfx.ContentsScreen(null, com.punishfx.Games.Kind.WHEEL));
+        ctx.waitTicks(4);
+        shot(ctx, "ui_pick_wheel_contents");
+        ctx.setScreen(() -> null);
+
+        String pres = ctx.computeOnClient(mc -> {
+            StringBuilder bad = new StringBuilder();
+            for (com.punishfx.Presets.Saved s : new ArrayList<>(com.punishfx.Presets.saved())) com.punishfx.Presets.delete(s);
+            String a = com.punishfx.Presets.duplicate(com.punishfx.Presets.BUILTIN.get(1)); // copy "Chaos stream"
+            com.punishfx.Presets.Saved chaos = com.punishfx.Presets.saved().get(0);
+            String b = com.punishfx.Presets.duplicate(chaos);
+            com.punishfx.Presets.rename(com.punishfx.Presets.saved().get(1), "My Saturday");
+            if (!a.equals("Chaos stream copy")) bad.append("copy name ").append(a).append(' ');
+            if (!b.equals("Chaos stream copy copy")) bad.append("copy of copy ").append(b).append(' ');
+            if (!com.punishfx.Presets.saved().get(1).name.equals("My Saturday")) bad.append("rename ");
+            // the copy of Chaos really holds Chaos's settings
+            com.punishfx.Presets.apply(chaos.data, chaos.name);
+            if (Config.get().overlapMode != 2 || Config.get().lengthScale != 1.5) bad.append("copy didn't hold chaos ");
+            // save changes into it
+            Config.get().lengthScale = 2.0;
+            com.punishfx.Presets.update(com.punishfx.Presets.lastSaved());
+            Config.get().lengthScale = 1.0;
+            com.punishfx.Presets.apply(chaos.data, chaos.name);
+            if (Config.get().lengthScale != 2.0) bad.append("save changes ");
+            return bad.length() == 0 ? "ok " + com.punishfx.Presets.saved().size() + " presets" : bad.toString();
+        });
+        check(pres.equals("ok 2 presets"), "presets: copy a ready-made one, copy your own, rename, save changes (" + pres + ")");
+        ctx.runOnClient(mc -> Config.reset());
+
+        // settings fold into sections: only one is open at a time
+        ctx.setScreen(() -> PfxFrame.open(null, PfxFrame.Page.GENERAL));
+        ctx.waitTicks(4);
+        java.util.function.Function<String, Boolean> has = label -> ctx.computeOnClient(mc -> {
+            for (var w : mc.screen.children())
+                if (w instanceof net.minecraft.client.gui.components.AbstractWidget aw && aw.getMessage().getString().equals(label)) return true;
+            return false;
+        });
+        boolean firstOpen = has.apply("Sounds") && !has.apply("Queue: show who's next");
+        shot(ctx, "ui_sections_first_open");
+        ctx.runOnClient(mc -> ((PfxFrame) mc.screen).openSection("Several donations at once"));
+        ctx.waitTicks(3);
+        boolean secondOpen = !has.apply("Sounds") && has.apply("Queue: show who's next");
+        shot(ctx, "ui_sections_second_open");
+        check(firstOpen && secondOpen, "settings fold into sections, one open at a time (" + firstOpen + ", " + secondOpen + ")");
+        ctx.runOnClient(mc -> ((PfxFrame) mc.screen).openSection("Donations"));
+        ctx.setScreen(() -> null);
+        ctx.runOnClient(mc -> { com.punishfx.Presets.saveCurrent("Recording"); com.punishfx.Presets.duplicate(com.punishfx.Presets.BUILTIN.get(0)); });
+        reset(ctx);
     }
 
     // ------------------------------------------------------------------ donation detection

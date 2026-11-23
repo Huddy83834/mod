@@ -36,18 +36,24 @@ public class ContentsScreen extends PfxFrame {
     @Override
     protected void initPage() {
         List<Row> r = new ArrayList<>();
-        r.add(new Pair("← Back to Wheel & Case", "", () -> "All", Ui.GOOD, () -> {
-            picks().clear();
-            for (Punishes.P p : Punishes.all()) if (!p.game() && !p.optIn) picks().add(p.id);
-            useMine();
-            Config.save();
-            rebuild();
-        }, () -> "None", Ui.THEME, () -> {
-            picks().clear();
-            useMine();
-            Config.save();
-            rebuild();
-        }));
+        r.add(new Buttons(() -> "Quick pick", null, "Back: return to Wheel & Case.  All: every punishment.  None: clear the list",
+                List.of(new Btn(() -> "\u2190 Back", Ui.DIM, 50, () -> {
+                            Config.save();
+                            Minecraft.getInstance().setScreen(new GamesScreen(parent));
+                        }),
+                        new Btn(() -> "All", Ui.GOOD, 36, () -> {
+                            picks().clear();
+                            for (Punishes.P p : Punishes.all()) if (!p.game() && !p.optIn) picks().add(p.id);
+                            useMine();
+                            Config.save();
+                            rebuild();
+                        }),
+                        new Btn(() -> "None", Ui.THEME, 40, () -> {
+                            picks().clear();
+                            useMine();
+                            Config.save();
+                            rebuild();
+                        }))));
         for (Punishes.Cat cat : Punishes.Cat.values()) {
             if (cat == Punishes.Cat.GAMES) continue;
             r.add(new Header(cat.label));
@@ -62,17 +68,6 @@ public class ContentsScreen extends PfxFrame {
             }
         }
         list(r, cy + 14, cy + ch);
-    }
-
-    @Override
-    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent e, boolean doubleClick) {
-        // the first row's label works as a back button
-        if (e.button() == 0 && e.x() >= cx && e.x() < cx + cw / 2 && e.y() >= cy + 14 && e.y() < cy + 32) {
-            Config.save();
-            Minecraft.getInstance().setScreen(new GamesScreen(parent));
-            return true;
-        }
-        return super.mouseClicked(e, doubleClick);
     }
 
     @Override

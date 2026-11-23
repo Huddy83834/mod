@@ -77,9 +77,173 @@ public final class Detector {
         return FORMAT.matcher(s).replaceAll("").replace('\u00a0', ' ').replaceAll("\\s+", " ").trim();
     }
 
+    // ------------------------------------------------------------------ "teach it": recent lines with numbers in them
+
+    /** A recent line that had a number in it, and what Punish FX made of it. */
+    public static final class Seen {
+        public final long at;
+        public final String text;
+        public final boolean actionBar;
+        public String verdict = "";
+
+        Seen(long at, String text, boolean actionBar) {
+            this.at = at;
+            this.text = text;
+            this.actionBar = actionBar;
+        }
+    }
+
+    private static final Deque<Seen> RECENT = new ArrayDeque<>();
+    public static int recentVersion = 0;
+
+    /** Recent lines with a number in them, newest first. */
+    public static List<Seen> recent() {
+        List<Seen> out = new ArrayList<>(RECENT);
+        java.util.Collections.reverse(out);
+        return out;
+    }
+
+    private static final Pattern DIGIT = Pattern.compile("\\d");
+
+    private static Seen note(String text, boolean actionBar) {
+        if (!DIGIT.matcher(text).find()) return null;
+        Seen last = RECENT.peekLast();
+        if (last != null && last.text.equals(text) && System.currentTimeMillis() - last.at < 1500) return last;
+        Seen s = new Seen(System.currentTimeMillis(), text, actionBar);
+        RECENT.addLast(s);
+        while (RECENT.size() > 25) RECENT.removeFirst();
+        recentVersion++;
+        return s;
+    }
+
+    /**
+     * Learn a payment message from an example: the amount and the payer's name become blanks, everything else
+     * must match exactly (so players can't fake it by typing in chat). Returns what happened, for the screen.
+     */
+    public static String learn(String text, boolean actionBar) {
+        Config c = Config.get();
+        // the amount: prefer one with a $ or k/m/b, then the biggest number
+        Matcher m = Money.AMOUNT.matcher(text);
+        int aStart = -1, aEnd = -1;
+        double best = -1;
+        boolean bestMarked = false;
+        while (m.find()) {
+            boolean marked = m.group(1) != null || m.group(3) != null;
+            double v = Money.value(m.group(2), m.group(3));
+            if (v <= 0) continue;
+            if (aStart < 0 || (marked && !bestMarked) || (marked == bestMarked && v > best)) {
+                aStart = m.start();
+                aEnd = m.end();
+                best = v;
+                bestMarked = marked;
+            }
+        }
+        if (aStart < 0) return "No amount found in that message";
+        // the payer: an online player named in the line, else the word after from/by, else a name-like word before paid/sent
+        String name = null;
+        Minecraft mc = Minecraft.getInstance();
+        String me = mc.player == null ? "" : mc.player.getGameProfile().name();
+        if (mc.getConnection() != null) {
+            for (PlayerInfo pi : mc.getConnection().getOnlinePlayers()) {
+                String n = pi.getProfile().name();
+                if (n.length() >= 3 && !n.equalsIgnoreCase(me) && Pattern.compile("\\b" + Pattern.quote(n) + "\\b").matcher(text).find()) {
+                    name = n;
+                    break;
+                }
+            }
+        }
+        if (name == null) {
+            Matcher f = FROM.matcher(text);
+            if (f.find()) name = f.group(1);
+        }
+        if (name == null) {
+            Matcher f = Pattern.compile("(?i)([A-Za-z0-9_]{3,16})\\s+(?:has\\s+|just\\s+)?(?:paid|sent|gave|given|tipped|donated|transferred)").matcher(text);
+            if (f.find() && !NOT_NAMES.contains(f.group(1).toLowerCase(Locale.ROOT))) name = f.group(1);
+        }
+        int nStart = -1, nEnd = -1;
+        if (name != null) {
+            Matcher f = Pattern.compile("\\b" + Pattern.quote(name) + "\\b").matcher(text);
+            while (f.find()) {
+                if (f.end() <= aStart || f.start() >= aEnd) {
+                    nStart = f.start();
+                    nEnd = f.end();
+                    break;
+                }
+            }
+        }
+        // build the pattern piece by piece
+        StringBuilder re = new StringBuilder("^\\W{0,3}");
+        int i = 0;
+        List<int[]> holes = new ArrayList<>();
+        holes.add(new int[]{aStart, aEnd, 0});
+        if (nStart >= 0) holes.add(new int[]{nStart, nEnd, 1});
+        holes.sort((x, y) -> Integer.compare(x[0], y[0]));
+        for (int[] h : holes) {
+            re.append(literal(text.substring(i, h[0]), h[2] == 1));
+            re.append(h[2] == 0 ? "(?<amount>\\$?\\s?[\\d,]+(?:\\.\\d+)?\\s?(?:k|m|b|t|thousand|million|billion|mil)?)"
+                    : "(?<player>[A-Za-z0-9_.]{2,16})");
+            i = h[1];
+        }
+        re.append(literal(text.substring(i), false)).append("\\W{0,3}$");
+        String pattern = re.toString();
+        try {
+            Matcher check = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE).matcher(text);
+            if (!check.find() || Money.parse(check.group("amount")) <= 0) return "Couldn't learn that one - send it to the mod's author";
+        } catch (Exception e) {
+            return "Couldn't learn that one - send it to the mod's author";
+        }
+        if (!c.customPatterns.contains(pattern)) c.customPatterns.add(pattern);
+        if (actionBar) c.readActionBar = true;
+        clearCache();
+        Config.save();
+        return "Learned! Payments like that now count" + (name == null ? " (it couldn't spot a name, so they'll show as Someone)"
+                : " - " + Money.full(best) + " from " + name);
+    }
+
+    /** Literal text in a learned pattern: spaces are flexible, other numbers can change, a [rank] before the name can be anything. */
+    private static String literal(String s, boolean beforeName) {
+        StringBuilder out = new StringBuilder();
+        String rest = s;
+        String tagTail = "";
+        if (beforeName) {
+            Matcher t = Pattern.compile("((?:\\s*[\\[(][^\\])]{0,20}[\\])])+\\s*)$").matcher(rest);
+            if (t.find()) {
+                rest = rest.substring(0, t.start());
+                tagTail = "(?:\\s*[\\[(][^\\])]{0,20}[\\])])*\\s*";
+            }
+        }
+        Matcher num = Pattern.compile("\\d[\\d,.]*").matcher(rest);
+        int i = 0;
+        while (num.find()) {
+            out.append(words(rest.substring(i, num.start())));
+            out.append("[\\d,.]+");
+            i = num.end();
+        }
+        out.append(words(rest.substring(i)));
+        return out + tagTail;
+    }
+
+    private static String words(String s) {
+        StringBuilder out = new StringBuilder();
+        for (String part : s.split("(?<=\\s)|(?=\\s)")) {
+            if (part.isBlank()) out.append("\\s*");
+            else out.append(Pattern.quote(part));
+        }
+        return out.toString();
+    }
+
+    public static void forgetLearned() {
+        Config.get().customPatterns.clear();
+        clearCache();
+        Config.save();
+    }
+
     /** A chat or action bar line arrived. */
     public static void onMessage(String raw, boolean actionBar) {
         Config c = Config.get();
+        Seen seen = note(clean(raw), actionBar);
+        if (seen != null && seen.verdict.isEmpty()) seen.verdict = !c.enabled && !StreamSession.live() && !Giveaway.live() ? "Punish FX is switched off"
+                : actionBar && !c.readActionBar ? "action bar (not read)" : "not a payment";
         // still count money while live (and take giveaway entries), even with punishments off
         if (!c.enabled && !StreamSession.live() && !Giveaway.live()) return;
         if (actionBar && !c.readActionBar) return;
@@ -101,6 +265,7 @@ public final class Detector {
                     : "LEVEL " + (level + 1) + ": " + Money.full(r.amount()) + " from " + r.player();
             lastMoneyLine = text;
             lastMoneyVerdict = verdict;
+            if (seen != null) seen.verdict = r == null ? "not counted: " + why : "counted: " + Money.full(r.amount()) + " from " + r.player();
             remember(text, verdict, actionBar);
             if (r != null) {
                 DonorBoard.record(r.player(), r.amount()); // every real donation counts on the board
@@ -112,7 +277,7 @@ public final class Detector {
         }
     }
 
-    /** Tests a line without playing anything (for /donationfx simulate). */
+    /** Tests a line without playing anything (for /pfx simulate). */
     public static Result detect(String text, StringBuilder why) {
         Config c = Config.get();
         // 1. the player's own patterns
@@ -315,10 +480,10 @@ public final class Detector {
         SEEN.addLast(LocalTime.now().format(TIME) + "  [" + verdict + "]" + (actionBar ? " (action bar)" : "") + "  " + text);
         while (SEEN.size() > 150) SEEN.removeFirst();
         try {
-            Path p = FabricLoader.getInstance().getConfigDir().resolve("donationfx-seen.txt");
+            Path p = FabricLoader.getInstance().getConfigDir().resolve("punishfx-seen.txt");
             List<String> out = new ArrayList<>();
             out.add("# Money messages Punish FX saw, newest last. If a payment was NOT detected, copy its text");
-            out.add("# and use: /donationfx simulate <text>   to see why, or add a pattern to customPatterns in donationfx.json.");
+            out.add("# and use: /pfx simulate <text>   to see why, or add a pattern to customPatterns in punishfx.json.");
             out.addAll(SEEN);
             Files.write(p, out, StandardCharsets.UTF_8);
         } catch (Exception ignored) {
