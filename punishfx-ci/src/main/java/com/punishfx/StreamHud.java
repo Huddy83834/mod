@@ -83,7 +83,7 @@ public final class StreamHud {
                     HudPiece.toggle("Show \"NOT LIVE\" when off", () -> c.streamHudIdle, v -> c.streamHudIdle = v));
         }
         public String showSettingName() { return "Show the live counter"; }
-        public void reset() { set(0.0, 0.15, 1.0); }
+        public void reset() { set(0.0, 0.21, 1.0); }
     };
 
     public static void render(GuiGraphics g, Font font, int sw, int sh) {

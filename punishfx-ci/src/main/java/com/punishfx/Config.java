@@ -42,7 +42,7 @@ public final class Config {
     }
 
     // ---- main switches
-    public int configVersion = 2;
+    public int configVersion = 3;
     public boolean enabled = true;
     /** Play the warning sound + on-screen banner naming the punishment when it starts. */
     public boolean announce = true;
@@ -198,7 +198,7 @@ public final class Config {
     public boolean streamHud = true;
     public boolean streamHudIdle = true;   // show "NOT LIVE" while no stream is running
     public boolean streamHudMoney = true, streamHudCount = true, streamHudTimer = true;
-    public double streamScale = 1.0, streamX = 0.0, streamY = 0.15;
+    public double streamScale = 1.0, streamX = 0.0, streamY = 0.21;
     public boolean streamAutoRecap = true;
     public boolean streamFreshBoard = true;
 
@@ -374,6 +374,11 @@ public final class Config {
         gwX = Math.max(0.0, Math.min(1.0, gwX));
         gwY = Math.max(0.0, Math.min(1.0, gwY));
         gwScale = Math.max(0.5, Math.min(4.0, gwScale));
+        if (configVersion < 3) { // 1.9: the live counter's old spot sat under the goal bar
+            if (streamX == 0.0 && streamY == 0.15) streamY = 0.21;
+            if (configVersion < 2 && !stack) overlapMode = 5;
+            configVersion = 3;
+        }
         if (configVersion < 2) { // 1.5: "stack punishments" became "several donations at once"
             if (!stack) overlapMode = 5;
             configVersion = 2;

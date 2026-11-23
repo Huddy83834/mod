@@ -214,6 +214,13 @@ public class LayoutScreen extends Screen {
         for (HudPiece p : pieces()) {
             int[] b = box(p);
             p.drawAt(g, this.font, b[0], b[1], (float) p.scale(), true);
+            boolean hot0 = p == hover || p == menuFor;
+            if (!p.canHide() && !hot0) {
+                // the wheel and case only pop up during a game: dimmed so the boxes you see all the time stand out
+                g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], Ui.a(0.45f, 0x000000));
+                String h = title(p) + " (pops up in games)";
+                g.drawString(this.font, h, b[0] + b[2] / 2 - this.font.width(h) / 2, b[1] + 2, Ui.a(1f, 0xB0A4A8), true);
+            }
             if (!p.shown()) {
                 g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], Ui.a(0.6f, 0x000000));
                 String h = "hidden";
