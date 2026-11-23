@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  * and the current page on the right, so everything always lives in the same place.
  */
 public abstract class PfxFrame extends Screen {
-    public enum Page { GENERAL, LEVELS, PUNISHMENTS, CUSTOMIZE, TOP_DONORS }
+    public enum Page { GENERAL, LEVELS, PUNISHMENTS, CUSTOMIZE, TOP_DONORS, STREAM }
 
     protected final Screen parent;
     private final Page page;
@@ -51,6 +51,7 @@ public abstract class PfxFrame extends Screen {
             case PUNISHMENTS -> new PunishPoolScreen(parent);
             case CUSTOMIZE -> new CustomizeScreen(parent);
             case TOP_DONORS -> new TopDonorsScreen(parent);
+            case STREAM -> new StreamScreen(parent);
         };
     }
 
@@ -85,11 +86,14 @@ public abstract class PfxFrame extends Screen {
         Config c = Config.get();
         int x = px + 7, w = sw - 14;
         int y = py + 34;
-        addNav(x, y, w, "General", Page.GENERAL);
-        addNav(x, y += 22, w, "Levels", Page.LEVELS);
-        addNav(x, y += 22, w, "Punishments", Page.PUNISHMENTS);
-        addNav(x, y += 22, w, "Customize", Page.CUSTOMIZE);
-        addNav(x, y += 22, w, "Top Donors", Page.TOP_DONORS);
+        // six pages: tighter buttons on small windows so they never run into Enabled/Test/Stop
+        int step = ph >= 260 ? 22 : 20, nh = ph >= 260 ? 20 : 18;
+        addNav(x, y, w, nh, "General", Page.GENERAL);
+        addNav(x, y += step, w, nh, "Levels", Page.LEVELS);
+        addNav(x, y += step, w, nh, "Punishments", Page.PUNISHMENTS);
+        addNav(x, y += step, w, nh, "Customize", Page.CUSTOMIZE);
+        addNav(x, y += step, w, nh, "Top Donors", Page.TOP_DONORS);
+        addNav(x, y += step, w, nh, StreamSession.live() ? "Stream \u25cf" : "Stream", Page.STREAM);
 
         boolean inWorld = Minecraft.getInstance().player != null;
         int by = py + ph - 7;
@@ -114,8 +118,8 @@ public abstract class PfxFrame extends Screen {
         }).toggle(() -> c.enabled));
     }
 
-    private void addNav(int x, int y, int w, String label, Page target) {
-        addRenderableWidget(new FancyButton(x, y, w, 20, Component.literal(label), b -> {
+    private void addNav(int x, int y, int w, int h, String label, Page target) {
+        addRenderableWidget(new FancyButton(x, y, w, h, Component.literal(label), b -> {
             if (target == page) return;
             Config.save();
             Minecraft.getInstance().setScreen(open(parent, target));
@@ -143,7 +147,7 @@ public abstract class PfxFrame extends Screen {
         float ls = sw < 100 ? 1.25f : 1.5f;
         Ui.glowText(g, this.font, "PUNISH", px + 8, py + 9, Ui.ACCENT, ls);
         Ui.glowText(g, this.font, "FX", px + 8 + (int) (this.font.width("PUNISH ") * ls), py + 9, 0xFFFFFF, ls);
-        g.drawString(this.font, "v1.3", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
+        g.drawString(this.font, "v1.4", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
 
         // page title + subtitle
         Ui.glowText(g, this.font, heading, cx, py + 9, 0xFFFFFF, 1.4f);

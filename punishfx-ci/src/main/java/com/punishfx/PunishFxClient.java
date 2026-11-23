@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -30,12 +31,15 @@ public class PunishFxClient implements ClientModInitializer {
     private static KeyMapping toggleKey;
     private static KeyMapping cancelKey;
     private static boolean openSettings = false;
+    /** A screen to open on the next tick (commands run while chat is still closing). */
+    private static Screen pendingScreen = null;
 
     @Override
     public void onInitializeClient() {
         Config.load();
         Ui.applyTheme(Config.get().theme);
         DonorBoard.load();
+        StreamSession.load();
 
         KeyMapping.Category cat = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
         settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.punishfx.settings", InputConstants.Type.KEYSYM, InputConstants.KEY_K, cat));
@@ -72,6 +76,11 @@ public class PunishFxClient implements ClientModInitializer {
             if (openSettings) {
                 openSettings = false;
                 client.setScreen(new PunishScreen(null));
+            }
+            if (pendingScreen != null) {
+                Screen sc = pendingScreen;
+                pendingScreen = null;
+                client.setScreen(sc);
             }
             try {
                 PunishManager.tick(client);
@@ -135,6 +144,26 @@ public class PunishFxClient implements ClientModInitializer {
                     PunishManager.cancelAll();
                     return say(ctx, "Stopped everything.");
                 }))
+                .then(ClientCommandManager.literal("stream")
+                        .executes(ctx -> streamStatus(ctx))
+                        .then(ClientCommandManager.literal("start").executes(ctx -> {
+                            if (StreamSession.live()) return say(ctx, "You're already live (" + StreamHud.clock(StreamSession.current().duration()) + "). /pfx stream stop to end it.");
+                            StreamSession.start();
+                            return say(ctx, "\u00a7aYou're live!\u00a7r Every donation is being counted. Type /pfx stream stop when you're done.");
+                        }))
+                        .then(ClientCommandManager.literal("stop").executes(ctx -> {
+                            StreamSession.Record r = StreamSession.stop();
+                            if (r == null) return say(ctx, "You're not live. /pfx stream start to begin.");
+                            if (Config.get().streamAutoRecap) pendingScreen = new RecapScreen(null);
+                            return say(ctx, "Stream over: \u00a7a" + Money.full(r.total()) + "\u00a7r from " + r.donations.size()
+                                    + " donations in " + RecapScreen.length(r.duration()) + ". /pfx recap to see it again.");
+                        }))
+                        .then(ClientCommandManager.literal("status").executes(ctx -> streamStatus(ctx))))
+                .then(ClientCommandManager.literal("recap").executes(ctx -> {
+                    if (StreamSession.history().isEmpty()) return say(ctx, "No streams yet. /pfx stream start when you go live.");
+                    pendingScreen = new RecapScreen(null);
+                    return 1;
+                }))
                 .then(ClientCommandManager.literal("reload").executes(ctx -> {
                     Config.load();
                     Detector.clearCache();
@@ -173,6 +202,13 @@ public class PunishFxClient implements ClientModInitializer {
                             PunishManager.hit(r.amount(), r.player(), level, true);
                             return say(ctx, "§aDetected " + Money.full(r.amount()) + " from " + r.player() + " = level " + (level + 1));
                         })));
+    }
+
+    private static int streamStatus(CommandContext<FabricClientCommandSource> ctx) {
+        StreamSession.Record r = StreamSession.current();
+        if (r == null) return say(ctx, "Not live. /pfx stream start when you go live.");
+        return say(ctx, "\u00a7cLIVE\u00a7r " + StreamHud.clock(r.duration()) + "  \u00b7  " + Money.full(r.total()) + " from "
+                + r.donations.size() + " donations (" + r.donors().size() + " donors)");
     }
 
     private static String me() {

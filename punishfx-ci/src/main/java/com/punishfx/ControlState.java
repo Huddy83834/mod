@@ -16,6 +16,13 @@ public final class ControlState {
     /** Drunk intensity 0..1 (camera sways and tilts; computed per frame in CameraMixin). */
     public static volatile float drunk = 0f;
 
+    public static volatile float upside = 0f;     // Upside Down roll (degrees)
+    public static volatile boolean mirror = false; // Mirror World (controls + mouse)
+
+    // ---- sound / hotbar ----
+    public static volatile boolean chipmunk = false, goats = false, hotbarChaos = false;
+    public static volatile long hotbarSeed = 0;
+
     // ---- FOV (GameRendererMixin); 1 = normal ----
     public static volatile float fovMul = 1f;
 
@@ -25,7 +32,8 @@ public final class ControlState {
         active = invert = freeze = false;
         slow = 1f;
         stumble = 0f;
-        shake = slide = drunk = 0f;
+        shake = slide = drunk = upside = 0f;
+        mirror = chipmunk = goats = hotbarChaos = false;
         fovMul = 1f;
     }
 }

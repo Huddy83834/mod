@@ -40,6 +40,11 @@ public abstract class KeyboardInputMixin extends ClientInput {
             sprint = false; // can't sprint backwards
         }
 
+        if (ControlState.mirror) { // Mirror World: left and right swap
+            boolean t = left; left = right; right = t;
+            mv = new Vec2(-mv.x, mv.y);
+        }
+
         float ang = ControlState.stumble;
         if (ang != 0f && (mv.x != 0f || mv.y != 0f)) {
             float cos = (float) Math.cos(ang), sin = (float) Math.sin(ang);

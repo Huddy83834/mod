@@ -15,7 +15,7 @@ import java.util.Map;
 
 /** Running totals of who has donated to you: all time, today, and this play session. */
 public final class DonorBoard {
-    public static final String[] PERIOD_NAMES = {"All time", "Today", "This session"};
+    public static final String[] PERIOD_NAMES = {"All time", "Today", "This stream"};
 
     public static final class Entry {
         public String name;
@@ -117,6 +117,11 @@ public final class DonorBoard {
     public static int size(int period) {
         rollDay();
         return (period == 1 ? TODAY : period == 2 ? SESSION : ALL).size();
+    }
+
+    /** Start "this session" fresh (used when a stream starts). */
+    public static void resetSession() {
+        SESSION.clear();
     }
 
     public static void reset() {

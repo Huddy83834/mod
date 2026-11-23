@@ -20,8 +20,8 @@ public abstract class CameraMixin {
 
     @Inject(method = "setup", at = @At("TAIL"))
     private void punishfx$shake(CallbackInfo ci) {
-        float shake = ControlState.shake, slide = ControlState.slide, drunk = ControlState.drunk;
-        if (shake == 0f && slide == 0f && drunk == 0f) return;
+        float shake = ControlState.shake, slide = ControlState.slide, drunk = ControlState.drunk, upside = ControlState.upside;
+        if (shake == 0f && slide == 0f && drunk == 0f && upside == 0f) return;
 
         double t = System.currentTimeMillis();
         float swayY = drunk * (float) (Math.sin(t / 1300.0) * 6.0 + Math.sin(t / 530.0) * 1.5);
@@ -38,6 +38,7 @@ public abstract class CameraMixin {
         if (dYaw != 0f || dPitch != 0f) {
             setRotation(yRot() + dYaw, Math.max(-90f, Math.min(90f, xRot() + dPitch)));
         }
+        roll += upside; // Upside Down
         if (roll != 0f) {
             // rotation() is the camera's live quaternion; rolling it tilts the whole view
             rotation().rotateZ((float) Math.toRadians(roll));

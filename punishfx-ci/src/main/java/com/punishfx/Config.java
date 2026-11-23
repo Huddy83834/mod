@@ -75,6 +75,18 @@ public final class Config {
     // ---- per-punishment strength (index into the choices on the Customize page; 1 = normal)
     public int sluggishLevel = 1, drunkLevel = 1, jitterLevel = 1, glitchLevel = 1, spinLevel = 1,
             tunnelLevel = 1, lagLevel = 1, flashLevel = 1, discoLevel = 1;
+    public int languageMode = 4;           // 0 pirate, 1 upside down, 2 lolcat, 3 shakespeare, 4 random
+    public int chipmunkMode = 0;           // 0 chipmunk, 1 goat screams, 2 both
+    public int possessedLevel = 1;         // 0 slow, 1 normal, 2 frantic
+    public int butterLevel = 0;            // 0 one item, 1 whole stack, 2 random slot
+    public int upsideMode = 0;             // 0 flip, 1 slow roll
+
+    // ---- stream mode
+    public boolean streamHud = true;
+    public boolean streamHudMoney = true, streamHudCount = true, streamHudTimer = true;
+    public double streamScale = 1.0, streamX = 0.0, streamY = 0.0;
+    public boolean streamAutoRecap = true;
+    public boolean streamFreshBoard = true;
 
     // ---- safety
     /** Donations this many seconds after the last punishment only show the banner. 0 = off. */
@@ -197,6 +209,14 @@ public final class Config {
         lagLevel = clamp(lagLevel, 0, 2);
         flashLevel = clamp(flashLevel, 0, 2);
         discoLevel = clamp(discoLevel, 0, 2);
+        languageMode = clamp(languageMode, 0, 4);
+        chipmunkMode = clamp(chipmunkMode, 0, 2);
+        possessedLevel = clamp(possessedLevel, 0, 2);
+        butterLevel = clamp(butterLevel, 0, 2);
+        upsideMode = clamp(upsideMode, 0, 1);
+        streamScale = Math.max(0.5, Math.min(4.0, streamScale));
+        streamX = Math.max(0.0, Math.min(1.0, streamX));
+        streamY = Math.max(0.0, Math.min(1.0, streamY));
         cooldownSeconds = clamp(cooldownSeconds, 0, 600);
         countdownSeconds = clamp(countdownSeconds, 1, 60);
         volume = Math.max(0.0, Math.min(1.0, volume));
@@ -249,11 +269,11 @@ public final class Config {
     public static Config defaults() {
         Config c = new Config();
         // light -> brutal. The big two (leave server / close game) are opt-in only.
-        c.tiers.add(tier("Mild", 50_000, 6, 1, "jitter", "sluggish", "fog", "disco_eyes", "spin"));
-        c.tiers.add(tier("Annoying", 250_000, 8, 1, "drunk", "inverted_controls", "glitch", "tunnel_vision", "no_hud", "flashbang"));
-        c.tiers.add(tier("Harsh", 1_000_000, 10, 2, "negative", "inverted_controls", "frozen", "drunk", "flashbang", "tunnel_vision", "glitch"));
-        c.tiers.add(tier("Brutal", 5_000_000, 12, 2, "blackout", "frozen", "negative", "fake_lag", "drunk", "inverted_controls", "disco_eyes"));
-        c.tiers.add(tier("Insane", 10_000_000, 15, 3, "negative", "drunk", "inverted_controls", "fake_lag", "blackout", "frozen", "glitch", "jitter"));
+        c.tiers.add(tier("Mild", 50_000, 6, 1, "jitter", "sluggish", "fog", "disco_eyes", "spin", "possessed_hotbar", "chipmunk"));
+        c.tiers.add(tier("Annoying", 250_000, 8, 1, "drunk", "inverted_controls", "glitch", "tunnel_vision", "no_hud", "flashbang", "front_camera", "language", "hotbar_chaos"));
+        c.tiers.add(tier("Harsh", 1_000_000, 10, 2, "negative", "inverted_controls", "frozen", "drunk", "flashbang", "tunnel_vision", "glitch", "mirror", "hotbar_chaos"));
+        c.tiers.add(tier("Brutal", 5_000_000, 12, 2, "blackout", "frozen", "negative", "fake_lag", "drunk", "inverted_controls", "disco_eyes", "upside_down", "mirror"));
+        c.tiers.add(tier("Insane", 10_000_000, 15, 3, "negative", "drunk", "inverted_controls", "fake_lag", "blackout", "frozen", "glitch", "jitter", "upside_down", "language"));
         return c;
     }
 

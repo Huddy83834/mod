@@ -46,40 +46,10 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
-      - name: Probe new APIs
-        if: always()
-        shell: bash
-        run: |
-          set +e +o pipefail
-          J=""
-          for f in $(find / -name "*.jar" -path "*minecraft*" 2>/dev/null | grep -i -E "merged|client" | grep -v sources); do
-            if unzip -l "$f" 2>/dev/null | grep -q "net/minecraft/client/Options.class"; then J="$f"; break; fi
-          done
-          P() { echo "@@@@@ $1"; }
-          P "GameRenderer post"; javap -p -cp "$J" net.minecraft.client.renderer.GameRenderer 2>&1 | grep -iE "post|effect" | head -20
-          P "post_effect files"; unzip -l "$J" | grep -E "assets/minecraft/post_effect/" | awk '{print $4}'
-          P "post shaders"; unzip -l "$J" | grep -E "assets/minecraft/shaders/post/" | awk '{print $4}'
-          for f in post_effect/invert.json post_effect/spider.json shaders/post/invert.fsh shaders/post/blit.fsh shaders/post/sobel.vsh shaders/post/blit.vsh shaders/post/screenquad.vsh; do P "FILE $f"; unzip -p "$J" "assets/minecraft/$f" 2>/dev/null | head -60; done
-          P "CameraType"; javap -cp "$J" net.minecraft.client.CameraType 2>&1 | head; javap -cp "$J" net.minecraft.client.Options 2>&1 | grep -i camera
-          P "ClientLanguage"; javap -cp "$J" net.minecraft.client.resources.language.ClientLanguage 2>&1 | grep static
-          P "I18n"; javap -cp "$J" net.minecraft.client.resources.language.I18n 2>&1 | grep static
-          P "Language"; javap -cp "$J" net.minecraft.locale.Language 2>&1 | grep static
-          P "LanguageManager"; javap -cp "$J" net.minecraft.client.resources.language.LanguageManager 2>&1 | grep public
-          P "SoundEngine"; javap -p -cp "$J" net.minecraft.client.sounds.SoundEngine 2>&1 | grep -iE "pitch|volume|play\(" | head
-          P "SoundManager"; javap -cp "$J" net.minecraft.client.sounds.SoundManager 2>&1 | grep -iE "play" | head
-          P "Gui hotbar"; javap -p -cp "$J" net.minecraft.client.gui.Gui 2>&1 | grep -iE "hotbar|slot" | head
-          P "Gui hotbar calls"; javap -p -c -cp "$J" net.minecraft.client.gui.Gui 2>&1 | awk '/renderItemHotbar\(/{f=1} f&&/invoke/{print} f&&/^$/{exit}' | grep -iE "renderSlot|getItem|Inventory" | head
-          P "Inventory"; javap -cp "$J" net.minecraft.world.entity.player.Inventory 2>&1 | grep -iE "selected|getItem\(int|SLOTS|HOTBAR" | head
-          P "LocalPlayer drop"; javap -cp "$J" net.minecraft.client.player.LocalPlayer 2>&1 | grep -iE "drop" | head
-          P "Entity turn"; javap -cp "$J" net.minecraft.world.entity.Entity 2>&1 | grep -E " turn\(" | head
-          P "ItemStack ctor"; javap -cp "$J" net.minecraft.world.item.ItemStack 2>&1 | grep -E "public net.minecraft.world.item.ItemStack\(" | head
-          P "BuiltInRegistries ITEM"; javap -cp "$J" net.minecraft.core.registries.BuiltInRegistries 2>&1 | grep " ITEM;" 
-          P "END"
-          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: punishfx-jar
-          path: punishfx-ci/build/libs/punishfx-1.3.0.jar
+          path: punishfx-ci/build/libs/punishfx-1.4.0.jar
       - name: Install a virtual display
         shell: bash
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri libglx-mesa0 mesa-utils > /dev/null

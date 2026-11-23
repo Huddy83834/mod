@@ -85,21 +85,35 @@ public final class TopDonorsHud {
         return !(c.topHideEmpty && !sample && DonorBoard.size(c.topPeriod) == 0);
     }
 
+    /** The board as a movable HUD piece (for the Move & resize editor). */
+    public static final HudPiece PIECE = new HudPiece() {
+        public String name() { return "top donors board"; }
+        public int[] size(Font font, boolean sample) { return TopDonorsHud.size(font, lines(sample)); }
+        public void drawAt(GuiGraphics g, Font font, float x, float y, float scale, boolean sample) { TopDonorsHud.drawAt(g, font, x, y, scale, sample); }
+        public double x() { return Config.get().topX; }
+        public double y() { return Config.get().topY; }
+        public double scale() { return Config.get().topScale; }
+        public void set(double x, double y, double scale) {
+            Config c = Config.get();
+            c.topX = x;
+            c.topY = y;
+            c.topScale = scale;
+        }
+        public boolean shown() { return Config.get().topShow; }
+        public String showSettingName() { return "Show on screen"; }
+        public void reset() { set(1.0, 0.3, 1.0); }
+    };
+
     /** Where the board is on screen, in GUI pixels: {x, y, width, height} (already scaled). */
     public static int[] bounds(Font font, int sw, int sh, boolean sample) {
-        Config c = Config.get();
-        int[] s = size(font, lines(sample));
-        int w = Math.round(s[0] * (float) c.topScale), h = Math.round(s[1] * (float) c.topScale);
-        int x = (int) Math.round(Math.max(0, sw - w) * c.topX);
-        int y = (int) Math.round(Math.max(0, sh - h) * c.topY);
-        return new int[]{x, y, w, h};
+        return PIECE.bounds(font, sw, sh, sample);
     }
 
     /** Draws the board on the HUD at its saved position. */
     public static void render(GuiGraphics g, Font font, int sw, int sh) {
         Config c = Config.get();
         if (!c.topShow || !visible(false)) return;
-        if (Minecraft.getInstance().screen instanceof MoveScreen) return; // the editor draws its own copy
+        if (MoveScreen.editing(PIECE)) return; // the editor draws its own copy
         int[] b = bounds(font, sw, sh, false);
         drawAt(g, font, b[0], b[1], (float) c.topScale, false);
     }

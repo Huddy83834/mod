@@ -80,7 +80,7 @@ public final class Detector {
     /** A chat or action bar line arrived. */
     public static void onMessage(String raw, boolean actionBar) {
         Config c = Config.get();
-        if (!c.enabled) return;
+        if (!c.enabled && !StreamSession.live()) return; // still count money while live, even with punishments off
         if (actionBar && !c.readActionBar) return;
         String text = clean(raw);
         if (text.isEmpty()) return;
@@ -100,8 +100,11 @@ public final class Detector {
             lastMoneyLine = text;
             lastMoneyVerdict = verdict;
             remember(text, verdict, actionBar);
-            if (r != null) DonorBoard.record(r.player(), r.amount()); // every real donation counts on the board
-            if (r != null && level >= 0) PunishManager.hit(r.amount(), r.player(), level, false);
+            if (r != null) {
+                DonorBoard.record(r.player(), r.amount()); // every real donation counts on the board
+                StreamSession.donation(r.player(), r.amount(), level);
+            }
+            if (r != null && level >= 0 && c.enabled) PunishManager.hit(r.amount(), r.player(), level, false);
         }
     }
 

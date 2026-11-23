@@ -1,6 +1,11 @@
 package com.punishfx;
 
+import com.punishfx.mixin.GameRendererAccessor;
+import com.punishfx.mixin.I18nAccessor;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.ClientLanguage;
+import net.minecraft.locale.Language;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.Holder;
@@ -29,6 +34,8 @@ public final class PunishManager {
         public final Random r = new Random();
         boolean fired;
         int level;
+        /** Who caused it (null for tests), for the stream recap. */
+        public String donor;
 
         Active(Punishes.P p, long start, long end, int level) {
             this.p = p;
@@ -101,6 +108,8 @@ public final class PunishManager {
 
     /** Cancel key / command: stop the pending extreme and clear running punishments. */
     public static void cancelAll() {
+        if (pendingExtreme != null) StreamSession.extremeCancelled();
+        if (pendingExtreme != null || !ACTIVE.isEmpty()) StreamSession.cancelled();
         pendingExtreme = null;
         ACTIVE.clear();
         ControlState.clear();
@@ -134,16 +143,19 @@ public final class PunishManager {
                 playSound(mc, "minecraft:entity.villager.no", 0.7f, 0.8f);
             }
         }
-        if (cooling) return;
+        if (cooling) {
+            if (!test) StreamSession.cooldownSkip();
+            return;
+        }
         lastPunishAt = now;
-        for (String id : ids) start(id, level, player, amount);
+        for (String id : ids) start(id, level, test ? null : player, amount);
     }
 
     /** Force a specific punishment (test / command). */
     public static void force(String id, int level) {
         Config c = Config.get();
         int l = Math.max(0, Math.min(c.tiers.size() - 1, level));
-        start(id, l, Minecraft.getInstance().player != null ? Minecraft.getInstance().player.getGameProfile().name() : "You", c.tiers.get(l).minAmount);
+        start(id, l, null, c.tiers.get(l).minAmount);
     }
 
     private static void start(String id, int level, String player, double amount) {
@@ -153,9 +165,11 @@ public final class PunishManager {
         double dur = c.tiers.get(level).seconds * c.lengthScale;
         long now = System.currentTimeMillis();
 
+        if (player != null) StreamSession.punishmentStarted(id);
         if (p.extreme) {
             pendingExtreme = p;
             pendingUntil = now + extremeTotalMillis();
+            if (player != null) StreamSession.extremeTriggered();
             return;
         }
         if (p.cat == Punishes.Cat.ACTION) {
@@ -168,6 +182,7 @@ public final class PunishManager {
         // don't double up the same punishment
         ACTIVE.removeIf(a -> a.p.id.equals(id));
         Active a = new Active(p, now, now + (long) (dur * 1000), level);
+        a.donor = player;
         ACTIVE.add(a);
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
@@ -193,6 +208,9 @@ public final class PunishManager {
             restoreHud(mc);
             ControlState.clear();
             APPLIED.clear();
+            applyFrontCamera(mc, false);
+            applyLanguage(mc, false, 0);
+            applyMirror(mc, false);
             return;
         }
         long now = System.currentTimeMillis();
@@ -206,8 +224,10 @@ public final class PunishManager {
         }
 
         ACTIVE.removeIf(a -> now >= a.end);
+        StreamSession.tick(ACTIVE);
 
         boolean anyControl = false, wantHud = false, wantNausea = false;
+        boolean wantMirror = false, wantFront = false, wantLanguage = false;
         drunkAngle = (float) (Math.sin(now / 420.0) * 0.8 + Math.sin(now / 137.0) * 0.4);
         ControlState.clear();
 
@@ -257,11 +277,50 @@ public final class PunishManager {
                         }
                     }
                 }
+                // --- new view punishments ---
+                case "mirror" -> {
+                    wantMirror = true;
+                    ControlState.mirror = true;
+                    anyControl = true;
+                }
+                case "upside_down" -> {
+                    float env = envelope(a, now, 450, 450);
+                    ControlState.upside = c.upsideMode == 1
+                            ? (float) ((now - a.start) / 20.0 % 360.0) * env   // keeps rolling
+                            : 180f * env * env * (3 - 2 * env);                  // flips over
+                }
+                case "front_camera" -> wantFront = true;
+                // --- screen & sound ---
+                case "language" -> wantLanguage = true;
+                case "chipmunk" -> {
+                    ControlState.chipmunk = c.chipmunkMode != 1;
+                    ControlState.goats = c.chipmunkMode != 0;
+                }
+                // --- hotbar & items (the same actions as scrolling / pressing Q) ---
+                case "possessed_hotbar" -> {
+                    int every = new int[]{40, 18, 6}[c.possessedLevel];
+                    if (tick % every == 0) mc.player.getInventory().setSelectedSlot(R.nextInt(9));
+                }
+                case "hotbar_chaos" -> ControlState.hotbarChaos = true;
+                case "butterfingers" -> {
+                    if (tick % 30 == 0 && mc.player.canDropItems()) {
+                        if (c.butterLevel == 2) {
+                            List<Integer> full = new ArrayList<>();
+                            for (int i = 0; i < 9; i++) if (!mc.player.getInventory().getItem(i).isEmpty()) full.add(i);
+                            if (!full.isEmpty()) mc.player.getInventory().setSelectedSlot(full.get(R.nextInt(full.size())));
+                        }
+                        mc.player.drop(c.butterLevel == 1);
+                    }
+                }
                 default -> { } // negative, disco_eyes, flashbang, blackout, fog = drawn by the overlay
             }
         }
 
         keepEffect(mc, MobEffects.NAUSEA, wantNausea);
+        applyMirror(mc, wantMirror);
+        applyFrontCamera(mc, wantFront);
+        applyLanguage(mc, wantLanguage, c.languageMode);
+        if (ControlState.hotbarChaos && tick % 30 == 0) ControlState.hotbarSeed = R.nextLong();
 
         ControlState.active = anyControl;
         if (wantHud) hideHud(mc);
@@ -323,6 +382,65 @@ public final class PunishManager {
     }
 
     // ------------------------------------------------------------------ sound
+
+    // ---- Mirror World: our own post-processing effect (assets/punishfx/post_effect/mirror.json) ----
+    private static final Identifier MIRROR = Identifier.fromNamespaceAndPath("punishfx", "mirror");
+
+    private static void applyMirror(Minecraft mc, boolean want) {
+        try {
+            boolean on = MIRROR.equals(mc.gameRenderer.currentPostEffect());
+            if (want && !on) ((GameRendererAccessor) mc.gameRenderer).punishfx$setPostEffect(MIRROR);
+            else if (!want && on) mc.gameRenderer.clearPostEffect();
+        } catch (Throwable t) {
+            PunishFxClient.LOG.warn("Punish FX: mirror effect failed", t);
+        }
+    }
+
+    // ---- Front Camera: force third-person front view, then put back what you had ----
+    private static CameraType savedCamera = null;
+
+    private static void applyFrontCamera(Minecraft mc, boolean want) {
+        if (want) {
+            if (savedCamera == null) savedCamera = mc.options.getCameraType();
+            if (mc.options.getCameraType() != CameraType.THIRD_PERSON_FRONT) mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+        } else if (savedCamera != null) {
+            mc.options.setCameraType(savedCamera);
+            savedCamera = null;
+        }
+    }
+
+    // ---- Language Swap: load a joke language straight into the game, no slow resource reload ----
+    public static final String[] LANGUAGE_NAMES = {"Pirate", "Upside down", "LOLCAT", "Shakespeare", "Random"};
+    private static final String[] LANGUAGE_CODES = {"en_pt", "en_ud", "lol_us", "enws"};
+    private static String swappedTo = null;
+
+    private static void applyLanguage(Minecraft mc, boolean want, int mode) {
+        try {
+            if (want && swappedTo == null) {
+                String code = LANGUAGE_CODES[mode >= LANGUAGE_CODES.length ? R.nextInt(LANGUAGE_CODES.length) : mode];
+                ClientLanguage lang = ClientLanguage.loadFrom(mc.getResourceManager(), List.of("en_us", code), false);
+                Language.inject(lang);
+                I18nAccessor.punishfx$setLanguage(lang);
+                swappedTo = code;
+            } else if (!want && swappedTo != null) {
+                swappedTo = null;
+                mc.getLanguageManager().onResourceManagerReload(mc.getResourceManager()); // back to your language
+            }
+        } catch (Throwable t) {
+            swappedTo = null;
+            PunishFxClient.LOG.warn("Punish FX: language swap failed", t);
+        }
+    }
+
+    public static String swappedLanguage() {
+        return swappedTo;
+    }
+
+    /** Looks up a sound by id (null if it doesn't exist). */
+    public static SoundEvent soundEvent(String id) {
+        Identifier rl = Identifier.tryParse(id);
+        return rl == null ? null : BuiltInRegistries.SOUND_EVENT.getValue(rl);
+    }
 
     public static void playSound(Minecraft mc, String id, float vol, float pitch) {
         if (!Config.get().sounds) return;

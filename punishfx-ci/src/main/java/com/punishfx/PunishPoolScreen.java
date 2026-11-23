@@ -50,7 +50,7 @@ public class PunishPoolScreen extends PfxFrame {
         }).accent(Ui.GOOD).hot(() -> c.tiers.get(selLevel).pool.isEmpty()));
         addRenderableWidget(new FancyButton(cx + cw - shortcutsW + 55, cy, 77, 18, Component.literal("Random 5"), b -> {
             List<String> safe = new ArrayList<>();
-            for (Punishes.P p : Punishes.all()) if (!p.extreme) safe.add(p.id);
+            for (Punishes.P p : Punishes.all()) if (!p.optIn) safe.add(p.id);
             Collections.shuffle(safe);
             Config.Tier t = c.tiers.get(selLevel);
             t.pool.clear();
@@ -65,6 +65,8 @@ public class PunishPoolScreen extends PfxFrame {
         int top = cy + 36, bottom = cy + ch;
         int minColW = 132;
         int cols = Math.max(2, Math.min(4, (cw + 4) / minColW));
+        // squeeze in more (narrower) columns if a flat grid would run off the bottom
+        while (cols < 4 && (int) Math.ceil(Punishes.all().size() / (double) cols) * 13 > bottom - top) cols++;
         int colW = (cw + 4) / cols;
         int headH = 12;
         List<Punishes.P> all = Punishes.all();
@@ -127,13 +129,13 @@ public class PunishPoolScreen extends PfxFrame {
         Config.Tier t = Config.get().tiers.get(selLevel);
         Set<String> cur = new LinkedHashSet<>();
         if (t.pool.isEmpty()) {
-            for (Punishes.P p : Punishes.all()) if (!p.extreme) cur.add(p.id);
+            for (Punishes.P p : Punishes.all()) if (!p.optIn) cur.add(p.id);
         } else {
             cur.addAll(t.pool);
         }
         if (!cur.remove(id)) cur.add(id);
         Set<String> allSafe = new LinkedHashSet<>();
-        for (Punishes.P p : Punishes.all()) if (!p.extreme) allSafe.add(p.id);
+        for (Punishes.P p : Punishes.all()) if (!p.optIn) allSafe.add(p.id);
         t.pool.clear();
         if (!cur.isEmpty() && !cur.equals(allSafe)) t.pool.addAll(cur);
         Config.save();
@@ -141,7 +143,7 @@ public class PunishPoolScreen extends PfxFrame {
 
     private static boolean inPool(Config.Tier t, String id) {
         Punishes.P p = Punishes.get(id);
-        if (t.pool.isEmpty()) return p != null && !p.extreme;
+        if (t.pool.isEmpty()) return p != null && !p.optIn;
         return t.pool.contains(id);
     }
 
@@ -182,7 +184,7 @@ public class PunishPoolScreen extends PfxFrame {
             }
         }
         if (footer == null && mouseY >= cy && mouseY < cy + 18 && mouseX >= cx + cw - 132)
-            footer = mouseX < cx + cw - 80 ? "Let this level use any punishment (except the extreme two)." : "Pick 5 random punishments for this level.";
+            footer = mouseX < cx + cw - 80 ? "Let this level use any punishment except the opt-in ones (Butterfingers, Leave, Close)." : "Pick 5 random punishments for this level.";
     }
 
     private static String fmt(double d) {
