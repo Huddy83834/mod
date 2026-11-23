@@ -651,8 +651,12 @@ public final class PunishManager {
         return rl == null ? null : BuiltInRegistries.SOUND_EVENT.getValue(rl);
     }
 
+    /** How many sounds Punish FX has played (lets the tests check sounds without speakers). */
+    public static int soundsPlayed = 0;
+
     public static void playSound(Minecraft mc, String id, float vol, float pitch) {
         if (!Config.get().sounds) return;
+        soundsPlayed++;
         try {
             Identifier rl = Identifier.tryParse(id);
             if (rl == null) return;

@@ -95,10 +95,13 @@ public class PunishFxClientTest implements FabricClientGameTest {
             effectShots(ctx);
             newPunishmentTests(ctx, server);
             pixelTests(ctx, server);
+            screenFxTests(ctx, server);
+            soundTests(ctx);
             gameTests(ctx, server);
             overlapTests(ctx);
             detectorTest(ctx);
             streamTests(ctx);
+            presetTests(ctx);
             uiShots(ctx);
         }
 
@@ -376,8 +379,8 @@ public class PunishFxClientTest implements FabricClientGameTest {
             return (double) d;
         });
         check(back > 5, "mouse look normal again after mirror (" + fmt(back) + ")");
-        String post = ctx.computeOnClient(mc -> mc.gameRenderer.currentPostEffect() == null ? "none" : mc.gameRenderer.currentPostEffect().toString());
-        check(post.equals("none"), "mirror shader removed after (" + post + ")");
+        String post = ctx.computeOnClient(mc -> String.valueOf(com.punishfx.ScreenFx.activeIds()));
+        check(post.equals("[]"), "mirror shader removed after (" + post + ")");
 
         // ---- language swap
         String normal = ctx.computeOnClient(mc -> net.minecraft.locale.Language.getInstance().getOrDefault("menu.returnToGame"));
@@ -611,8 +614,8 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 7; c.pixelPalette = 0; c.pixelDegrade = false; });
         ctx.runOnClient(mc -> PunishManager.force("pixelated", 0));
         ctx.waitTicks(10);
-        String id = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
-        check(id.equals("punishfx:fx/m0_r8_p0"), "pixelated turns on the 36p effect (" + id + ")");
+        String id = ctx.computeOnClient(mc -> String.valueOf(com.punishfx.ScreenFx.activeIds()));
+        check(id.equals("[punishfx:fx/m0_r8_p0]"), "pixelated turns on the 36p effect (" + id + ")");
         shot(ctx, "fx_pixelated_36p");
         try {
             double base = edges(shots.resolve("fx_04_floor_baseline.png")), pix = edges(shots.resolve("fx_pixelated_36p.png"));
@@ -645,18 +648,18 @@ public class PunishFxClientTest implements FabricClientGameTest {
         // with mirror world at the same time: one combined effect
         ctx.runOnClient(mc -> PunishManager.force("mirror", 0));
         ctx.waitTicks(5);
-        String both = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
-        check(both.equals("punishfx:fx/m1_r6_p1"), "pixelated + mirror world run together (" + both + ")");
+        String both = ctx.computeOnClient(mc -> String.valueOf(com.punishfx.ScreenFx.activeIds()));
+        check(both.equals("[punishfx:fx/m1_r6_p1]"), "pixelated + mirror world run together (" + both + ")");
         reset(ctx);
-        String off = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
-        check(off.equals("null"), "pixelated effect removed after (" + off + ")");
+        String off = ctx.computeOnClient(mc -> String.valueOf(com.punishfx.ScreenFx.activeIds()));
+        check(off.equals("[]"), "pixelated effect removed after (" + off + ")");
         // gets worse over time: starts at 240p
         ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 7; c.pixelPalette = 0; c.pixelDegrade = true; });
         ctx.runOnClient(mc -> PunishManager.force("pixelated", 0));
         ctx.waitTicks(3);
-        String early = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
+        String early = ctx.computeOnClient(mc -> String.valueOf(com.punishfx.ScreenFx.activeIds()));
         ctx.waitTicks(60);
-        String later = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
+        String later = ctx.computeOnClient(mc -> String.valueOf(com.punishfx.ScreenFx.activeIds()));
         check(early.contains("_r1_") && !later.equals(early), "'gets worse' starts sharp and gets blockier (" + early + " -> " + later + ")");
         reset(ctx);
         ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 3; c.pixelPalette = 0; c.pixelDegrade = false; });
@@ -876,6 +879,192 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.runOnClient(mc -> Config.reset());
     }
 
+    // ------------------------------------------------------------------ 1.6: tiny window, blurry, fisheye
+
+    private static double meanBright(BufferedImage im, double x0, double x1, double y0, double y1) {
+        int w = im.getWidth(), h = im.getHeight();
+        long sum = 0, n = 0;
+        for (int y = (int) (h * y0); y < (int) (h * y1); y += 3)
+            for (int x = (int) (w * x0); x < (int) (w * x1); x += 3, n++) {
+                int c = im.getRGB(x, y);
+                sum += ((c >> 16) & 255) + ((c >> 8) & 255) + (c & 255);
+            }
+        return n == 0 ? 0 : sum / (3.0 * n);
+    }
+
+    private void screenFxTests(ClientGameTestContext ctx, TestServerContext server) {
+        reset(ctx);
+        server.runCommand("tp @a 0.5 101 0.5 0 35");
+        ctx.waitTicks(15);
+        shot(ctx, "fx_05_floor_baseline");
+
+        // ---- tiny window: bright game inside the box, dark everywhere else
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.windowSize = 2; c.windowSpeed = 1; });
+        ctx.runOnClient(mc -> PunishManager.force("window", 0));
+        ctx.waitTicks(10);
+        double[] rect = ctx.computeOnClient(mc -> com.punishfx.ScreenFx.windowRect(mc, 2, 1));
+        shot(ctx, "fx_tiny_window");
+        try {
+            BufferedImage im = ImageIO.read(shots.resolve("fx_tiny_window.png").toFile());
+            double x = rect[0], s = rect[2];
+            double top = 1 - (rect[1] + s);           // content top, measured from the top of the picture
+            double inside = meanBright(im, x + s * 0.2, x + s * 0.8, top + s * 0.2, top + s * 0.8);
+            // the widest empty strip beside the window
+            double outside = x > 1 - (x + s) ? meanBright(im, 0.02, Math.max(0.03, x - 0.03), 0.1, 0.75)
+                    : meanBright(im, Math.min(0.97, x + s + 0.03), 0.98, 0.1, 0.75);
+            check(inside > outside + 60, "tiny window: the game shrinks into a box (inside " + fmt(inside) + ", outside " + fmt(outside)
+                    + ", box at " + fmt(x) + "," + fmt(top) + " size " + fmt(s) + ")");
+        } catch (Exception e) {
+            check(false, "tiny window screenshot check: " + e);
+        }
+        ctx.waitTicks(40);
+        double[] rect2 = ctx.computeOnClient(mc -> com.punishfx.ScreenFx.windowRect(mc, 2, 1));
+        check(Math.abs(rect2[0] - rect[0]) + Math.abs(rect2[1] - rect[1]) > 0.01, "tiny window: the box keeps moving ("
+                + fmt(rect[0]) + "," + fmt(rect[1]) + " -> " + fmt(rect2[0]) + "," + fmt(rect2[1]) + ")");
+        shot(ctx, "fx_tiny_window_later");
+        reset(ctx);
+
+        // ---- blurry
+        ctx.runOnClient(mc -> Config.get().blurLevel = 2);
+        ctx.runOnClient(mc -> PunishManager.force("blur", 0));
+        ctx.waitTicks(10);
+        shot(ctx, "fx_blurry");
+        try {
+            double base = edges(shots.resolve("fx_05_floor_baseline.png")), blur = edges(shots.resolve("fx_blurry.png"));
+            check(blur < base * 0.5, "blurry really blurs (detail " + fmt(base) + " -> " + fmt(blur) + ")");
+        } catch (Exception e) {
+            check(false, "blur screenshot check: " + e);
+        }
+        reset(ctx);
+
+        // ---- fisheye
+        ctx.runOnClient(mc -> Config.get().fisheyeLevel = 3);
+        ctx.runOnClient(mc -> PunishManager.force("fisheye", 0));
+        ctx.waitTicks(10);
+        shot(ctx, "fx_fisheye");
+        try {
+            BufferedImage a = ImageIO.read(shots.resolve("fx_05_floor_baseline.png").toFile());
+            BufferedImage b = ImageIO.read(shots.resolve("fx_fisheye.png").toFile());
+            // the bulge darkens the corners and changes the picture
+            double ca = meanBright(a, 0.0, 0.08, 0.0, 0.1), cb = meanBright(b, 0.0, 0.08, 0.0, 0.1);
+            check(cb < ca - 25, "fisheye bends the view and darkens the edges (corner " + fmt(ca) + " -> " + fmt(cb) + ")");
+        } catch (Exception e) {
+            check(false, "fisheye screenshot check: " + e);
+        }
+
+        // ---- everything at once: they stack in order
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 4; c.pixelPalette = 0; c.windowSize = 1; });
+        ctx.runOnClient(mc -> { PunishManager.force("blur", 0); PunishManager.force("pixelated", 0); PunishManager.force("window", 0); PunishManager.force("mirror", 0); });
+        ctx.waitTicks(10);
+        String stack = ctx.computeOnClient(mc -> String.valueOf(com.punishfx.ScreenFx.activeIds()));
+        check(stack.equals("[punishfx:fx/blur_2, punishfx:fx/fisheye_3, punishfx:fx/m1_r5_p0, punishfx:fx/window_1_1]"),
+                "screen effects stack (blur, fisheye, mirror+pixel, window): " + stack);
+        shot(ctx, "fx_everything_stacked");
+        reset(ctx);
+        check(ctx.computeOnClient(mc -> com.punishfx.ScreenFx.activeIds().isEmpty()), "all screen effects removed after");
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 3; c.blurLevel = 1; c.fisheyeLevel = 1; c.windowSize = 1; });
+        server.runCommand("tp @a 0.5 101 0.5 0 10");
+        ctx.waitTicks(5);
+    }
+
+    // ------------------------------------------------------------------ 1.6: sounds
+
+    private void soundTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        String missing = ctx.computeOnClient(mc -> {
+            StringBuilder sb = new StringBuilder();
+            for (com.punishfx.Punishes.P p : com.punishfx.Punishes.all())
+                if (com.punishfx.PunishSounds.desc(p.id).isEmpty()) sb.append(p.id).append(' ');
+            return sb.toString();
+        });
+        check(missing.isEmpty(), "every punishment has a sound (" + (missing.isEmpty() ? "all " + 0 : missing) + ")");
+        String[] ids = {"frozen", "drunk", "mirror", "pixelated", "window", "blur", "fisheye", "language", "jitter"};
+        StringBuilder quiet = new StringBuilder();
+        for (String id : ids) {
+            reset(ctx);
+            int before = ctx.computeOnClient(mc -> PunishManager.soundsPlayed);
+            ctx.runOnClient(mc -> PunishManager.force(id, 0));
+            ctx.waitTicks(2);
+            int after = ctx.computeOnClient(mc -> PunishManager.soundsPlayed);
+            if (after <= before) quiet.append(id).append(' ');
+        }
+        check(quiet.length() == 0, "punishments play their sound when they start (silent: " + quiet + ")");
+        // repeating sound while it runs (jitter beats every 8 ticks)
+        int r0 = ctx.computeOnClient(mc -> PunishManager.soundsPlayed);
+        ctx.waitTicks(40);
+        int r1 = ctx.computeOnClient(mc -> PunishManager.soundsPlayed);
+        check(r1 - r0 >= 3, "sounds repeat while a punishment runs (" + (r1 - r0) + " in 2s)");
+        // muting one
+        reset(ctx);
+        ctx.runOnClient(mc -> Config.get().mutedSounds.add("frozen"));
+        int m0 = ctx.computeOnClient(mc -> PunishManager.soundsPlayed);
+        ctx.runOnClient(mc -> PunishManager.force("frozen", 0));
+        ctx.waitTicks(45);
+        int m1 = ctx.computeOnClient(mc -> PunishManager.soundsPlayed);
+        check(m1 == m0, "a muted punishment stays quiet (" + (m1 - m0) + " sounds)");
+        reset(ctx);
+        ctx.runOnClient(mc -> { Config.get().mutedSounds.clear(); Config.get().loopSounds = false; });
+        ctx.runOnClient(mc -> PunishManager.force("jitter", 0));
+        ctx.waitTicks(3);
+        int l0 = ctx.computeOnClient(mc -> PunishManager.soundsPlayed);
+        ctx.waitTicks(40);
+        int l1 = ctx.computeOnClient(mc -> PunishManager.soundsPlayed);
+        check(l1 == l0, "'Sounds while it runs' off: no repeating sounds (" + (l1 - l0) + ")");
+        reset(ctx);
+        ctx.runOnClient(mc -> Config.get().loopSounds = true);
+    }
+
+    // ------------------------------------------------------------------ 1.6: presets
+
+    private void presetTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        String r = ctx.computeOnClient(mc -> {
+            StringBuilder bad = new StringBuilder();
+            Config.reset();
+            Config.get().looseMatching = true;           // a detection setting: presets must never touch it
+            Config.get().tiers.get(0).minAmount = 12_345;
+            com.punishfx.Presets.Builtin chaos = com.punishfx.Presets.BUILTIN.get(1);
+            com.punishfx.Presets.apply(chaos);
+            Config c = Config.get();
+            if (c.overlapMode != 2 || c.lengthScale != 1.5 || c.wheelUse != 3) bad.append("chaos not applied ");
+            if (!c.looseMatching) bad.append("chaos changed detection ");
+            if (c.tiers.get(0).minAmount != 12_345) bad.append("chaos changed amounts ");
+            com.punishfx.Presets.apply(com.punishfx.Presets.BUILTIN.get(0));
+            if (Config.get().overlapMode != 1 || Config.get().lengthScale != 0.75) bad.append("chill not applied ");
+            for (Config.Tier t : Config.get().tiers) if (t.pool.contains("frozen") || t.pool.isEmpty()) bad.append("chill kept harsh ones ");
+            // save, change, load back
+            Config.get().topTitle = "MY FANS";
+            com.punishfx.Presets.saveCurrent("Test setup");
+            Config.get().topTitle = "something else";
+            Config.get().lengthScale = 3.0;
+            for (com.punishfx.Presets.Saved s : com.punishfx.Presets.saved())
+                if (s.name.equals("Test setup")) com.punishfx.Presets.apply(s.data, s.name);
+            if (!"MY FANS".equals(Config.get().topTitle) || Config.get().lengthScale != 0.75) bad.append("saved preset didn't restore ");
+            // share code round trip
+            String code = com.punishfx.Presets.exportCode();
+            String name = com.punishfx.Presets.importCode(code);
+            if (name == null) bad.append("code didn't import ");
+            if (com.punishfx.Presets.importCode("hello") != null) bad.append("junk code accepted ");
+            // starting setup keeps your amounts
+            com.punishfx.Presets.apply(com.punishfx.Presets.BUILTIN.get(3));
+            if (Config.get().tiers.get(0).minAmount != 12_345 || Config.get().lengthScale != 1.0 || !Config.get().looseMatching)
+                bad.append("starting setup wrong ");
+            return bad.length() == 0 ? "ok, code " + code.length() + " chars, imported as " + name : bad.toString();
+        });
+        check(r.startsWith("ok"), "presets: ready-made, saved and shared ones work and never touch detection (" + r + ")");
+        // banner only: shows the donor, no punishment
+        ctx.runOnClient(mc -> com.punishfx.Presets.apply(com.punishfx.Presets.BUILTIN.get(2)));
+        ctx.runOnClient(mc -> PunishManager.hit(5_000_000, "Grian", 3, false));
+        ctx.waitTicks(3);
+        boolean bannerOnly = ctx.computeOnClient(mc -> PunishManager.active().isEmpty() && !com.punishfx.Games.busy() && PunishManager.donorShowing());
+        check(bannerOnly, "'Banner only' preset: shows who donated, doesn't punish");
+        shot(ctx, "fx_banner_only");
+        ctx.runOnClient(mc -> { Config.reset(); for (com.punishfx.Presets.Saved s : new ArrayList<>(com.punishfx.Presets.saved())) com.punishfx.Presets.delete(s); });
+        ctx.runOnClient(mc -> com.punishfx.Presets.saveCurrent("Recording"));
+        ctx.runOnClient(mc -> com.punishfx.Presets.saveCurrent("Saturday chaos"));
+        reset(ctx);
+    }
+
     // ------------------------------------------------------------------ donation detection
 
     private void detectorTest(ClientGameTestContext ctx) {
@@ -1074,6 +1263,9 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.clickScreenButton("Stream");
         ctx.waitTicks(4);
         shot(ctx, "ui_" + size + "_6_stream");
+        ctx.clickScreenButton("\u2605 Presets");
+        ctx.waitTicks(4);
+        shot(ctx, "ui_" + size + "_7_presets");
         ctx.setScreen(() -> null);
         ctx.waitTicks(3);
     }
