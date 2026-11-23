@@ -55,12 +55,15 @@ public class PunishFxClientTest implements FabricClientGameTest {
 
         configTests();
 
-        // CI renders in software: a short view distance keeps each frame (and so each tick) fast.
+        // CI renders in software, and the client and server tick in lockstep, so a slow frame is a
+        // slow tick. Menu blur is very expensive in software; turn it off and load the world in a
+        // small window, then go back to the screenshot size.
         ctx.runOnClient(mc -> {
+            mc.options.menuBackgroundBlurriness().set(0);
             mc.options.renderDistance().set(4);
             mc.options.simulationDistance().set(5);
         });
-        ctx.getInput().resizeWindow(960, 540); // auto GUI scale -> 480x270, the common 1080p size
+        ctx.getInput().resizeWindow(427, 240);
         ctx.waitTicks(5);
 
         // Superflat generates far faster than a normal world, so slow CI machines don't time out.
@@ -73,6 +76,8 @@ public class PunishFxClientTest implements FabricClientGameTest {
             }
         }).create()) {
             sp.getClientWorld().waitForChunksRender();
+            ctx.getInput().resizeWindow(960, 540); // auto GUI scale -> 480x270, the common 1080p size
+            ctx.waitTicks(10);
             TestServerContext server = sp.getServer();
             server.runCommand("time set noon");
             server.runCommand("weather clear");
