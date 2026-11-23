@@ -84,6 +84,17 @@ public final class Config {
     public int pixelRes = 3;               // index into ScreenFx.HEIGHTS (120p)
     public int pixelPalette = 0;           // index into ScreenFx.PALETTE_NAMES
     public boolean pixelDegrade = false;   // start sharp and get blockier
+    public int windowSize = 1;             // index into ScreenFx.WINDOW_SIZES
+    public int windowSpeed = 1;            // 0 slow, 1 normal, 2 fast
+    public int blurLevel = 1;              // index into ScreenFx.BLUR_NAMES
+    public int fisheyeLevel = 1;           // index into ScreenFx.FISHEYE_NAMES
+
+    // ---- sounds
+    public boolean punishSounds = true;    // each punishment's own sounds
+    public boolean loopSounds = true;      // sounds that repeat while a punishment runs
+    public List<String> mutedSounds = new ArrayList<>();
+    /** Presets: only show who donated, never punish. */
+    public boolean bannerOnly = false;
 
     // ---- several donations at once (see PunishManager.OVERLAP_NAMES)
     public int overlapMode = 0;
@@ -223,6 +234,13 @@ public final class Config {
         }
     }
 
+    /** Switch to a whole new set of settings (presets). */
+    public static void install(Config c) {
+        c.fix();
+        INSTANCE = c;
+        save();
+    }
+
     public static void reset() {
         INSTANCE = defaults();
         save();
@@ -272,6 +290,11 @@ public final class Config {
         upsideMode = clamp(upsideMode, 0, 1);
         pixelRes = clamp(pixelRes, 0, ScreenFx.HEIGHTS.length - 1);
         pixelPalette = clamp(pixelPalette, 0, ScreenFx.PALETTE_NAMES.length - 1);
+        windowSize = clamp(windowSize, 0, ScreenFx.WINDOW_NAMES.length - 1);
+        windowSpeed = clamp(windowSpeed, 0, 2);
+        blurLevel = clamp(blurLevel, 0, ScreenFx.BLUR_NAMES.length - 1);
+        fisheyeLevel = clamp(fisheyeLevel, 0, ScreenFx.FISHEYE_NAMES.length - 1);
+        if (mutedSounds == null) mutedSounds = new ArrayList<>();
         if (configVersion < 2) { // 1.5: "stack punishments" became "several donations at once"
             if (!stack) overlapMode = 5;
             configVersion = 2;

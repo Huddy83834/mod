@@ -37,6 +37,8 @@ public final class PunishManager {
         public String donor;
         /** Which donation started it (for "replace", "biggest wins", "team up"). */
         public long donation;
+        /** Ticks it has been running (for repeating sounds). */
+        int ticks;
 
         Active(Punishes.P p, long start, long end, int level) {
             this.p = p;
@@ -59,7 +61,7 @@ public final class PunishManager {
 
     // extreme (leave/close) pending countdown
     private static Punishes.P pendingExtreme;
-    private static long pendingUntil;
+    private static long pendingUntil, lastBeep;
 
     private static boolean hudHidden;
     private static boolean savedHideGui;
@@ -174,6 +176,10 @@ public final class PunishManager {
             return;
         }
 
+        if (c.bannerOnly) {
+            announce(who, amount, "thank you!");
+            return;
+        }
         boolean overlap = overlapping(now);
         lastDonationAt = now;
         Donation d = new Donation(++donationSeq, amount, who, test ? null : player, level);
@@ -370,17 +376,7 @@ public final class PunishManager {
         a.donor = player;
         a.donation = donation;
         ACTIVE.add(a);
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null) {
-            switch (id) {
-                case "flashbang" -> {
-                    playSound(mc, "minecraft:entity.generic.explode", 1f, 1.3f);
-                    playSound(mc, "minecraft:entity.firework_rocket.blast", 1f, 0.6f);
-                }
-                case "drunk" -> playSound(mc, "minecraft:entity.generic.drink", 0.9f, 0.9f);
-                default -> { }
-            }
-        }
+        PunishSounds.started(Minecraft.getInstance(), id);
     }
 
     // ------------------------------------------------------------------ tick
@@ -396,14 +392,21 @@ public final class PunishManager {
             APPLIED.clear();
             applyFrontCamera(mc, false);
             applyLanguage(mc, false, 0);
-            ScreenFx.apply(mc, false, -1, 0);
+            ScreenFx.clear();
             Games.cancelAll();
             QUEUE.clear();
             return;
         }
         long now = System.currentTimeMillis();
 
-        // extreme countdown
+        // extreme countdown (a beep each second)
+        if (pendingExtreme != null && now < pendingUntil) {
+            long sec = (pendingUntil - now + 999) / 1000;
+            if (sec != lastBeep) {
+                lastBeep = sec;
+                PunishSounds.event(mc, pendingExtreme.id, "beep");
+            }
+        }
         if (pendingExtreme != null && now >= pendingUntil) {
             Punishes.P p = pendingExtreme;
             pendingExtreme = null;
@@ -431,10 +434,12 @@ public final class PunishManager {
         boolean anyControl = false, wantHud = false, wantNausea = false;
         boolean wantMirror = false, wantFront = false, wantLanguage = false;
         int pixel = -1;
+        boolean wantBlur = false, wantFish = false, wantWindow = false;
         drunkAngle = (float) (Math.sin(now / 420.0) * 0.8 + Math.sin(now / 137.0) * 0.4);
         ControlState.clear();
 
         for (Active a : ACTIVE) {
+            PunishSounds.running(mc, a.p.id, ++a.ticks);
             switch (a.p.id) {
                 // --- movement (KeyboardInputMixin) ---
                 case "inverted_controls" -> {
@@ -456,7 +461,6 @@ public final class PunishManager {
                     ControlState.drunk = Math.max(ControlState.drunk, env * mult);
                     wantNausea = true;
                     anyControl = true;
-                    if (tick % 70 == 35) playSound(mc, "minecraft:entity.player.burp", 0.8f, 0.8f + R.nextFloat() * 0.3f);
                 }
                 // --- camera & view (CameraMixin / GameRendererMixin) ---
                 case "spin" -> mc.player.setYRot(mc.player.getYRot() + new float[]{3f, 7f, 14f, 30f}[c.spinLevel]);
@@ -464,7 +468,6 @@ public final class PunishManager {
                 case "glitch" -> {
                     // jerky back-and-forth snaps of the whole view
                     ControlState.slide = (float) (Math.sin(now / 85.0) * 12 + Math.sin(now / 37.0) * 5) * new float[]{0.5f, 1f, 1.8f}[c.glitchLevel];
-                    if (tick % 12 == 0) playSound(mc, "minecraft:block.sculk_sensor.clicking", 0.25f, 1.9f);
                 }
                 case "tunnel_vision" -> ControlState.fovMul = Math.min(ControlState.fovMul, 1f - new float[]{0.3f, 0.6f, 0.72f, 0.82f}[c.tunnelLevel] * envelope(a, now, 900, 900));
                 case "no_hud" -> wantHud = true;
@@ -493,6 +496,9 @@ public final class PunishManager {
                             : 180f * env * env * (3 - 2 * env);                  // flips over
                 }
                 case "front_camera" -> wantFront = true;
+                case "blur" -> wantBlur = true;
+                case "fisheye" -> wantFish = true;
+                case "window" -> wantWindow = true;
                 case "pixelated" -> {
                     int target = c.pixelRes;
                     if (c.pixelDegrade) {
@@ -510,7 +516,10 @@ public final class PunishManager {
                 // --- hotbar & items (the same actions as scrolling / pressing Q) ---
                 case "possessed_hotbar" -> {
                     int every = new int[]{40, 18, 6}[c.possessedLevel];
-                    if (tick % every == 0) mc.player.getInventory().setSelectedSlot(R.nextInt(9));
+                    if (tick % every == 0) {
+                        mc.player.getInventory().setSelectedSlot(R.nextInt(9));
+                        PunishSounds.event(mc, "possessed_hotbar", "hop");
+                    }
                 }
                 case "hotbar_chaos" -> ControlState.hotbarChaos = true;
                 case "butterfingers" -> {
@@ -521,6 +530,7 @@ public final class PunishManager {
                             if (!full.isEmpty()) mc.player.getInventory().setSelectedSlot(full.get(R.nextInt(full.size())));
                         }
                         mc.player.drop(c.butterLevel == 1);
+                        PunishSounds.event(mc, "butterfingers", "drop");
                     }
                 }
                 default -> { } // negative, disco_eyes, flashbang, blackout, fog = drawn by the overlay
@@ -528,7 +538,8 @@ public final class PunishManager {
         }
 
         keepEffect(mc, MobEffects.NAUSEA, wantNausea);
-        ScreenFx.apply(mc, wantMirror, pixel, c.pixelPalette);
+        ScreenFx.apply(mc, wantMirror, pixel, c.pixelPalette, wantBlur ? c.blurLevel : -1, wantFish ? c.fisheyeLevel : -1,
+                wantWindow ? c.windowSize : -1, c.windowSpeed);
         applyFrontCamera(mc, wantFront);
         applyLanguage(mc, wantLanguage, c.languageMode);
         if (ControlState.hotbarChaos && tick % 30 == 0) ControlState.hotbarSeed = R.nextLong();

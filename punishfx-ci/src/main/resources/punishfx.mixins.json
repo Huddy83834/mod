@@ -2,7 +2,8 @@
   "required": true,
   "package": "com.punishfx.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["KeyboardInputMixin", "CameraMixin", "GameRendererMixin", "GameRendererAccessor", "I18nAccessor",
+  "client": ["KeyboardInputMixin", "CameraMixin", "GameRendererMixin", "GameRendererAccessor",
+    "GameRendererPostMixin", "I18nAccessor",
              "SoundEngineMixin", "SoundManagerMixin", "GuiMixin", "EntityMixin"],
   "injectors": { "defaultRequire": 1 }
 }

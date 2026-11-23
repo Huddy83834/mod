@@ -40,6 +40,7 @@ public class PunishFxClient implements ClientModInitializer {
         Ui.applyTheme(Config.get().theme);
         DonorBoard.load();
         StreamSession.load();
+        Presets.load();
 
         KeyMapping.Category cat = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
         settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.punishfx.settings", InputConstants.Type.KEYSYM, InputConstants.KEY_K, cat));

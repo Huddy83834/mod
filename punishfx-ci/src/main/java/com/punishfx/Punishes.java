@@ -61,6 +61,7 @@ public final class Punishes {
         add("mirror", "Mirror World", "The world flips left-to-right, and so do your strafe keys and mouse.", Cat.VIEW, 2, "glass_pane");
         add("upside_down", "Upside Down", "Your camera rolls over onto its head.", Cat.VIEW, 2, "bat_spawn_egg");
         add("front_camera", "Front Camera", "Stuck in third person, staring at your own face.", Cat.VIEW, 1, "player_head");
+        add("fisheye", "Fisheye", "A GoPro-style bulge warps your whole view. Pick how strong on Customize.", Cat.VIEW, 1, "pufferfish");
         // screen
         add("negative", "Inverted Colors", "Every colour on your screen is truly inverted.", Cat.SCREEN, 2, "glow_ink_sac");
         add("disco_eyes", "Disco Eyes", "Your whole screen cycles through RGB.", Cat.SCREEN, 0, "music_disc_pigstep");
@@ -69,6 +70,8 @@ public final class Punishes {
         add("fog", "Blinding Fog", "A thick grey fog rolls in.", Cat.SCREEN, 0, "powder_snow_bucket");
         add("no_hud", "HUD Gone", "Your hotbar, health and crosshair vanish.", Cat.SCREEN, 1, "barrier");
         add("fake_lag", "Lag Spike", "Your game genuinely stutters and freezes.", Cat.SCREEN, 3, "soul_sand");
+        add("window", "Tiny Window", "Your whole game shrinks into a little box that bounces round the screen.", Cat.SCREEN, 2, "item_frame");
+        add("blur", "Blurry", "Everything goes soft and smeary, like you lost your glasses.", Cat.SCREEN, 1, "glass_bottle");
         add("pixelated", "Pixelated", "Your game drops to a tiny, blocky resolution. Pick how low on Customize.", Cat.SCREEN, 1, "painting");
         add("language", "Language Swap", "The game switches to Pirate, Upside-Down, LOLCAT or Shakespeare.", Cat.SCREEN, 1, "book");
         add("chipmunk", "Chipmunk", "Every sound is squeaky, or turns into goat screams.", Cat.SCREEN, 0, "goat_horn");

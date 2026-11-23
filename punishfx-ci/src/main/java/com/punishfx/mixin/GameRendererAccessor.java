@@ -1,13 +1,13 @@
 package com.punishfx.mixin;
 
+import com.mojang.blaze3d.resource.CrossFrameResourcePool;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Invoker;
+import org.spongepowered.asm.mixin.gen.Accessor;
 
-/** Lets Punish FX switch on its own post-processing effect (Mirror World), the way vanilla does for spectating a creeper. */
+/** The render-target pool vanilla uses for its own post effects; Punish FX runs its screen effects with it too. */
 @Mixin(GameRenderer.class)
 public interface GameRendererAccessor {
-    @Invoker("setPostEffect")
-    void punishfx$setPostEffect(Identifier id);
+    @Accessor("resourcePool")
+    CrossFrameResourcePool punishfx$resourcePool();
 }

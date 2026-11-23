@@ -17,7 +17,7 @@ public class CustomizeScreen extends PfxFrame {
     @Override
     protected void initPage() {
         Config c = Config.get();
-        list(List.of(
+        List<Row> rows = new java.util.ArrayList<>(List.of(
                 new Header("Look"),
                 new Choice("Theme colour", "Colour of menus and banners",
                         Ui.THEME_NAMES, () -> c.theme, v -> c.theme = v),
@@ -61,6 +61,11 @@ public class CustomizeScreen extends PfxFrame {
                 new Choice("Pixelated colours", "", ScreenFx.PALETTE_NAMES, () -> c.pixelPalette, v -> c.pixelPalette = v,
                         new String[]{"Normal colours, just blocky", "27 colours with retro dithering", "Four shades of green", "Black and white"}),
                 new Toggle("Pixelated gets worse", "Starts sharp, then gets blockier and blockier", () -> c.pixelDegrade, v -> c.pixelDegrade = v),
+                new Choice("Tiny window size", "How small your game gets", ScreenFx.WINDOW_NAMES, () -> c.windowSize, v -> c.windowSize = v),
+                new Choice("Tiny window speed", "How fast it bounces round", new String[]{"Slow", "Normal", "Fast"},
+                        () -> c.windowSpeed, v -> c.windowSpeed = v),
+                new Choice("Blurry", "How blurry it gets", ScreenFx.BLUR_NAMES, () -> c.blurLevel, v -> c.blurLevel = v),
+                new Choice("Fisheye", "How strong the bulge is", ScreenFx.FISHEYE_NAMES, () -> c.fisheyeLevel, v -> c.fisheyeLevel = v),
                 new Choice("Language swap", "Which joke language you get", PunishManager.LANGUAGE_NAMES,
                         () -> c.languageMode, v -> c.languageMode = v),
                 new Choice("Chipmunk", "Squeaky sounds, goat screams, or both", new String[]{"Squeaky", "Goat screams", "Both"},
@@ -77,6 +82,16 @@ public class CustomizeScreen extends PfxFrame {
                         new double[]{3, 5, 10, 15}, v -> (int) v + "s", () -> c.countdownSeconds, v -> c.countdownSeconds = (int) v),
                 numbers("Sound volume", "How loud Punish FX is",
                         new double[]{0, 0.25, 0.5, 0.75, 1.0}, CustomizeScreen::pct, () -> c.volume, v -> c.volume = v)
-        ), cy, cy + ch);
+        ));
+        rows.add(new Header("Punishment sounds"));
+        rows.add(new Toggle("Punishment sounds", "Each punishment plays its own sound", () -> c.punishSounds, v -> c.punishSounds = v));
+        rows.add(new Toggle("Sounds while it runs", "Repeating sounds (burps, heartbeat, beats...)", () -> c.loopSounds, v -> c.loopSounds = v));
+        for (Punishes.P p : Punishes.all()) {
+            rows.add(new Toggle(p.name, PunishSounds.desc(p.id), () -> !c.mutedSounds.contains(p.id), v -> {
+                c.mutedSounds.remove(p.id);
+                if (!v) c.mutedSounds.add(p.id);
+            }));
+        }
+        list(rows, cy, cy + ch);
     }
 }

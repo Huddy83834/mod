@@ -1,0 +1,57 @@
+{
+  "targets": {
+    "swap": {}
+  },
+  "passes": [
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "punishfx:post/window",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        }
+      ],
+      "output": "swap",
+      "uniforms": {
+        "FxConfig": [
+          {
+            "name": "Params",
+            "type": "vec4",
+            "value": [
+              0.4,
+              0.27,
+              0.36,
+              0.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:post/blit",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "swap"
+        }
+      ],
+      "uniforms": {
+        "BlitConfig": [
+          {
+            "name": "ColorModulate",
+            "type": "vec4",
+            "value": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ]
+      },
+      "output": "minecraft:main"
+    }
+  ]
+}

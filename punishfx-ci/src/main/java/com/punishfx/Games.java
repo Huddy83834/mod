@@ -409,7 +409,8 @@ public final class Games {
         if (current == null && !QUEUE.isEmpty()) {
             current = QUEUE.pollFirst();
             current.start = now;
-            PunishManager.playSound(mc, current.kind == Kind.WHEEL ? "minecraft:block.note_block.bell" : "minecraft:block.chest.open", 0.8f, 1.0f);
+            if (PunishSounds.on(soundId(current.kind)))
+                PunishManager.playSound(mc, current.kind == Kind.WHEEL ? "minecraft:block.note_block.bell" : "minecraft:block.chest.open", 0.8f, 1.0f);
         }
         if (current != null && !current.resolved && now >= current.endAt()) resolve(mc, current, now);
     }
@@ -423,12 +424,16 @@ public final class Games {
             g.lastTick = u;
             int idx = g.kind == Kind.WHEEL ? Config.get().wheelTick : Config.get().caseTick;
             String snd = TICK_SOUNDS[Math.max(0, Math.min(TICK_SOUNDS.length - 1, idx))];
-            if (!first && snd != null && now - g.lastTickAt > 30) {
+            if (!first && snd != null && now - g.lastTickAt > 30 && PunishSounds.on(soundId(g.kind))) {
                 g.lastTickAt = now;
                 float pitch = 0.9f + 0.6f * (float) (1 - g.t(now)) + (g.kind == Kind.CASE ? 0.3f : 0f);
                 PunishManager.playSound(Minecraft.getInstance(), snd, 0.45f, pitch);
             }
         }
+    }
+
+    private static String soundId(Kind k) {
+        return k == Kind.WHEEL ? "spin_wheel" : "case_open";
     }
 
     private static String pickOne(Game g, Random r) {
@@ -456,7 +461,7 @@ public final class Games {
                 g.resultTitle = "NOTHING!";
                 g.resultSub = "You got lucky this time";
                 g.resultColor = 0x6BFF9E;
-                PunishManager.playSound(mc, "minecraft:entity.player.levelup", 0.8f, 1.2f);
+                if (PunishSounds.on(soundId(g.kind))) PunishManager.playSound(mc, "minecraft:entity.player.levelup", 0.8f, 1.2f);
             }
             case AGAIN -> {
                 g.resultTitle = "SPIN AGAIN!";
@@ -512,7 +517,8 @@ public final class Games {
             if (g.kind == Kind.CASE && !e.special()) g.resultSub = RARITY_NAMES[e.rarity] + "  ·  " + g.resultSub;
             for (String id : run) PunishManager.startFromGame(id, g.level, g.player, g.amount, mult, g.donation);
             boolean big = e.id.equals(JACKPOT) || e.id.equals(MEGA) || e.rarity >= 3;
-            PunishManager.playSound(mc, big ? "minecraft:ui.toast.challenge_complete" : "minecraft:block.note_block.bit", 0.8f, big ? 1f : 0.7f);
+            if (PunishSounds.on(soundId(g.kind)))
+                PunishManager.playSound(mc, big ? "minecraft:ui.toast.challenge_complete" : "minecraft:block.note_block.bit", 0.8f, big ? 1f : 0.7f);
         }
     }
 

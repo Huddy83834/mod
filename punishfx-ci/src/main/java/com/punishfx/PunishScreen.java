@@ -20,7 +20,8 @@ public class PunishScreen extends PfxFrame {
         list(List.of(
                 new Header("Donations"),
                 new Toggle("Show who donated", "Banner with their name and the amount", () -> c.announce, v -> c.announce = v),
-                new Toggle("Sounds", "Play a sound when a punishment starts", () -> c.sounds, v -> c.sounds = v),
+                new Toggle("Sounds", "Every Punish FX sound (switch single ones on Customize)", () -> c.sounds, v -> c.sounds = v),
+                new Toggle("Banner only", "Show who donated, but never punish (good for recording)", () -> c.bannerOnly, v -> c.bannerOnly = v),
                 new Toggle("Combine quick payments", "Payments close together count as one", () -> c.combine, v -> c.combine = v),
                 new Header("Several donations at once"),
                 new Choice("What happens", "", PunishManager.OVERLAP_NAMES, () -> c.overlapMode, v -> c.overlapMode = v, PunishManager.OVERLAP_DESCS),
