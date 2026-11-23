@@ -103,6 +103,8 @@ public class PunishFxClientTest implements FabricClientGameTest {
             streamTests(ctx);
             presetTests(ctx);
             giveawayTests(ctx);
+            giveaway2Tests(ctx);
+            goalTests(ctx);
             uiShots(ctx);
         }
 
@@ -1180,6 +1182,174 @@ public class PunishFxClientTest implements FabricClientGameTest {
         reset(ctx);
     }
 
+    // ------------------------------------------------------------------ 1.8: more giveaway
+
+    private boolean waitUntil(ClientGameTestContext ctx, java.util.function.Function<net.minecraft.client.Minecraft, Boolean> cond, int maxTicks) {
+        for (int i = 0; i < maxTicks; i += 3) {
+            ctx.waitTicks(3);
+            if (ctx.computeOnClient(cond::apply)) return true;
+        }
+        return false;
+    }
+
+    private void giveaway2Tests(ClientGameTestContext ctx) {
+        reset(ctx);
+        // ---- reading "!join" out of chat, and not being fooled
+        String parse = ctx.computeOnClient(mc -> {
+            String[][] cases = {
+                    {"<Steve> !join", "Steve"}, {"[VIP] Alex: !join", "Alex"}, {"Notch » !JOIN", "Notch"},
+                    {"[Owner] [Lvl 5] Jeb_ ➤ !join", "Jeb_"}, {"[VIP] Mallory: <Bob> !join", null}, {"Steve: !join please", null},
+                    {"Steve joined the game", null}, {"<Steve> hello", null}, {"<Bob> Steve: !join", null}};
+            StringBuilder bad = new StringBuilder();
+            for (String[] t : cases) {
+                String got = com.punishfx.Giveaway.joinSender(t[0], "!join");
+                if (!java.util.Objects.equals(got, t[1])) bad.append('"').append(t[0]).append("\" -> ").append(got).append("; ");
+            }
+            return bad.toString();
+        });
+        check(parse.isEmpty(), "free entry: reads '!join' from chat and can't be faked (" + (parse.isEmpty() ? "9 lines ok" : parse) + ")");
+
+        // ---- free entry + rules
+        String free = ctx.computeOnClient(mc -> {
+            Config c = Config.get();
+            c.gwEntryMode = 1; c.gwJoinWord = "!join"; c.gwBanned = "Griefer, Hacker"; c.gwMinEntries = 2; c.gwNoRepeat = false;
+            c.gwWinners = 1; c.gwPrize = "$1M"; c.cooldownSeconds = 0;
+            com.punishfx.Giveaway.cancel();
+            com.punishfx.Giveaway.start();
+            com.punishfx.Giveaway.chat("<Steve> !join");
+            String tooFew = com.punishfx.Giveaway.draw();
+            com.punishfx.Giveaway.chat("[VIP] Alex: !join");
+            com.punishfx.Giveaway.chat("<Steve> !join");
+            com.punishfx.Giveaway.chat("<Griefer> !join");
+            String banned = PunishManager.donorSub;
+            Detector.onMessage("Payer paid you $200,000.", false); // chat-only giveaway: a payment is just a donation
+            return com.punishfx.Giveaway.state().entrants.keySet() + " | " + tooFew + " | " + banned + " | punished=" + !PunishManager.active().isEmpty();
+        });
+        check(free.startsWith("[steve, alex] | Needs 1 more entry | is banned from giveaways | punished=true"),
+                "giveaway: free entry by chat, the ban list and the minimum all work (" + free + ")");
+        reset(ctx);
+
+        // ---- 1st, 2nd and 3rd place
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.gwEntryMode = 2; c.gwMinEntries = 0; c.gwWinners = 3; c.gwPrizeMode = 0; c.gwPrize = "$5M"; c.gwPrize2 = "$2M"; c.gwPrize3 = "$1M";
+            c.gwMethod = 3; c.gwDrawTime = 0; c.gwBanned = "";
+            for (String n : List.of("Notch", "Jeb_", "Grian", "Mumbo")) com.punishfx.Giveaway.chat("<" + n + "> !join");
+            com.punishfx.Giveaway.draw();
+        });
+        ctx.waitTicks(40);
+        shot(ctx, "fx_giveaway_3rd_place_drawing");
+        boolean finished = waitUntil(ctx, mc -> !com.punishfx.Giveaway.live(), 1500);
+        String places = ctx.computeOnClient(mc -> {
+            com.punishfx.Giveaway.Record r = com.punishfx.Giveaway.last();
+            StringBuilder sb = new StringBuilder();
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            for (com.punishfx.Giveaway.Place p : r.places) {
+                sb.append(p.place).append('=').append(p.name).append(':').append(com.punishfx.Giveaway.payCommand(p)).append(' ');
+                seen.add(p.name);
+            }
+            return sb.toString().trim() + " | distinct=" + seen.size() + " entrants=" + r.entrants;
+        });
+        check(finished && places.contains("distinct=3 entrants=6") && places.contains(" 5000000") && places.contains(" 2000000") && places.contains(" 1000000"),
+                "giveaway: draws 3rd, 2nd and 1st place, three different winners, each with their prize (" + places + ")");
+        shot(ctx, "fx_giveaway_1st_place_winner");
+        ctx.waitTicks(60);
+
+        // ---- reroll 1st place
+        String before = ctx.computeOnClient(mc -> com.punishfx.Giveaway.last().places.get(0).name);
+        String start = ctx.computeOnClient(mc -> String.valueOf(com.punishfx.Giveaway.reroll(1)));
+        boolean rr = waitUntil(ctx, mc -> com.punishfx.Giveaway.last().places.get(0).rerolled.size() == 1, 600);
+        String after = ctx.computeOnClient(mc -> {
+            com.punishfx.Giveaway.Place p = com.punishfx.Giveaway.last().places.get(0);
+            return p.name + " (was " + p.rerolled + ")";
+        });
+        boolean differs = !after.startsWith(before + " ");
+        check(start.equals("null") && rr && differs && after.contains("[" + before + "]"), "giveaway: reroll draws someone new for 1st (" + before + " -> " + after + ")");
+        shot(ctx, "fx_giveaway_reroll");
+        ctx.waitTicks(150);
+
+        // ---- can't win twice in a row
+        String repeat = ctx.computeOnClient(mc -> {
+            Config.get().gwNoRepeat = true;
+            com.punishfx.Giveaway.start();
+            String champ = com.punishfx.Giveaway.last().places.get(0).name;
+            com.punishfx.Giveaway.chat("<" + champ + "> !join");
+            boolean in = com.punishfx.Giveaway.count() == 1;
+            String sub = PunishManager.donorSub;
+            return champ + " in=" + in + " | " + sub;
+        });
+        check(repeat.contains("in=false") && repeat.contains("won last time"), "giveaway: last winner can't enter the next one (" + repeat + ")");
+
+        // ---- the pot split between 3 places, and a cancelled draw can be drawn again
+        String pot = ctx.computeOnClient(mc -> {
+            Config c = Config.get();
+            c.gwNoRepeat = false; c.gwPrizeMode = 1; c.gwEntryMode = 0; c.gwMoreTickets = false;
+            com.punishfx.Giveaway.start();
+            for (String n : List.of("Ann", "Ben", "Cat", "Dan")) com.punishfx.Giveaway.payment(n, 250_000);
+            return (long) com.punishfx.Giveaway.prizeAmount(1) + "/" + (long) com.punishfx.Giveaway.prizeAmount(2) + "/" + (long) com.punishfx.Giveaway.prizeAmount(3);
+        });
+        check(pot.equals("500000/300000/200000"), "giveaway: the pot splits 50/30/20 between 1st, 2nd and 3rd (" + pot + ")");
+        ctx.runOnClient(mc -> com.punishfx.Giveaway.draw());
+        ctx.waitTicks(5);
+        ctx.runOnClient(mc -> PunishManager.cancelAll());
+        ctx.waitTicks(5);
+        boolean again = ctx.computeOnClient(mc -> com.punishfx.Giveaway.live() && !com.punishfx.Giveaway.drawing() && com.punishfx.Giveaway.count() == 4);
+        check(again, "giveaway: cancelling a draw keeps the entries, ready to draw again");
+        ctx.runOnClient(mc -> {
+            com.punishfx.Giveaway.cancel();
+            Config c = Config.get();
+            c.gwWinners = 1; c.gwPrizeMode = 0; c.gwEntryMode = 0; c.gwMethod = 0; c.gwDrawTime = 1;
+        });
+        reset(ctx);
+    }
+
+    // ------------------------------------------------------------------ 1.8: goals
+
+    private void goalTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        String r1 = ctx.computeOnClient(mc -> {
+            Config c = Config.get();
+            c.goals = new ArrayList<>(List.of(new Config.Goal(1_000_000, "Shoutouts", ""), new Config.Goal(2_000_000, "Spin the wheel", "#wheel"),
+                    new Config.Goal(4_000_000, "I jump in lava", ""), new Config.Goal(8_000_000, "Giveaway!", "#giveaway")));
+            c.goalShow = true;
+            com.punishfx.GoalsHud.place(0);
+            com.punishfx.Goals.reset();
+            com.punishfx.Goals.add(1_500_000);
+            return com.punishfx.Goals.progress() + " celebrating=" + (com.punishfx.Goals.celebrating == null ? null : com.punishfx.Goals.celebrating.text)
+                    + " next=" + com.punishfx.Goals.next().text;
+        });
+        check(r1.equals("1500000.0 celebrating=Shoutouts next=Spin the wheel"), "goals: the bar fills and celebrates a goal it passes (" + r1 + ")");
+        ctx.waitTicks(10);
+        shot(ctx, "fx_goal_reached_top_bar");
+        ctx.runOnClient(mc -> Detector.onMessage("Zed paid you $600,000.", false)); // real donations fill it too -> 2.1M: the wheel goal
+        ctx.waitTicks(3);
+        String r2 = ctx.computeOnClient(mc -> com.punishfx.Goals.progress() + " wheel=" + com.punishfx.Games.busy());
+        check(r2.equals("2100000.0 wheel=true"), "goals: donations fill the bar, and a goal can spin the wheel (" + r2 + ")");
+        ctx.waitTicks(40);
+        shot(ctx, "fx_goal_wheel");
+        reset(ctx);
+        ctx.runOnClient(mc -> com.punishfx.Goals.celebrating = null);
+        ctx.runOnClient(mc -> com.punishfx.GoalsHud.place(1));
+        ctx.waitTicks(3);
+        shot(ctx, "fx_goal_bar_bottom");
+        ctx.runOnClient(mc -> com.punishfx.GoalsHud.place(2));
+        ctx.waitTicks(3);
+        shot(ctx, "fx_goal_bar_left");
+        ctx.runOnClient(mc -> com.punishfx.GoalsHud.place(3));
+        ctx.waitTicks(3);
+        shot(ctx, "fx_goal_bar_right");
+        String r3 = ctx.computeOnClient(mc -> {
+            com.punishfx.Goals.add(6_000_000); // passes 4M and 8M: the giveaway goal opens one
+            boolean gw = com.punishfx.Giveaway.live();
+            com.punishfx.Giveaway.cancel();
+            com.punishfx.Goals.reset();
+            return "giveaway=" + gw + " after reset=" + com.punishfx.Goals.progress();
+        });
+        check(r3.equals("giveaway=true after reset=0.0"), "goals: a goal can open a giveaway; reset empties the bar (" + r3 + ")");
+        reset(ctx);
+        ctx.runOnClient(mc -> { com.punishfx.Goals.celebrating = null; com.punishfx.GoalsHud.place(0); com.punishfx.Goals.add(3_000_000); });
+    }
+
     // ------------------------------------------------------------------ donation detection
 
     private void detectorTest(ClientGameTestContext ctx) {
@@ -1381,6 +1551,9 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.clickScreenButton("Giveaway");
         ctx.waitTicks(4);
         shot(ctx, "ui_" + size + "_7_giveaway");
+        ctx.clickScreenButton("Goals");
+        ctx.waitTicks(4);
+        shot(ctx, "ui_" + size + "_7b_goals");
         ctx.clickScreenButton("\u2605 Presets");
         ctx.waitTicks(4);
         shot(ctx, "ui_" + size + "_8_presets");
