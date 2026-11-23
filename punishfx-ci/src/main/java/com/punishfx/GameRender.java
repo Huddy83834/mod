@@ -239,6 +239,10 @@ public final class GameRender {
                 int col = p == null ? 0x888888 : p.cat.color;
                 yield i % 2 == 0 ? col : Ui.mix(col, 0x000000, 0.3f);
             }
+            case 7 -> {
+                int col = Games.WHEEL_RARITY_COLORS[Math.max(0, Math.min(4, e.rarity))];
+                yield i % 2 == 0 ? col : Ui.mix(col, 0x000000, 0.18f);
+            }
             default -> i % 3 == 0 ? Ui.ACCENT : i % 3 == 1 ? Ui.mix(Ui.ACCENT, 0x000000, 0.5f) : Ui.ACCENT2;
         };
     }
@@ -256,7 +260,7 @@ public final class GameRender {
     private static int dividerColor() {
         return switch (Config.get().wheelColors) {
             case 1 -> 0xE0B030;
-            case 3, 6 -> 0x2A2A30;
+            case 3, 6, 7 -> 0x2A2A30;
             case 4 -> 0xFFFFFF;
             default -> 0xF4F4F4;
         };
@@ -291,7 +295,7 @@ public final class GameRender {
         Config c = Config.get();
         var pose = g.pose();
         int n = game.entries.size();
-        double seg = Math.PI * 2 / n;
+        double[] st = game.starts();
         double rot = game.start == 0 ? 0 : game.pos(now);
         float cx = WHEEL_W / 2f, cy = HEAD + R + RIM;
 
@@ -324,7 +328,7 @@ public final class GameRender {
             int k = 0;
             xs[k++] = -half;
             for (int b = 0; b < n; b++) {
-                double th = rot + b * seg;
+                double th = rot + Math.PI * 2 * st[b];
                 double dy = -Math.cos(th);
                 if (Math.abs(dy) < 1e-9 || Math.signum(dy) != Math.signum(y)) continue;
                 double x = y / dy * Math.sin(th);
@@ -336,7 +340,7 @@ public final class GameRender {
                 double xm = (xs[s] + xs[s + 1]) / 2;
                 double a = Math.atan2(xm, -y) - rot;
                 a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-                int idx = Math.min(n - 1, (int) (a / seg));
+                int idx = game.sliceAt(a / (Math.PI * 2));
                 span(g, xs[s], xs[s + 1], row, Ui.a(alpha, colors[idx]));
             }
         }
@@ -344,7 +348,7 @@ public final class GameRender {
         double t = Math.max(1, res * 0.9);
         int div = Ui.a(0.9f * alpha, dividerColor());
         for (int b = 0; b < n; b++) {
-            double th = rot + b * seg, s = Math.sin(th), co = Math.cos(th);
+            double th = rot + Math.PI * 2 * st[b], s = Math.sin(th), co = Math.cos(th);
             for (int row = (int) Math.floor(-rd); row < Math.ceil(rd); row++) {
                 double y = row + 0.5;
                 if (Math.abs(y) >= rd) continue;
@@ -392,7 +396,8 @@ public final class GameRender {
         int mode = game.giveaway ? 0 : c.wheelLabels;
         for (int i = 0; i < n; i++) {
             Games.Entry e = game.entries.get(i);
-            double mid = rot + (i + 0.5) * seg;
+            double seg = Math.PI * 2 * game.width(i);
+            double mid = rot + Math.PI * 2 * (st[i] + st[i + 1]) / 2;
             mid = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
             if (mode != 0) {
                 double ri = mode == 1 ? R * 0.6 : R * 0.83;

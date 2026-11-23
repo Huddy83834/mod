@@ -54,20 +54,56 @@ public class ContentsScreen extends PfxFrame {
                             Config.save();
                             rebuild();
                         }))));
+        boolean wheel = kind == Games.Kind.WHEEL;
+        r.add(new Buttons(() -> "Rarity", null, wheel
+                ? "Click a punishment's rarity to change it. Rarer = a thinner slice, so it's harder to land on"
+                : "Click a punishment's rarity to change it. Rarer = its card's colour and harder to unbox",
+                List.of(new Btn(() -> usingRarity() ? "Using: On" : "Using: Off", usingRarity() ? Ui.GOOD : Ui.DIM, 62, () -> {
+                            Config c = Config.get();
+                            if (wheel) c.wheelRarity = !c.wheelRarity;
+                            else c.caseRarity = c.caseRarity == 3 ? 0 : 3;
+                            Config.save();
+                            rebuild();
+                        }),
+                        new Btn(() -> "Reset", Ui.THEME, 40, () -> {
+                            Config.get().rarities.clear();
+                            Config.save();
+                            rebuild();
+                        }))));
         for (Punishes.Cat cat : Punishes.Cat.values()) {
             if (cat == Punishes.Cat.GAMES) continue;
             r.add(new Header(cat.label));
             for (Punishes.P p : Punishes.all()) {
                 if (p.cat != cat) continue;
-                String desc = p.desc + (kind == Games.Kind.CASE ? "  (" + Games.RARITY_NAMES[Math.max(0, Math.min(3, p.severity))] + ")" : "");
-                r.add(new Toggle(p.name, desc, () -> picks().contains(p.id), v -> {
-                    picks().remove(p.id);
-                    if (v) picks().add(p.id);
-                    useMine();
-                }));
+                int rar = Games.rarityFor(p.id);
+                String[] names = wheel ? Games.WHEEL_RARITY_NAMES : Games.RARITY_NAMES;
+                int col = wheel ? Games.WHEEL_RARITY_COLORS[rar] : GameRender.rarityColor(rar);
+                r.add(new Buttons(() -> p.name, null, p.desc,
+                        List.of(new Btn(() -> names[Games.rarityFor(p.id)], col, 76, () -> {
+                                    Config c = Config.get();
+                                    c.rarities.put(p.id, (Games.rarityFor(p.id) + 1) % names.length);
+                                    if (wheel) c.wheelRarity = true;
+                                    else c.caseRarity = 3;
+                                    Config.save();
+                                    rebuild();
+                                }),
+                                new Btn(() -> picks().contains(p.id) ? "On" : "Off", picks().contains(p.id) ? Ui.GOOD : Ui.DIM, 32, () -> {
+                                    boolean was = picks().contains(p.id);
+                                    picks().remove(p.id);
+                                    if (!was) picks().add(p.id);
+                                    useMine();
+                                    Config.save();
+                                    rebuild();
+                                }))));
             }
         }
         list(r, cy + 14, cy + ch);
+    }
+
+    /** Whether the wheel / case is using the rarities you pick here. */
+    private boolean usingRarity() {
+        Config c = Config.get();
+        return kind == Games.Kind.WHEEL ? c.wheelRarity : c.caseRarity == 3;
     }
 
     @Override

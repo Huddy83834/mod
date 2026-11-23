@@ -114,6 +114,9 @@ public final class Config {
     public int wheelLuck = 0;              // 0 fair, 1 rigged (never Nothing), 2 teasing near-misses
     public int wheelLength = 0;            // index into Games.LENGTHS
     public int wheelColors = 1;            // index into Games.WHEEL_COLOR_NAMES
+    public boolean wheelRarity = false;    // rarer punishments get thinner slices (harder to land on)
+    /** The rarity you picked for each punishment (0..4), shared by the wheel and the case. Missing = from how bad it is. */
+    public java.util.Map<String, Integer> rarities = new java.util.HashMap<>();
     public int wheelRim = 3;               // index into Games.RIM_NAMES
     public int wheelLabels = 2;            // 0 names, 1 icons, 2 icons + names
     public int wheelFont = 0;              // index into TopDonorsHud.FONT_NAMES
@@ -130,7 +133,7 @@ public final class Config {
     // ---- case opening
     public int caseUse = 0;
     public int caseContents = 0;
-    public int caseRarity = 0;             // 0 how bad it is, 1 category, 2 random
+    public int caseRarity = 0;             // 0 how bad it is, 1 category, 2 random, 3 your picks
     public int caseOdds = 0;               // 0 real CS odds, 1 even, 2 generous
     public int caseGold = 1;               // 0 off, 1 mega combo, 2 double time, 3 opens the wheel
     public int caseSafe = 0;
@@ -414,7 +417,9 @@ public final class Config {
         wheelScale = Math.max(0.5, Math.min(4.0, wheelScale));
         caseUse = clamp(caseUse, 0, 5);
         caseContents = clamp(caseContents, 0, 2);
-        caseRarity = clamp(caseRarity, 0, 2);
+        caseRarity = clamp(caseRarity, 0, 3);
+        if (rarities == null) rarities = new java.util.HashMap<>();
+        rarities.replaceAll((k, v) -> v == null ? 0 : clamp(v, 0, 4));
         caseOdds = clamp(caseOdds, 0, 2);
         caseGold = clamp(caseGold, 0, 3);
         caseSafe = clamp(caseSafe, 0, 3);

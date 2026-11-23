@@ -106,6 +106,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
             giveaway2Tests(ctx);
             goalTests(ctx);
             simplerTests(ctx);
+            rarityTests(ctx);
             teachTests(ctx);
             presetStreamTests(ctx);
             layoutTests(ctx);
@@ -1355,6 +1356,104 @@ public class PunishFxClientTest implements FabricClientGameTest {
     }
 
     // ------------------------------------------------------------------ 1.9: picks, simpler presets, folding sections
+
+    private void rarityTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        String caseRes = ctx.computeOnClient(mc -> {
+            Config c = Config.get();
+            c.caseContents = 2; c.casePicks = new ArrayList<>(List.of("mirror", "blur", "fisheye"));
+            c.caseSafe = 0; c.caseGold = 0; c.caseOdds = 0; c.caseRarity = 3;
+            c.rarities.clear();
+            c.rarities.put("mirror", 4); c.rarities.put("blur", 0); c.rarities.put("fisheye", 2);
+            StringBuilder bad = new StringBuilder();
+            java.util.Map<String, Integer> wins = new java.util.TreeMap<>();
+            for (int i = 0; i < 3000; i++) {
+                com.punishfx.Games.Game g = com.punishfx.Games.build(com.punishfx.Games.Kind.CASE, 2, "T", null, 1, -1, 1, 0, 7L + i * 13L);
+                if (i == 0) for (com.punishfx.Games.Entry e : g.entries) {
+                    int want = c.rarities.get(e.id);
+                    if (e.rarity != want) bad.append(e.id).append(" rarity ").append(e.rarity).append("!=").append(want).append(' ');
+                }
+                wins.merge(g.winner().id, 1, Integer::sum);
+            }
+            int b = wins.getOrDefault("blur", 0), f = wins.getOrDefault("fisheye", 0), m = wins.getOrDefault("mirror", 0);
+            if (!(b > f && f > m && m > 0)) bad.append("odds don't follow your rarities ").append(wins).append(' ');
+            c.caseRarity = 0; // back to "how bad it is": your picks are ignored
+            com.punishfx.Games.Game g0 = com.punishfx.Games.build(com.punishfx.Games.Kind.CASE, 2, "T", null, 1, -1, 1, 0, 5L);
+            for (com.punishfx.Games.Entry e : g0.entries) if (e.id.equals("mirror") && e.rarity == 4) bad.append("used picks when off ");
+            return bad.length() == 0 ? "ok " + wins : bad.toString();
+        });
+        check(caseRes.startsWith("ok"), "case uses the rarity you pick for each punishment (" + caseRes + ")");
+
+        String wheelRes = ctx.computeOnClient(mc -> {
+            Config c = Config.get();
+            c.wheelContents = 2; c.wheelPicks = new ArrayList<>(List.of("frozen", "drunk"));
+            c.wheelSlots = 2; c.wheelNothing = 0; c.wheelAgain = 0; c.wheelDouble = 0; c.wheelJackpot = 0; c.wheelLuck = 0;
+            c.rarities.put("frozen", 0); c.rarities.put("drunk", 4);
+            StringBuilder bad = new StringBuilder();
+            c.wheelRarity = false;
+            com.punishfx.Games.Game even = com.punishfx.Games.build(com.punishfx.Games.Kind.WHEEL, 2, "T", null, 1, -1, 1, 0, 3L);
+            for (int i = 0; i < even.entries.size(); i++) if (Math.abs(even.width(i) - 1.0 / even.entries.size()) > 1e-9) { bad.append("uneven when off "); break; }
+            c.wheelRarity = true;
+            int drunk = 0, n = 1500;
+            for (int i = 0; i < n; i++) {
+                com.punishfx.Games.Game g = com.punishfx.Games.build(com.punishfx.Games.Kind.WHEEL, 2, "T", null, 1, -1, 1, 0, 11L + i * 7L);
+                g.start = 1000;
+                if (g.under(g.endAt() + 1) != g.win) { bad.append("lands wrong "); break; }
+                if (g.winner().id.equals("drunk")) drunk++;
+                if (i == 0) for (int k = 0; k < g.entries.size(); k++) {
+                    boolean rare = g.entries.get(k).id.equals("drunk");
+                    double want = (rare ? 0.15 : 1.0) / (4 * 0.15 + 4 * 1.0);
+                    if (Math.abs(g.width(k) - want) > 1e-6) { bad.append("slice width ").append(g.width(k)).append(" ").append(want).append(' '); break; }
+                }
+            }
+            double rate = drunk / (double) n;
+            if (rate < 0.07 || rate > 0.22) bad.append("legendary rate ").append(rate).append(' ');
+            // every luck setting still lands where it says, with thin slices and NOTHING slots
+            c.wheelNothing = 2; c.wheelDouble = 1; c.wheelJackpot = 1;
+            for (int luck = 0; luck < 3; luck++) {
+                c.wheelLuck = luck;
+                for (int i = 0; i < 300; i++) {
+                    com.punishfx.Games.Game g = com.punishfx.Games.build(com.punishfx.Games.Kind.WHEEL, 2, "T", null, 1, -1, 1, 0, 101L + i * 3L + luck);
+                    g.start = 1000;
+                    for (long t = 1000; t <= g.endAt() + 1; t += 37) g.under(t); // the ticker reads it all the way through
+                    if (g.under(g.endAt() + 1) != g.win) { bad.append("luck ").append(luck).append(" lands wrong "); break; }
+                    if (luck == 1 && g.winner().id.equals(com.punishfx.Games.NOTHING)) { bad.append("rigged gave NOTHING "); break; }
+                }
+            }
+            c.wheelLuck = 0;
+            return bad.length() == 0 ? "ok legendary " + Math.round(rate * 1000) / 10.0 + "%" : bad.toString();
+        });
+        check(wheelRes.startsWith("ok"), "wheel: rarer = thinner slice, lands right every time (" + wheelRes + ")");
+
+        // the pickers with a rarity button per punishment
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.rarities.put("blackout", 3); c.rarities.put("jitter", 1); c.rarities.put("fog", 2); c.rarities.put("drunk", 4);
+        });
+        ctx.setScreen(() -> new com.punishfx.ContentsScreen(null, com.punishfx.Games.Kind.CASE));
+        ctx.waitTicks(4);
+        shot(ctx, "ui_pick_case_rarity");
+        ctx.setScreen(() -> new com.punishfx.ContentsScreen(null, com.punishfx.Games.Kind.WHEEL));
+        ctx.waitTicks(4);
+        shot(ctx, "ui_pick_wheel_rarity");
+        ctx.setScreen(() -> null);
+
+        // a weighted wheel with rarity colours
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.wheelPicks = new ArrayList<>(List.of("frozen", "drunk", "mirror", "blur", "fisheye", "pixelated"));
+            c.rarities.put("mirror", 1); c.rarities.put("blur", 2); c.rarities.put("fisheye", 3); c.rarities.put("pixelated", 0);
+            c.wheelSlots = 3; c.wheelNothing = 1; c.wheelDouble = 0; c.wheelJackpot = 1; c.wheelAgain = 0;
+            c.wheelColors = 7; c.wheelRim = 1; c.wheelLabels = 2; c.wheelSpin = 1; c.wheelLuck = 0; c.wheelBg = 1; c.wheelRarity = true;
+        });
+        ctx.runOnClient(mc -> PunishManager.force("spin_wheel", 1));
+        ctx.waitTicks(12);
+        shot(ctx, "fx_wheel_rarity_slices");
+        ctx.waitTicks(80);
+        shot(ctx, "fx_wheel_rarity_result");
+        reset(ctx);
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.rarities.clear(); c.wheelRarity = false; c.wheelColors = 1; c.caseContents = 0; c.wheelContents = 0; });
+    }
 
     private void simplerTests(ClientGameTestContext ctx) {
         reset(ctx);

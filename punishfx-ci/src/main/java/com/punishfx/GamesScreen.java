@@ -78,8 +78,10 @@ public class GamesScreen extends PfxFrame {
         r.add(new Choice("When it spins", "", Games.USE_NAMES, () -> c.wheelUse, v -> c.wheelUse = v, USE_DESCS));
         r.add(new Choice("What's on it", "", new String[]{"Level's list", "Everything", "My list"}, () -> c.wheelContents, v -> c.wheelContents = v,
                 new String[]{"The punishments that level is set to use", "Every punishment (except the opt-in ones)", "Exactly what you tick in the list"}));
-        r.add(new Action("Choose what's on it", c.wheelPicks.size() + " ticked in your list", () -> "Pick...", Ui.GOOD,
+        r.add(new Action("Choose what's on it", c.wheelPicks.size() + " ticked in your list. Set each one's rarity there too", () -> "Pick...", Ui.GOOD,
                 () -> Minecraft.getInstance().setScreen(new ContentsScreen(parent, Games.Kind.WHEEL))));
+        r.add(new Toggle("Rarer = thinner slice", "Rare punishments get thin slices, so they're harder to land on (pick rarities in the list)",
+                () -> c.wheelRarity, v -> c.wheelRarity = v));
         String[] slots = new String[Games.WHEEL_SLOTS.length];
         for (int i = 0; i < slots.length; i++) slots[i] = String.valueOf(Games.WHEEL_SLOTS[i]);
         r.add(new Choice("Slots", "How many slices the wheel has", slots, () -> c.wheelSlots, v -> c.wheelSlots = v));
@@ -118,10 +120,11 @@ public class GamesScreen extends PfxFrame {
         r.add(new Choice("When it opens", "", Games.USE_NAMES, () -> c.caseUse, v -> c.caseUse = v, USE_DESCS));
         r.add(new Choice("What's inside", "", new String[]{"Level's list", "Everything", "My list"}, () -> c.caseContents, v -> c.caseContents = v,
                 new String[]{"The punishments that level is set to use", "Every punishment (except the opt-in ones)", "Exactly what you tick in the list"}));
-        r.add(new Action("Choose what's inside", c.casePicks.size() + " ticked in your list", () -> "Pick...", Ui.GOOD,
+        r.add(new Action("Choose what's inside", c.casePicks.size() + " ticked in your list. Set each one's rarity there too", () -> "Pick...", Ui.GOOD,
                 () -> Minecraft.getInstance().setScreen(new ContentsScreen(parent, Games.Kind.CASE))));
-        r.add(new Choice("Rarity", "", new String[]{"How bad it is", "Category", "Random"}, () -> c.caseRarity, v -> c.caseRarity = v,
-                new String[]{"Worse punishments are rarer (red = brutal)", "Each category is one rarity", "Shuffled every case"}));
+        r.add(new Choice("Rarity", "", new String[]{"How bad it is", "Category", "Random", "Your picks"}, () -> c.caseRarity, v -> c.caseRarity = v,
+                new String[]{"Worse punishments are rarer (red = brutal)", "Each category is one rarity", "Shuffled every case",
+                        "The rarity you set for each one in the list (Pick...)"}));
         r.add(new Choice("Odds", "", new String[]{"Real CS odds", "Even", "Generous"}, () -> c.caseOdds, v -> c.caseOdds = v,
                 new String[]{"Blue 79.9%, purple 16%, pink 3.2%, red 0.64%, gold 0.26%", "Every item has the same chance", "Rare ones show up far more often"}));
         r.add(new Choice("Gold ★ item", "", new String[]{"Off", "Mega combo", "Double time", "The wheel"}, () -> c.caseGold, v -> c.caseGold = v,

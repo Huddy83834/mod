@@ -28,16 +28,21 @@ public final class Games {
     public static final String[] LENGTH_NAMES = {"Normal", "1.5x", "2x", "3x"};
     public static final int[] SPIN_SECONDS = {3, 4, 5, 6, 8, 10, 12};
     public static final int[] OPEN_SECONDS = {3, 4, 5, 6, 8, 10};
-    public static final String[] WHEEL_COLOR_NAMES = {"Theme", "Casino", "Rainbow", "Pastel", "Neon", "Game show", "Categories"};
+    public static final String[] WHEEL_COLOR_NAMES = {"Theme", "Casino", "Rainbow", "Pastel", "Neon", "Game show", "Categories", "Rarity"};
     public static final String[] RIM_NAMES = {"None", "Gold", "Theme", "Light bulbs", "Neon"};
     public static final String[] POINTER_NAMES = {"White", "Gold", "Theme", "Red"};
     public static final String[] TICK_NAMES = {"Off", "Click", "Note block", "Pling"};
     private static final String[] TICK_SOUNDS = {null, "minecraft:block.wooden_button.click_on", "minecraft:block.note_block.hat", "minecraft:block.note_block.pling"};
     public static final String[] USE_NAMES = {"When picked", "Every donation", "Level 2 and up", "Level 3 and up", "Level 4 and up", "Level 5 and up"};
     public static final String[] RARITY_NAMES = {"Mil-Spec", "Restricted", "Classified", "Covert", "Rare Special"};
+    /** The same five rarities with plain names (for the wheel). */
+    public static final String[] WHEEL_RARITY_NAMES = {"Common", "Uncommon", "Rare", "Epic", "Legendary"};
+    public static final int[] WHEEL_RARITY_COLORS = {0x8C939B, 0x3DBE6E, 0x3E9BEA, 0xA45CF0, 0xF0A21A};
+    /** How wide a slice of each rarity is, next to a common one (when "rarer = thinner slice" is on). */
+    public static final double[] SLICE_WEIGHTS = {1.0, 0.7, 0.45, 0.28, 0.15};
     public static final int[] RARITY_COLORS = {0x4B69FF, 0x8847FF, 0xD32CE6, 0xEB4B4B, 0xFFD700};
     private static final double[][] ODDS = {{79.92, 15.98, 3.2, 0.64, 0.26}, {1, 1, 1, 1, 1}, {40, 30, 17, 9, 4}};
-    private static final double[] RARITY_LONGER = {1.0, 1.25, 1.5, 2.0, 1.0};
+    private static final double[] RARITY_LONGER = {1.0, 1.25, 1.5, 2.0, 2.5};
 
     // ---- special slots
     public static final String NOTHING = "#nothing", AGAIN = "#again", DOUBLE = "#double", JACKPOT = "#jackpot",
@@ -97,6 +102,32 @@ public final class Games {
         public String titleOverride, subtitle, prize;
         /** Elimination: the order names get knocked out (never the winner). */
         public int[] elimOrder;
+        /** Wheel: where each slice starts, as a fraction of a full turn (n + 1 values, 0 .. 1). Null = equal slices. */
+        double[] starts;
+
+        public double[] starts() {
+            if (starts == null || starts.length != entries.size() + 1) starts = evenStarts(entries.size());
+            return starts;
+        }
+
+        /** The slice at a fraction (0..1) of a turn, clockwise from the top. */
+        public int sliceAt(double frac) {
+            double[] st = starts();
+            int n = entries.size();
+            int lo = 0, hi = n - 1;
+            while (lo < hi) {
+                int mid = (lo + hi + 1) >>> 1;
+                if (st[mid] <= frac) lo = mid;
+                else hi = mid - 1;
+            }
+            return lo;
+        }
+
+        /** How much of a turn slice i takes up (0..1). */
+        public double width(int i) {
+            double[] st = starts();
+            return st[i + 1] - st[i];
+        }
 
         Game(Kind kind, List<Entry> entries, List<Entry> reel, int win, List<String> pool, String donor, String player, double amount,
              int level, long donation, double mult, int chain, long seed, long runMs, double from, double target, int style) {
@@ -132,7 +163,7 @@ public final class Games {
         public double pos(long now) {
             double t = t(now);
             if (kind == Kind.WHEEL) {
-                double seg = Math.PI * 2 / entries.size();
+                double seg = Math.PI * 2 * width(win);
                 return switch (style) {
                     case 1 -> target * (1 - Math.pow(1 - t, 4)) + seg * 0.45 * Math.sin(Math.PI * Math.max(0, (t - 0.72) / 0.28)) * (t > 0.72 ? 1 : 0);
                     case 2 -> target * (1 - Math.pow(1 - t, 6));
@@ -151,10 +182,8 @@ public final class Games {
         public int under(long now) {
             double p = pos(now);
             if (kind == Kind.WHEEL) {
-                int n = entries.size();
-                double seg = Math.PI * 2 / n;
                 double a = ((-p) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-                return Math.min(n - 1, (int) (a / seg));
+                return sliceAt(a / (Math.PI * 2));
             }
             return (int) Math.floor(p);
         }
@@ -292,8 +321,45 @@ public final class Games {
             prev = id;
         }
         List<Entry> out = new ArrayList<>();
-        for (String id : slots) out.add(new Entry(id, 0));
+        for (String id : slots) out.add(new Entry(id, wheelRarityOf(id)));
         return out;
+    }
+
+    static double[] evenStarts(int n) {
+        double[] st = new double[n + 1];
+        for (int i = 0; i <= n; i++) st[i] = i / (double) Math.max(1, n);
+        return st;
+    }
+
+    /** Slice positions: equal, or thinner for rarer slices when "rarer = thinner slice" is on. */
+    static double[] sliceStarts(List<Entry> slots) {
+        int n = slots.size();
+        if (!Config.get().wheelRarity) return evenStarts(n);
+        double total = 0;
+        double[] w = new double[n];
+        for (int i = 0; i < n; i++) total += w[i] = SLICE_WEIGHTS[Math.max(0, Math.min(4, slots.get(i).rarity))];
+        double[] st = new double[n + 1];
+        for (int i = 0; i < n; i++) st[i + 1] = st[i] + w[i] / total;
+        st[n] = 1.0;
+        return st;
+    }
+
+    /** The rarity you picked for a punishment (0..4), or one from how bad it is if you never picked. */
+    public static int rarityFor(String id) {
+        Integer v = Config.get().rarities.get(id);
+        if (v != null) return Math.max(0, Math.min(4, v));
+        Punishes.P p = Punishes.get(id);
+        return p == null ? 0 : Math.max(0, Math.min(3, p.severity));
+    }
+
+    /** A wheel slot's rarity: the special slots have fixed ones. */
+    static int wheelRarityOf(String id) {
+        return switch (id) {
+            case NOTHING, AGAIN -> 0;
+            case DOUBLE -> 2;
+            case JACKPOT -> 4;
+            default -> id.startsWith("#") || id.startsWith("@") ? 0 : rarityFor(id);
+        };
     }
 
     static int rarityOf(String id, Random r) {
@@ -310,6 +376,7 @@ public final class Games {
                 default -> 3;
             };
             case 2 -> r.nextInt(4);
+            case 3 -> rarityFor(id);
             default -> Math.max(0, Math.min(3, p.severity));
         };
     }
@@ -365,6 +432,18 @@ public final class Games {
         return w.length - 1;
     }
 
+    /** Pick one of {@code from}, a bigger slice being more likely (so a fair wheel is fair to its slice sizes). */
+    static int pickSlice(List<Integer> from, double[] st, Random r) {
+        double total = 0;
+        for (int i : from) total += st[i + 1] - st[i];
+        double x = r.nextDouble() * total;
+        for (int i : from) {
+            x -= st[i + 1] - st[i];
+            if (x < 0) return i;
+        }
+        return from.get(from.size() - 1);
+    }
+
     public static Game build(Kind kind, int level, String donor, String player, double amount, long donation, double mult, int chain, long seed) {
         Config c = Config.get();
         Random r = new Random(seed);
@@ -372,24 +451,27 @@ public final class Games {
             List<String> pool = contents(c.wheelContents, level, c.wheelPicks);
             List<Entry> slots = wheelSlots(pool, r);
             int n = slots.size();
+            double[] st = sliceStarts(slots);
             List<Integer> choices = new ArrayList<>();
             for (int i = 0; i < n; i++) if (c.wheelLuck == 0 || !slots.get(i).id.equals(NOTHING)) choices.add(i);
-            int win = choices.get(r.nextInt(choices.size()));
+            int win = pickSlice(choices, st, r);
             double f = 0.15 + r.nextDouble() * 0.7;
             if (c.wheelLuck == 2) {
                 // a near miss: crawl just past a "NOTHING" slot (the one before the winner)
                 List<Integer> teases = new ArrayList<>();
                 for (int i : choices) if (slots.get((i + 1) % n).id.equals(NOTHING)) teases.add(i);
-                if (!teases.isEmpty()) win = teases.get(r.nextInt(teases.size()));
+                if (!teases.isEmpty()) win = pickSlice(teases, st, r);
                 f = 0.9 + r.nextDouble() * 0.07;
             }
-            double seg = Math.PI * 2 / n;
             int secs = SPIN_SECONDS[c.wheelSpin];
             int turns = Math.max(2, (int) Math.round(secs * 0.9 + 1));
-            double land = (((-(win + f) * seg) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+            double at = Math.PI * 2 * (st[win] + f * (st[win + 1] - st[win]));
+            double land = ((-at % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
             double target = turns * Math.PI * 2 + land;
-            return new Game(kind, slots, null, win, pool, donor, player, amount, level, donation, mult, chain, seed,
+            Game g = new Game(kind, slots, null, win, pool, donor, player, amount, level, donation, mult, chain, seed,
                     secs * 1000L, 0, target, c.wheelStyle);
+            g.starts = st;
+            return g;
         }
         List<String> pool = contents(c.caseContents, level, c.casePicks);
         List<Entry> items = caseContents(pool, r);
@@ -597,7 +679,7 @@ public final class Games {
             return;
         }
         Random r = new Random(g.seed ^ 0x5DEECE66DL);
-        double mult = g.mult * (g.kind == Kind.WHEEL ? LENGTHS[c.wheelLength] : (c.caseLonger ? RARITY_LONGER[e.rarity] : 1.0));
+        double mult = g.mult * (g.kind == Kind.WHEEL ? LENGTHS[c.wheelLength] : (c.caseLonger && !e.special() ? RARITY_LONGER[e.rarity] : 1.0));
         List<String> run = new ArrayList<>();
         g.resultColor = g.kind == Kind.CASE ? GameRender.rarityColor(e.rarity) : 0xFFFFFF;
         switch (e.id) {
@@ -659,8 +741,9 @@ public final class Games {
                 g.resultSub = run.size() > 1 ? String.join(" + ", names) + "  ·  " + len : len;
             }
             if (g.kind == Kind.CASE && !e.special()) g.resultSub = RARITY_NAMES[e.rarity] + "  ·  " + g.resultSub;
+            else if (g.kind == Kind.WHEEL && c.wheelRarity && !e.special()) g.resultSub = WHEEL_RARITY_NAMES[e.rarity] + "  ·  " + g.resultSub;
             for (String id : run) PunishManager.startFromGame(id, g.level, g.player, g.amount, mult, g.donation);
-            boolean big = e.id.equals(JACKPOT) || e.id.equals(MEGA) || e.rarity >= 3;
+            boolean big = e.id.equals(JACKPOT) || e.id.equals(MEGA) || (e.rarity >= 3 && (g.kind == Kind.CASE || c.wheelRarity));
             if (PunishSounds.on(soundId(g.kind)))
                 PunishManager.playSound(mc, big ? "minecraft:ui.toast.challenge_complete" : "minecraft:block.note_block.bit", 0.8f, big ? 1f : 0.7f);
         }
@@ -684,8 +767,9 @@ public final class Games {
         Config c = Config.get();
         String key = kind == Kind.WHEEL
                 ? c.wheelSlots + "," + c.wheelNothing + "," + c.wheelAgain + "," + c.wheelDouble + "," + c.wheelJackpot + "," + c.wheelContents
-                + "," + c.wheelSpin + "," + c.wheelStyle + "," + c.wheelLuck
-                : c.caseSafe + "," + c.caseGold + "," + c.caseRarity + "," + c.caseOdds + "," + c.caseContents + "," + c.caseOpen + "," + c.caseStyle;
+                + "," + c.wheelSpin + "," + c.wheelStyle + "," + c.wheelLuck + "," + c.wheelRarity + "," + c.wheelPicks.hashCode() + "," + c.rarities.hashCode()
+                : c.caseSafe + "," + c.caseGold + "," + c.caseRarity + "," + c.caseOdds + "," + c.caseContents + "," + c.caseOpen + "," + c.caseStyle
+                + "," + c.casePicks.hashCode() + "," + c.rarities.hashCode();
         Game cur = kind == Kind.WHEEL ? demoWheel : demoCase;
         long period = cur == null ? 1 : cur.introMs + cur.runMs + 2200;
         long cycle = (now - previewKick) / Math.max(1, period);
