@@ -147,6 +147,23 @@ public class PunishPoolScreen extends PfxFrame {
         return t.pool.contains(id);
     }
 
+    private static String keyWord(Punishes.Cat cat, boolean shortKey) {
+        if (!shortKey) return cat == Punishes.Cat.VIEW ? "Camera" : cat.label;
+        return switch (cat) {
+            case MOVEMENT -> "Move";
+            case VIEW -> "Camera";
+            case SCREEN -> "Screen";
+            case HOTBAR -> "Hotbar";
+            case ACTION -> "Extreme";
+        };
+    }
+
+    private int legendWidth(boolean shortKey) {
+        int w = 0;
+        for (Punishes.Cat cat : Punishes.Cat.values()) w += this.font.width(keyWord(cat, shortKey)) + 15;
+        return w;
+    }
+
     @Override
     protected void renderPage(GuiGraphics g, int mouseX, int mouseY) {
         Config c = Config.get();
@@ -154,9 +171,9 @@ public class PunishPoolScreen extends PfxFrame {
         int chosen = 0;
         for (Punishes.P p : Punishes.all()) if (inPool(t, p.id)) chosen++;
         String sum = t.name + "  " + Money.compact(t.minAmount) + "+  " + fmt(t.seconds) + "s  x" + t.count;
-        int legendW = 0;
-        if (legend) for (Punishes.Cat cat : Punishes.Cat.values())
-            legendW += this.font.width(cat == Punishes.Cat.VIEW ? "Camera" : cat.label) + 15;
+        // the colour key: full names if they fit next to the summary, otherwise short ones
+        boolean shortKey = legendWidth(false) > cw - 120;
+        int legendW = legend ? legendWidth(shortKey) : 0;
         Ui.text(g, this.font, sum, cx, summaryY, 0xC8B4BA, cw - legendW - 6);
 
         for (Header h : headers) Ui.section(g, this.font, h.label(), cx, h.y() + 1, cw);
@@ -165,7 +182,7 @@ public class PunishPoolScreen extends PfxFrame {
             int lx = cx + cw;
             for (int i = Punishes.Cat.values().length - 1; i >= 0; i--) {
                 Punishes.Cat cat = Punishes.Cat.values()[i];
-                String word = cat == Punishes.Cat.VIEW ? "Camera" : cat.label;
+                String word = keyWord(cat, shortKey);
                 lx -= this.font.width(word);
                 g.drawString(this.font, word, lx, summaryY, Ui.a(1f, cat.color), false);
                 lx -= 9;
