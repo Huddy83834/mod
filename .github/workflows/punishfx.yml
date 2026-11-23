@@ -46,6 +46,28 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
+      - name: Probe font and mouse APIs
+        if: always()
+        shell: bash
+        run: |
+          set +e +o pipefail
+          J=""
+          for f in $(find / -name "*.jar" -path "*minecraft*" 2>/dev/null | grep -i -E "merged|client" | grep -v sources); do
+            if unzip -l "$f" 2>/dev/null | grep -q "net/minecraft/client/Options.class"; then J="$f"; break; fi
+          done
+          P() { echo "@@@@@ $1"; }
+          P "Style withFont"; javap -cp "$J" net.minecraft.network.chat.Style 2>&1 | grep -iE "font|withBold|withColor\(int|withShadow" | head
+          P "FontDescription"; unzip -l "$J" | grep -iE "FontDescription" | awk '{print $4}' | head
+          javap -cp "$J" net.minecraft.network.chat.FontDescription 2>&1 | head -20
+          javap -cp "$J" 'net.minecraft.network.chat.FontDescription$Resource' 2>&1 | head -12
+          P "font jsons"; unzip -l "$J" | grep -E "assets/minecraft/font/[a-z_]+\.json" | awk '{print $4}'
+          P "GuiEventListener mouse"; javap -cp "$J" net.minecraft.client.gui.components.events.GuiEventListener 2>&1 | grep -iE "mouse" 
+          P "MouseButtonEvent"; javap -cp "$J" net.minecraft.client.input.MouseButtonEvent 2>&1 | head -20
+          P "GuiGraphics drawString"; javap -cp "$J" net.minecraft.client.gui.GuiGraphics 2>&1 | grep -E "drawString|drawCenteredString" | head
+          P "MutableComponent withStyle"; javap -cp "$J" net.minecraft.network.chat.MutableComponent 2>&1 | grep -E "withStyle|withColor" | head
+          P "Screen keyPressed"; javap -cp "$J" net.minecraft.client.gui.screens.Screen 2>&1 | grep -E "keyPressed|mouseScrolled|mouseClicked|mouseDragged|mouseReleased|charTyped" | head
+          P "END"
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: punishfx-jar
