@@ -252,6 +252,32 @@ public class PunishFxClientTest implements FabricClientGameTest {
         check(r != null && Math.abs(r.amount() - 1_000_000) < 1 && "Huddy83834".equals(r.player()),
                 "detects \"" + msg + "\" -> " + (r == null ? "nothing (" + why + ")" : r.player() + " " + r.amount()));
 
+        String[] real = {"Bob paid you $1M.", "[Economy] Bob paid you $500,000.", "You have received $250,000 from Bob.",
+                "$1,000 has been received from Bob.", "+$50,000 from Bob", "Bob has sent you $1,000!"};
+        for (String line : real) {
+            Detector.Result rr = Detector.detect(Detector.clean(line), new StringBuilder());
+            check(rr != null && rr.player().equals("Bob"), "real payment detected: \"" + line + "\"");
+        }
+        String[] fake = {"Spoofer: Bob paid you $1,000,000", "[VIP] Spoofer \u00bb Bob paid you $1,000,000",
+                "<Spoofer> Bob paid you $1,000,000", "Spoofer \u27a4 Bob paid you $1,000,000", "Spoofer \u2192 Bob paid you $1M",
+                "[Spoofer -> me] Bob paid you $1M", "Spoofer whispers to you: Bob paid you $1M", "* Spoofer Bob paid you $1M",
+                "\u2726 Spoofer \u2726 Bob paid you $1M", "~Nick Bob paid you $1M", "Spoofer Bob paid you $1M",
+                "[Member] Spoofer: Bob paid you $1M", "Bob paid you $1M lol", "Spoofer: You received $1M from Bob",
+                "Bob paid you $1,000,000 was slain by Zombie", "Spoofer - Bob paid you $1M", "Spoofer \u2503 Bob paid you $1M",
+                "[VIP] \u00bb Bob paid you $1M", "Spoofer \u21d2 You have received $250,000 from Bob."};
+        for (String line : fake) {
+            StringBuilder w = new StringBuilder();
+            Detector.Result fr = Detector.detect(Detector.clean(line), w);
+            check(fr == null, "fake chat line ignored: \"" + line + "\" (" + w + ")");
+        }
+        // end to end: a fake line through the real message hook must not punish you
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; PunishManager.donorUntil = 0; });
+        ctx.waitTicks(3);
+        ctx.runOnClient(mc -> Detector.onMessage("[VIP] Spoofer \u27a4 Bob paid you $10,000,000", false));
+        ctx.waitTicks(5);
+        boolean punished = ctx.computeOnClient(mc -> !PunishManager.active().isEmpty() || PunishManager.donorShowing() || PunishManager.extremePending());
+        check(!punished, "a faked payment typed in chat does nothing");
+
         ctx.runOnClient(mc -> Detector.onMessage(msg, false));
         ctx.waitTicks(12);
         boolean banner = ctx.computeOnClient(mc -> PunishManager.donorShowing() && PunishManager.donor.equals("Huddy83834"));

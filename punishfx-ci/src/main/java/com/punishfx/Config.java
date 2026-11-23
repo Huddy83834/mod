@@ -64,6 +64,8 @@ public final class Config {
     public boolean readActionBar = true;
     public boolean ignorePlayerChat = true;
     public boolean requireDollarSign = true;
+    /** Old behaviour: accept "paid you $X" anywhere in a line. Unsafe - players can fake it in chat. */
+    public boolean looseMatching = false;
     public boolean saveSeenLines = true;
     public List<String> customPatterns = new ArrayList<>();
     public List<String> incomingWords = new ArrayList<>(List.of(

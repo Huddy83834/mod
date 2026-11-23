@@ -40,6 +40,24 @@ public final class Detector {
     private static final Pattern PM_ARROW = Pattern.compile("(?i)(?:" + NAME + "\\s*(?:->|\u2192|\u27a1|\u21d2)\\s*(?:me|you)\\b|\\b(?:me|you)\\s*(?:->|\u2192|\u27a1|\u21d2)\\s*" + NAME + ")");
     /** "+$50,000 from Steve" at the start of a line */
     private static final Pattern PLUS_MONEY = Pattern.compile("^\\W{0,3}\\+\\s?\\$");
+    // ---- strict mode: the WHOLE line must be a payment notice ----
+    // A real notice starts with the payer (or "You received"). When a player types the same words,
+    // the server puts their own name/rank + a separator in front, so these can't match chat.
+    private static final String S_NAME = "([.*]?[A-Za-z0-9_]{2,16})";
+    private static final String S_AMT = "(\\$\\s?[\\d][\\d,]*(?:\\.\\d+)?\\s?[kKmMbBtTqQ]?|[\\d][\\d,]*(?:\\.\\d+)?\\s?[kKmMbBtTqQ]?\\s?(?:coins?|dollars?|money|bucks|\\$))";
+    private static final String S_TAG = "(?:\\[[^\\]\\s<>\\-\u2192\u27a4\u00bb]{1,16}\\]\\s*){0,2}";
+    private static final Pattern LEAD_TAG = Pattern.compile("^\\s*\\[([^\\]]{1,16})\\]");
+    private static final String S_END = "\\s*[.!]?$";
+    private static final Pattern[] STRICT = {
+            // "Bob paid you $1M."  "Bob has sent you $1,000!"  "Bob sent $500 to you."
+            Pattern.compile("(?i)^" + S_TAG + S_NAME + "\\s+(?:has\\s+|just\\s+)?(?:paid|sent|given|gave|transferred|tipped|donated)(?:\\s+you)?\\s+" + S_AMT + "(?:\\s+to\\s+you)?" + S_END),
+            // "You received $1,000 from Bob."  "You have been paid $1,000 by Bob."
+            Pattern.compile("(?i)^" + S_TAG + "(?:you\\s+)?(?:have\\s+)?(?:just\\s+)?(?:received|got|been\\s+(?:paid|sent|given))\\s+" + S_AMT + "\\s+(?:from|by)\\s+" + S_NAME + S_END),
+            // "$1,000 has been received from Bob."  "$1,000 was sent to you by Bob."
+            Pattern.compile("(?i)^" + S_TAG + S_AMT + "\\s+(?:has\\s+been\\s+|was\\s+)?(?:received|sent\\s+to\\s+you|added\\s+to\\s+your\\s+(?:account|balance))\\s+(?:from|by)\\s+" + S_NAME + S_END),
+            // "+$50,000 from Bob"
+            Pattern.compile("(?i)^" + S_TAG + "\\+\\s?" + S_AMT + "\\s+from\\s+" + S_NAME + S_END),
+    };
     private static final Pattern VANILLA_CHAT = Pattern.compile("^<" + NAME + ">\\s");
     private static final java.util.Set<String> NOT_NAMES = java.util.Set.of(
             "you", "your", "the", "a", "an", "server", "console", "bank", "player", "someone", "money", "admin", "system");
@@ -101,16 +119,21 @@ public final class Detector {
             return new Result(amount, player == null || player.isBlank() ? UNKNOWN : player.trim(), "custom pattern");
         }
 
-        // 2. built-in rules
+        // 2. never a player typing or a private message
         String lower = text.toLowerCase(Locale.ROOT);
-        if (c.ignorePlayerChat && looksLikeChat(text)) {
+        if (looksLikeChat(text)) {
             why.append("looks like a player typing in chat");
             return null;
         }
-        if (c.ignorePlayerChat && isPrivateMessage(text, lower)) {
+        if (isPrivateMessage(text, lower)) {
             why.append("looks like a private message");
             return null;
         }
+
+        // 3. built-in rules: the whole line must be a payment notice
+        if (!c.looseMatching) return strict(text, why);
+
+        // 4. old loose rules (opt-in only: a player can fake these by typing in chat)
         for (String w : c.outgoingWords) {
             if (!w.isBlank() && containsWord(lower, w.toLowerCase(Locale.ROOT))) {
                 why.append("has the word \"").append(w).append("\" (not money you received)");
@@ -135,6 +158,37 @@ public final class Detector {
         }
         String player = findPlayer(text);
         return new Result(amount, player, "built-in rules");
+    }
+
+    /** Only accepts a line that is, start to finish, a payment notice (see {@link #STRICT}). */
+    private static Result strict(String text, StringBuilder why) {
+        // a leading "[Name]" that is a player is a chat/PM format, not a plugin tag
+        Matcher lt = LEAD_TAG.matcher(text);
+        if (lt.find() && isOnline(lt.group(1).trim())) {
+            why.append("starts with a player's name in brackets (chat or a private message)");
+            return null;
+        }
+        for (int i = 0; i < STRICT.length; i++) {
+            Matcher m = STRICT[i].matcher(text);
+            if (!m.matches()) continue;
+            String amt = i == 0 ? m.group(2) : m.group(1);
+            String player = i == 0 ? m.group(1) : m.group(2);
+            if (Config.get().requireDollarSign && !amt.contains("$") && !amt.matches("(?i).*(coins?|dollars?|money|bucks)$")) {
+                why.append("amount has no $");
+                return null;
+            }
+            double amount = Money.parse(amt.replaceAll("(?i)\\s*(coins?|dollars?|money|bucks)$", ""));
+            if (amount <= 0) {
+                why.append("no money amount found");
+                return null;
+            }
+            if (NOT_NAMES.contains(player.toLowerCase(Locale.ROOT))) player = UNKNOWN;
+            return new Result(amount, player, "payment notice");
+        }
+        why.append(text.toLowerCase(Locale.ROOT).contains("paid you") || text.toLowerCase(Locale.ROOT).contains("received")
+                ? "not a whole-line payment notice (something is in front of or after it, e.g. a player typing it in chat)"
+                : "not a payment notice");
+        return null;
     }
 
     private static String group(Matcher m, String name) {
