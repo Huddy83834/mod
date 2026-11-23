@@ -58,7 +58,15 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.getInput().resizeWindow(960, 540); // auto GUI scale -> 480x270, the common 1080p size
         ctx.waitTicks(5);
 
-        try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
+        // Superflat generates far faster than a normal world, so slow CI machines don't time out.
+        try (TestSingleplayerContext sp = ctx.worldBuilder().adjustSettings(state -> {
+            for (var entry : java.util.stream.Stream.concat(state.getNormalPresetList().stream(), state.getAltPresetList().stream()).toList()) {
+                if (entry.preset() != null && entry.preset().is(net.minecraft.world.level.levelgen.presets.WorldPresets.FLAT)) {
+                    state.setWorldType(entry);
+                    break;
+                }
+            }
+        }).create()) {
             sp.getClientWorld().waitForChunksRender();
             TestServerContext server = sp.getServer();
             server.runCommand("time set noon");
