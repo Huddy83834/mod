@@ -55,10 +55,8 @@ public class PunishFxClientTest implements FabricClientGameTest {
 
         configTests();
 
-        // CI machines render in software on 2 cores: cap FPS and view distance so the integrated
-        // server gets enough CPU to load the world (it was timing out at "Preparing spawn area").
+        // CI renders in software: a short view distance keeps each frame (and so each tick) fast.
         ctx.runOnClient(mc -> {
-            mc.options.framerateLimit().set(15);
             mc.options.renderDistance().set(4);
             mc.options.simulationDistance().set(5);
         });
