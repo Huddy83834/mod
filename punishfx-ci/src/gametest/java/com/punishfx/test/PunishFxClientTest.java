@@ -5,6 +5,9 @@ import com.punishfx.ControlState;
 import com.punishfx.Detector;
 import com.punishfx.PfxFrame;
 import com.punishfx.PunishManager;
+import com.punishfx.DonorBoard;
+import com.punishfx.MoveScreen;
+import com.punishfx.Ui;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -171,6 +174,11 @@ public class PunishFxClientTest implements FabricClientGameTest {
         boolean cleared = ctx.computeOnClient(mc -> mc.player.getEffect(MobEffects.NAUSEA) == null);
         check(cleared, "nausea removed when drunk ends (no leftover effect)");
 
+        Config.get().sluggishLevel = 3; // "A tenth"
+        double tenth = walk(ctx, server, "sluggish")[1];
+        check(tenth > 0.05 && tenth < normal * 0.2, "Sluggish strength 'A tenth' is slower still (" + fmt(tenth) + "m)");
+        Config.get().sluggishLevel = 1;
+
         double after = walk(ctx, server, null)[1];
         check(after > 2.5, "movement back to normal after punishments (" + fmt(after) + "m)");
     }
@@ -298,11 +306,108 @@ public class PunishFxClientTest implements FabricClientGameTest {
 
         ctx.runOnClient(mc -> Detector.onMessage(msg, false));
         ctx.waitTicks(12);
+        boolean onBoard = ctx.computeOnClient(mc -> DonorBoard.top(0, 10).stream().anyMatch(e -> e.name.equals("Huddy83834") && e.total >= 1_000_000));
+        check(onBoard, "a real donation is added to the top donors board");
         boolean banner = ctx.computeOnClient(mc -> PunishManager.donorShowing() && PunishManager.donor.equals("Huddy83834"));
         check(banner, "donation shows the banner with who paid (" + PunishManager.donor + " " + PunishManager.donorAmount + ")");
         shot(ctx, "fx_donation_banner");
         ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
         ctx.waitTicks(80); // let the banner time out
+
+        // cooldown: a second donation right after only shows the banner
+        ctx.runOnClient(mc -> { Config.get().cooldownSeconds = 30; PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
+        ctx.runOnClient(mc -> Detector.onMessage("Bob paid you $1,000,000.", false));
+        ctx.waitTicks(3);
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; });
+        ctx.runOnClient(mc -> Detector.onMessage("Alex paid you $2,000,000.", false));
+        ctx.waitTicks(3);
+        boolean cooled = ctx.computeOnClient(mc -> PunishManager.active().isEmpty() && PunishManager.donorSub.contains("cooldown"));
+        check(cooled, "donation cooldown: a second donation only shows the banner (" + PunishManager.donorSub + ")");
+        ctx.runOnClient(mc -> { Config.get().cooldownSeconds = 0; PunishManager.cancelAll(); PunishManager.bannerUntil = 0; PunishManager.donorUntil = 0; });
+        ctx.waitTicks(5);
+
+        topDonorsTests(ctx);
+    }
+
+    // ------------------------------------------------------------------ top donors board
+
+    private void topDonorsTests(ClientGameTestContext ctx) {
+        ctx.runOnClient(mc -> {
+            DonorBoard.reset();
+            DonorBoard.record("Huddy83834", 5_000_000);
+            DonorBoard.record("Steve", 1_200_000);
+            DonorBoard.record("Alex", 800_000);
+            DonorBoard.record("Notch", 250_000);
+            DonorBoard.record("Steve", 300_000);
+            Config c = Config.get();
+            c.topShow = true;
+            c.topX = 1.0;
+            c.topY = 0.3;
+            c.topScale = 1.0;
+            Config.save();
+        });
+        boolean order = ctx.computeOnClient(mc -> {
+            var t = DonorBoard.top(0, 5);
+            return t.size() == 4 && t.get(0).name.equals("Huddy83834") && t.get(1).name.equals("Steve") && t.get(1).total == 1_500_000;
+        });
+        check(order, "top donors are sorted and add up repeat donations");
+        ctx.waitTicks(3);
+        shot(ctx, "fx_topdonors_default");
+
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.topFont = 1; c.topBackground = 2; c.topColor = 7; c.topBold = true; c.topScale = 1.5; c.topX = 0; c.topY = 0;
+            c.topTitle = "BIGGEST FANS";
+            Config.save();
+        });
+        ctx.waitTicks(3);
+        shot(ctx, "fx_topdonors_thin_glass_rainbow");
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.topFont = 3; c.topBackground = 3; c.topColor = 2; c.topBold = false; c.topItalic = true; c.topScale = 1.0;
+            c.topX = 0.5; c.topY = 1.0; c.topAmounts = 1;
+            Config.save();
+        });
+        ctx.waitTicks(3);
+        shot(ctx, "fx_topdonors_illager_theme_gold");
+
+        // back to defaults, then drag it with the real mouse in the editor
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.topFont = 0; c.topBackground = 1; c.topColor = 0; c.topItalic = false; c.topAmounts = 0;
+            c.topTitle = "TOP DONORS"; c.topX = 1.0; c.topY = 0.3; c.topScale = 1.0;
+            Config.save();
+        });
+        ctx.setScreen(() -> new MoveScreen(null));
+        ctx.waitTicks(4);
+        double[] start = ctx.computeOnClient(mc -> {
+            int[] b = com.punishfx.TopDonorsHud.bounds(mc.font, mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), true);
+            double gs = mc.getWindow().getGuiScale();
+            return new double[]{(b[0] + b[2] / 2.0) * gs, (b[1] + b[3] / 2.0) * gs, Config.get().topX, Config.get().topY};
+        });
+        ctx.getInput().setCursorPos(start[0], start[1]);
+        ctx.waitTicks(2);
+        ctx.getInput().holdMouse(0);
+        ctx.waitTicks(2);
+        for (int i = 0; i < 6; i++) {
+            ctx.getInput().moveCursor(-60, 30);
+            ctx.waitTicks(1);
+        }
+        ctx.getInput().releaseMouse(0);
+        ctx.waitTicks(2);
+        double nx = Config.get().topX, ny = Config.get().topY;
+        check(nx < start[2] - 0.1 && ny > start[3] + 0.05, "dragging moves the board (" + fmt(start[2]) + "," + fmt(start[3]) + " -> " + fmt(nx) + "," + fmt(ny) + ")");
+        double s0 = Config.get().topScale;
+        ctx.getInput().scroll(1);
+        ctx.waitTicks(2);
+        ctx.getInput().scroll(1);
+        ctx.waitTicks(2);
+        check(Config.get().topScale > s0 + 0.15, "scrolling makes the board bigger (" + fmt(s0) + " -> " + fmt(Config.get().topScale) + ")");
+        shot(ctx, "ui_move_editor");
+        ctx.clickScreenButton("Done");
+        ctx.waitTicks(3);
+        ctx.setScreen(() -> null);
+        ctx.waitTicks(3);
     }
 
     // ------------------------------------------------------------------ UI
@@ -317,6 +422,12 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.clickScreenButton("Punishments");
         ctx.waitTicks(4);
         shot(ctx, "ui_" + size + "_3_punishments");
+        ctx.clickScreenButton("Customize");
+        ctx.waitTicks(4);
+        shot(ctx, "ui_" + size + "_4_customize");
+        ctx.clickScreenButton("Top Donors");
+        ctx.waitTicks(4);
+        shot(ctx, "ui_" + size + "_5_topdonors");
         ctx.setScreen(() -> null);
         ctx.waitTicks(3);
     }
@@ -346,6 +457,20 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.waitTicks(2);
         check(Config.get().tiers.get(0).pool.isEmpty(), "ticking it back restores 'every punishment'");
         ctx.runOnClient(mc -> Config.reset());
+        ctx.setScreen(() -> null);
+        ctx.waitTicks(3);
+
+        // theme: the first ">" on Customize is the theme picker
+        ctx.setScreen(() -> PfxFrame.open(null, PfxFrame.Page.CUSTOMIZE));
+        ctx.waitTicks(4);
+        ctx.clickScreenButton(">");
+        ctx.waitTicks(3);
+        check(Config.get().theme == 1 && Ui.ACCENT == Ui.themeAccent(1), "theme picker changes the colours (theme " + Config.get().theme + ")");
+        shot(ctx, "ui_theme_violet_customize");
+        ctx.clickScreenButton("General");
+        ctx.waitTicks(3);
+        shot(ctx, "ui_theme_violet_general");
+        ctx.runOnClient(mc -> { Config.get().theme = 0; Config.save(); });
         ctx.setScreen(() -> null);
         ctx.waitTicks(3);
 

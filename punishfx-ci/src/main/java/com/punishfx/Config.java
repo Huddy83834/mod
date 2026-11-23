@@ -60,6 +60,43 @@ public final class Config {
     /** The two extreme ones (leave server, close game) ask for a 5s cancel countdown first. */
     public boolean confirmExtreme = true;
 
+    // ---- look
+    /** Index into {@link Ui#THEME_NAMES}. */
+    public int theme = 0;
+    /** Multiplies how strong the colour overlays look (flash, fog, disco...). */
+    public double overlayStrength = 1.0;
+
+    // ---- donation banner
+    public int bannerPos = 0;              // 0 top, 1 middle, 2 bottom
+    public double bannerScale = 1.0;
+    public double bannerSeconds = 3.5;
+    public boolean bannerShowPunishments = true;
+
+    // ---- per-punishment strength (index into the choices on the Customize page; 1 = normal)
+    public int sluggishLevel = 1, drunkLevel = 1, jitterLevel = 1, glitchLevel = 1, spinLevel = 1,
+            tunnelLevel = 1, lagLevel = 1, flashLevel = 1, discoLevel = 1;
+
+    // ---- safety
+    /** Donations this many seconds after the last punishment only show the banner. 0 = off. */
+    public int cooldownSeconds = 0;
+    /** Length of the cancel countdown before Leave Server / Close Minecraft. */
+    public int countdownSeconds = 5;
+    public double volume = 1.0;
+
+    // ---- top donors board
+    public boolean topShow = false;
+    public String topTitle = "TOP DONORS";
+    public int topRows = 5;
+    public int topFont = 0;                // index into TopDonorsHud.FONT_NAMES
+    public boolean topBold = false, topItalic = false, topShadow = true, topMedals = true, topHideEmpty = false;
+    public int topColor = 0;               // index into TopDonorsHud.COLOR_NAMES
+    public int topBackground = 1;          // index into TopDonorsHud.BG_NAMES
+    public int topAmounts = 0;             // 0 short ($1.2M), 1 full ($1,200,000)
+    public int topPeriod = 0;              // 0 all time, 1 today, 2 this session
+    public double topScale = 1.0;
+    /** Position as a fraction of the free space (0 = left/top edge, 1 = right/bottom edge). */
+    public double topX = 1.0, topY = 0.3;
+
     // ---- detection (same engine as the donation mod)
     public boolean readActionBar = true;
     public boolean ignorePlayerChat = true;
@@ -110,6 +147,7 @@ public final class Config {
     }
 
     public static void save() {
+        Ui.applyTheme(INSTANCE.theme);
         try {
             Files.writeString(path(), GSON.toJson(INSTANCE));
         } catch (Exception e) {
@@ -120,6 +158,10 @@ public final class Config {
     public static void reset() {
         INSTANCE = defaults();
         save();
+    }
+
+    private static int clamp(int v, int lo, int hi) {
+        return Math.max(lo, Math.min(hi, v));
     }
 
     private void fix() {
@@ -141,6 +183,33 @@ public final class Config {
         if (incomingWords == null) incomingWords = d.incomingWords;
         if (outgoingWords == null) outgoingWords = d.outgoingWords;
         if (privateMessageWords == null) privateMessageWords = d.privateMessageWords;
+        theme = clamp(theme, 0, Ui.THEME_NAMES.length - 1);
+        overlayStrength = Math.max(0.25, Math.min(2.0, overlayStrength));
+        bannerPos = clamp(bannerPos, 0, 2);
+        bannerScale = Math.max(0.5, Math.min(3.0, bannerScale));
+        bannerSeconds = Math.max(1.0, Math.min(20.0, bannerSeconds));
+        sluggishLevel = clamp(sluggishLevel, 0, 3);
+        drunkLevel = clamp(drunkLevel, 0, 2);
+        jitterLevel = clamp(jitterLevel, 0, 2);
+        glitchLevel = clamp(glitchLevel, 0, 2);
+        spinLevel = clamp(spinLevel, 0, 3);
+        tunnelLevel = clamp(tunnelLevel, 0, 3);
+        lagLevel = clamp(lagLevel, 0, 2);
+        flashLevel = clamp(flashLevel, 0, 2);
+        discoLevel = clamp(discoLevel, 0, 2);
+        cooldownSeconds = clamp(cooldownSeconds, 0, 600);
+        countdownSeconds = clamp(countdownSeconds, 1, 60);
+        volume = Math.max(0.0, Math.min(1.0, volume));
+        if (topTitle == null) topTitle = "TOP DONORS";
+        topRows = clamp(topRows, 1, 10);
+        topFont = clamp(topFont, 0, 3);
+        topColor = clamp(topColor, 0, 7);
+        topBackground = clamp(topBackground, 0, 3);
+        topAmounts = clamp(topAmounts, 0, 1);
+        topPeriod = clamp(topPeriod, 0, 2);
+        topScale = Math.max(0.5, Math.min(4.0, topScale));
+        topX = Math.max(0.0, Math.min(1.0, topX));
+        topY = Math.max(0.0, Math.min(1.0, topY));
         lengthScale = Math.max(0.25, Math.min(3.0, lengthScale));
         maxActive = Math.max(1, Math.min(20, maxActive));
         combineSeconds = Math.max(0, Math.min(30, combineSeconds));

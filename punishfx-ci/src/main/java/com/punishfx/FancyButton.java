@@ -81,7 +81,7 @@ public class FancyButton extends Button {
     // --- plain button / tab ---------------------------------------------
     private void renderPlain(GuiGraphics g, Font f, String s, int x, int y, int w, int h, boolean hov) {
         boolean isHot = hot != null && hot.getAsBoolean();
-        int base = isHot ? Ui.mix(acc(), 0x000000, 0.35f) : !this.active ? 0x140A0E : hov ? Ui.CARD_HI : Ui.CARD;
+        int base = isHot ? Ui.mix(acc(), 0x000000, 0.35f) : !this.active ? Ui.tint(0x0E0C10, 0.06f) : hov ? Ui.CARD_HI : Ui.CARD;
         body(g, x, y, w, h, base);
         g.fill(x + 1, y + 1, x + 3, y + h - 1, Ui.a(isHot || this.active ? 1f : 0.35f, acc()));
         if (isHot) {
@@ -118,7 +118,7 @@ public class FancyButton extends Button {
     private void renderToggle(GuiGraphics g, Font f, String s, int x, int y, int w, int h, boolean hov) {
         boolean on = onState.getAsBoolean();
         int onCol = acc() == Ui.ACCENT ? Ui.GOOD : acc();
-        int base = on ? Ui.mix(onCol, 0x000000, 0.62f) : (hov ? 0x241820 : 0x1A1216);
+        int base = on ? Ui.mix(onCol, 0x000000, 0.62f) : (hov ? Ui.tint(0x201C24, 0.1f) : Ui.tint(0x16131A, 0.07f));
         body(g, x, y, w, h, base);
         g.fill(x + 1, y + 1, x + 3, y + h - 1, Ui.a(1f, on ? onCol : 0x55454A));
         int textCol = on ? 0xFFFFFF : 0x9A8B8F;
@@ -140,7 +140,7 @@ public class FancyButton extends Button {
     private void renderCheck(GuiGraphics g, Font f, String s, int x, int y, int w, int h, boolean hov) {
         boolean sel = selected.getAsBoolean();
         int acc = acc();
-        int base = sel ? Ui.mix(acc, 0x000000, 0.66f) : (hov ? Ui.CARD_HI : 0x170F13);
+        int base = sel ? Ui.mix(acc, 0x000000, 0.66f) : (hov ? Ui.CARD_HI : Ui.tint(0x141118, 0.06f));
         body(g, x, y, w, h, base);
         int bs = Math.min(h - 6, 9);
         int bx = x + 4, by = y + (h - bs) / 2;

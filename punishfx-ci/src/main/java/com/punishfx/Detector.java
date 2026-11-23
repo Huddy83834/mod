@@ -100,6 +100,7 @@ public final class Detector {
             lastMoneyLine = text;
             lastMoneyVerdict = verdict;
             remember(text, verdict, actionBar);
+            if (r != null) DonorBoard.record(r.player(), r.amount()); // every real donation counts on the board
             if (r != null && level >= 0) PunishManager.hit(r.amount(), r.player(), level, false);
         }
     }

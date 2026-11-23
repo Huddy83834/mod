@@ -64,6 +64,8 @@ public final class PunishManager {
     public static String donorAmount = "";
     public static String donorSub = "";
     public static long donorUntil = 0;
+    public static long donorStart = 0;
+    private static long lastPunishAt = 0;
 
     private PunishManager() {}
 
@@ -89,7 +91,8 @@ public final class PunishManager {
 
     /** Total length of the current pending countdown, so the overlay can draw a progress bar. */
     public static long extremeTotalMillis() {
-        return Config.get().confirmExtreme ? 5000 : 1200;
+        Config c = Config.get();
+        return c.confirmExtreme ? c.countdownSeconds * 1000L : 1200;
     }
 
     public static Punishes.P pendingExtreme() {
@@ -112,6 +115,9 @@ public final class PunishManager {
         Config.Tier t = c.tiers.get(level);
         List<String> ids = Punishes.pick(t, Math.max(1, t.count));
         if (ids.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        // cooldown: a donation soon after the last punishment only shows the banner
+        boolean cooling = !test && c.cooldownSeconds > 0 && now - lastPunishAt < c.cooldownSeconds * 1000L;
 
         // Announce who paid and how much, once per donation.
         if (c.announce) {
@@ -119,14 +125,17 @@ public final class PunishManager {
             for (String id : ids) names.add(Punishes.name(id));
             donor = (player == null || player.isBlank()) ? "Someone" : player;
             donorAmount = Money.full(amount);
-            donorSub = String.join("  ·  ", names);
-            donorUntil = System.currentTimeMillis() + 3400;
+            donorSub = cooling ? "on cooldown, no punishment" : String.join("  ·  ", names);
+            donorStart = now;
+            donorUntil = now + (long) (c.bannerSeconds * 1000);
             Minecraft mc = Minecraft.getInstance();
             if (c.sounds && mc.player != null) {
                 playSound(mc, "minecraft:block.note_block.pling", 0.8f, 0.6f);
                 playSound(mc, "minecraft:entity.villager.no", 0.7f, 0.8f);
             }
         }
+        if (cooling) return;
+        lastPunishAt = now;
         for (String id : ids) start(id, level, player, amount);
     }
 
@@ -146,14 +155,14 @@ public final class PunishManager {
 
         if (p.extreme) {
             pendingExtreme = p;
-            pendingUntil = now + (c.confirmExtreme ? 5000 : 1200);
+            pendingUntil = now + extremeTotalMillis();
             return;
         }
         if (p.cat == Punishes.Cat.ACTION) {
             runAction(Minecraft.getInstance(), p);
             return;
         }
-        if (id.equals("flashbang")) dur *= 1.6; // the white-out lingers longer than the rest
+        if (id.equals("flashbang")) dur *= new double[]{1.2, 1.6, 2.2}[c.flashLevel]; // the white-out lingers
         if (!c.stack) ACTIVE.clear();
         while (ACTIVE.size() >= c.maxActive) ACTIVE.remove(0);
         // don't double up the same punishment
@@ -177,6 +186,7 @@ public final class PunishManager {
 
     public static void tick(Minecraft mc) {
         tick++;
+        Config c = Config.get();
         if (mc.player == null || mc.level == null) {
             ACTIVE.clear();
             pendingExtreme = null;
@@ -213,32 +223,35 @@ public final class PunishManager {
                     anyControl = true;
                 }
                 case "sluggish" -> {
-                    ControlState.slow = 0.33f;
+                    ControlState.slow = new float[]{0.5f, 0.33f, 0.2f, 0.1f}[c.sluggishLevel];
                     anyControl = true;
                 }
                 case "drunk" -> {
                     float env = envelope(a, now, 1500, 1200);
-                    ControlState.stumble = drunkAngle * env;
-                    ControlState.drunk = Math.max(ControlState.drunk, env);
+                    float mult = new float[]{0.55f, 1f, 1.6f}[c.drunkLevel];
+                    ControlState.stumble = drunkAngle * env * mult;
+                    ControlState.drunk = Math.max(ControlState.drunk, env * mult);
                     wantNausea = true;
                     anyControl = true;
                     if (tick % 70 == 35) playSound(mc, "minecraft:entity.player.burp", 0.8f, 0.8f + R.nextFloat() * 0.3f);
                 }
                 // --- camera & view (CameraMixin / GameRendererMixin) ---
-                case "spin" -> mc.player.setYRot(mc.player.getYRot() + 7f);
-                case "jitter" -> ControlState.shake = 3.2f * envelope(a, now, 300, 400);
+                case "spin" -> mc.player.setYRot(mc.player.getYRot() + new float[]{3f, 7f, 14f, 30f}[c.spinLevel]);
+                case "jitter" -> ControlState.shake = new float[]{1.6f, 3.2f, 6f}[c.jitterLevel] * envelope(a, now, 300, 400);
                 case "glitch" -> {
                     // jerky back-and-forth snaps of the whole view
-                    ControlState.slide = (float) (Math.sin(now / 85.0) * 12 + Math.sin(now / 37.0) * 5);
+                    ControlState.slide = (float) (Math.sin(now / 85.0) * 12 + Math.sin(now / 37.0) * 5) * new float[]{0.5f, 1f, 1.8f}[c.glitchLevel];
                     if (tick % 12 == 0) playSound(mc, "minecraft:block.sculk_sensor.clicking", 0.25f, 1.9f);
                 }
-                case "tunnel_vision" -> ControlState.fovMul = Math.min(ControlState.fovMul, 1f - 0.6f * envelope(a, now, 900, 900));
+                case "tunnel_vision" -> ControlState.fovMul = Math.min(ControlState.fovMul, 1f - new float[]{0.3f, 0.6f, 0.72f, 0.82f}[c.tunnelLevel] * envelope(a, now, 900, 900));
                 case "no_hud" -> wantHud = true;
                 // --- real lag: actually stall the client thread in short bursts ---
                 case "fake_lag" -> {
-                    if (tick % 16 == 0) {
+                    int[][] lag = {{24, 80, 120}, {16, 130, 220}, {10, 250, 350}}; // every N ticks, base ms, random ms
+                    int[] L = lag[c.lagLevel];
+                    if (tick % L[0] == 0) {
                         try {
-                            Thread.sleep(130 + R.nextInt(220));
+                            Thread.sleep(L[1] + R.nextInt(L[2]));
                         } catch (InterruptedException ignored) {
                             Thread.currentThread().interrupt();
                         }
@@ -318,7 +331,7 @@ public final class PunishManager {
             if (rl == null) return;
             SoundEvent ev = BuiltInRegistries.SOUND_EVENT.getValue(rl);
             if (ev == null) ev = SoundEvent.createVariableRangeEvent(rl);
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(ev, Math.max(0.5f, Math.min(2f, pitch)), Math.max(0f, Math.min(1f, vol))));
+            mc.getSoundManager().play(SimpleSoundInstance.forUI(ev, Math.max(0.5f, Math.min(2f, pitch)), Math.max(0f, Math.min(1f, vol * (float) Config.get().volume))));
         } catch (Exception ignored) {
         }
     }

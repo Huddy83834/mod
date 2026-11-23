@@ -149,10 +149,10 @@ public class PunishTiersScreen extends PfxFrame {
             int y = tableY + r * rowH;
             boolean on = c.tiers.get(r + scroll).enabled;
             // a faint stripe behind the whole row, then a field box behind each text box
-            g.fill(cx - 2, y - 1, cx + cw + 2, y + rowH - 2, Ui.a(on ? 0.35f : 0.18f, 0x24141A));
-            Ui.card(g, colName, y, wName, rowH - 3, 0x1E1218);
-            Ui.card(g, colAmt, y, wAmt, rowH - 3, 0x1E1218);
-            Ui.card(g, colSec, y, wSec, rowH - 3, 0x1E1218);
+            g.fill(cx - 2, y - 1, cx + cw + 2, y + rowH - 2, Ui.a(on ? 0.35f : 0.18f, Ui.tint(0x1C1820, 0.08f)));
+            Ui.card(g, colName, y, wName, rowH - 3, Ui.tint(0x18141C, 0.08f));
+            Ui.card(g, colAmt, y, wAmt, rowH - 3, Ui.tint(0x18141C, 0.08f));
+            Ui.card(g, colSec, y, wSec, rowH - 3, Ui.tint(0x18141C, 0.08f));
         }
     }
 

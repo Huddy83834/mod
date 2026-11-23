@@ -4,16 +4,39 @@ import net.minecraft.client.gui.GuiGraphics;
 
 /** Shared drawing helpers for Punish FX's custom (non-vanilla) screens. */
 public final class Ui {
-    public static final int ACCENT = 0xE23C4E;   // neon red
-    public static final int ACCENT2 = 0xFF7A3D;  // orange
+    // Theme colours (set from the Customize page). Everything else is derived from these.
+    public static final String[] THEME_NAMES = {"Crimson", "Violet", "Ocean", "Toxic", "Gold", "Sakura", "Frost", "Mono"};
+    private static final int[][] THEMES = {
+            {0xE23C4E, 0xFF7A3D}, {0x9B5CFF, 0xFF5CC8}, {0x2E9BFF, 0x2EE6D6}, {0x3DDC84, 0xC6F34A},
+            {0xFFB020, 0xFF7A3D}, {0xFF6FA8, 0xFFB3D1}, {0x7FD8FF, 0xE6F7FF}, {0xC8C8D2, 0x8A8A9A}};
+
+    public static int ACCENT = 0xE23C4E;
+    public static int ACCENT2 = 0xFF7A3D;
     public static final int GOOD = 0x3DDC84;
     public static final int WARN = 0xFFAA33;
-    public static final int TEXT = 0xE8DADF;
-    public static final int DIM = 0x9A8B8F;
-    public static final int CARD = 0x201218;
-    public static final int CARD_HI = 0x2E1A22;
+    public static final int TEXT = 0xE8E2E6;
+    public static final int DIM = 0x9A8F94;
+    public static int CARD = 0x201218;
+    public static int CARD_HI = 0x2E1A22;
 
     private Ui() {}
+
+    public static void applyTheme(int i) {
+        int[] t = THEMES[Math.max(0, Math.min(THEMES.length - 1, i))];
+        ACCENT = t[0];
+        ACCENT2 = t[1];
+        CARD = mix(0x17141A, ACCENT, 0.09f);
+        CARD_HI = mix(0x24202A, ACCENT, 0.13f);
+    }
+
+    public static int themeAccent(int i) {
+        return THEMES[Math.max(0, Math.min(THEMES.length - 1, i))][0];
+    }
+
+    /** A dark panel colour tinted towards the current theme. */
+    public static int tint(int dark, float amount) {
+        return mix(dark, ACCENT, amount);
+    }
 
     public static int a(float alpha, int rgb) {
         int al = Math.max(0, Math.min(255, Math.round(alpha * 255)));
@@ -58,7 +81,7 @@ public final class Ui {
             g.fill(x - i, y - i, x + w + i, y + h + i, gc);
         }
         // body
-        g.fillGradient(x, y, x + w, y + h, a(1f, 0x180C12), a(1f, 0x0C0609));
+        g.fillGradient(x, y, x + w, y + h, a(1f, tint(0x141118, 0.08f)), a(1f, tint(0x0A090C, 0.05f)));
         // moving accent sheen along the top
         int tw = w;
         for (int i = 0; i < tw; i++) {

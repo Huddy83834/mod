@@ -37,10 +37,15 @@ public final class PunishOverlay {
             }
         }
 
+        // the top donors board sits under the punishment effects
+        TopDonorsHud.render(g, font, w, h);
+
+        float strength = (float) Config.get().overlayStrength;
         for (PunishManager.Active a : PunishManager.active()) {
             float p = a.progress();
             float vis = Math.min(1f, Math.min((now - a.start) / 220f, (a.end - now) / 450f));
             if (vis <= 0) continue;
+            vis *= strength;
             try {
                 drawOne(g, font, a.p.id, w, h, now, vis, p);
             } catch (Exception ignored) {
@@ -88,7 +93,8 @@ public final class PunishOverlay {
     // ------------------------------------------------------------------ the punishments
 
     private static void disco(GuiGraphics g, int w, int h, long now, float vis) {
-        float hue = (now % 900) / 900f;
+        float period = new float[]{1600f, 900f, 450f}[Config.get().discoLevel];
+        float hue = (now % (long) period) / period;
         float beat = 0.5f + 0.5f * (float) Math.sin(now / 150.0);
         g.fill(0, 0, w, h, A((0.34f + 0.14f * beat) * vis, Ui.hsv(hue, 0.95f, 1f)));
         g.fillGradient(0, 0, w, h, A(0.18f * vis, Ui.hsv((hue + 0.33f) % 1f, 0.95f, 1f)), A(0.18f * vis, Ui.hsv((hue + 0.66f) % 1f, 0.95f, 1f)));
@@ -102,10 +108,11 @@ public final class PunishOverlay {
 
     private static void flashbang(GuiGraphics g, int w, int h, long now, float vis, float p) {
         // hold a full white-out for the first ~40%, then a slow ease-out
+        float hold = new float[]{0.25f, 0.4f, 0.6f}[Config.get().flashLevel];
         float fa;
-        if (p < 0.4f) fa = 1f;
+        if (p < hold) fa = 1f;
         else {
-            float t = (p - 0.4f) / 0.6f;
+            float t = (p - hold) / (1f - hold);
             fa = (1f - t) * (1f - t) * 0.97f + 0.03f * (1f - t);
         }
         g.fill(0, 0, w, h, A(fa * vis, 0xFFFFFF));
@@ -163,6 +170,7 @@ public final class PunishOverlay {
     }
 
     private static void glitch(GuiGraphics g, int w, int h, long now, float vis) {
+        vis *= new float[]{0.5f, 1f, 1.6f}[Config.get().glitchLevel];
         Random r = new Random(now / 55);
         // torn, offset horizontal bands with RGB split
         for (int i = 0; i < 12; i++) {
@@ -187,13 +195,21 @@ public final class PunishOverlay {
     /** "<player> paid you $X" + the punishment names, shown for a few seconds. */
     private static void donorBanner(GuiGraphics g, Font font, int w, long now) {
         if (now >= PunishManager.donorUntil || PunishManager.donor.isEmpty()) return;
+        Config cfg = Config.get();
         long left = PunishManager.donorUntil - now;
-        float vis = Math.min(1f, Math.min(left / 400f, (now - (PunishManager.donorUntil - 3400)) / 160f));
+        float vis = Math.min(1f, Math.min(left / 400f, (now - PunishManager.donorStart) / 160f));
         if (vis <= 0) return;
+        float bs = (float) cfg.bannerScale;
+        int sh = g.guiHeight();
+        int vw = (int) (w / bs); // lay out in the banner's own (scaled) space
+        var pose = g.pose();
+        pose.pushMatrix();
+        pose.scale(bs);
+        w = vw;
 
         String who = PunishManager.donor;
         String amt = PunishManager.donorAmount;
-        String sub = PunishManager.donorSub;
+        String sub = cfg.bannerShowPunishments ? PunishManager.donorSub : "";
         String head = who + " paid you";
 
         // shrink to fit narrow screens / long names
@@ -207,11 +223,12 @@ public final class PunishOverlay {
             amtScale -= 0.12f;
         }
         int headW = (int) (font.width(head + " ") * scale);
+        int bh = sub.isEmpty() ? 38 : 52;
         int x = w / 2 - bw / 2;
-        int y = 10;
-        int bh = 52;
+        int vh = (int) (sh / bs);
+        int y = cfg.bannerPos == 1 ? vh / 2 - bh / 2 - 30 : cfg.bannerPos == 2 ? vh - bh - 58 : 10;
 
-        g.fillGradient(x, y, x + bw, y + bh, A(0.9f * vis, 0x1C0609), A(0.9f * vis, 0x0A0205));
+        g.fillGradient(x, y, x + bw, y + bh, A(0.9f * vis, Ui.tint(0x120E14, 0.12f)), A(0.9f * vis, Ui.tint(0x08070A, 0.07f)));
         g.fill(x, y, x + bw, y + 2, A(vis, Ui.ACCENT));
         g.fill(x, y + bh - 2, x + bw, y + bh, A(0.7f * vis, Ui.ACCENT2));
         g.fill(x, y, x + 2, y + bh, A(vis, Ui.ACCENT));
@@ -224,7 +241,8 @@ public final class PunishOverlay {
         int tx = x + 30;
         Ui.glowText(g, font, head, tx, y + 10, 0xFFCDD2, scale);
         Ui.glowText(g, font, amt, tx + headW, y + 8, 0x6BFF9E, amtScale);
-        g.drawString(font, sub, x + 30, y + bh - 16, A(0.95f * vis, 0xE8C8CC), false);
+        if (!sub.isEmpty()) g.drawString(font, sub, x + 30, y + bh - 16, A(0.95f * vis, 0xE8C8CC), false);
+        pose.popMatrix();
     }
 
     // ------------------------------------------------------------------ banner + countdown
@@ -240,7 +258,7 @@ public final class PunishOverlay {
         int bw = tw + 30;
         int x = w / 2 - bw / 2;
         int y = 16;
-        g.fillGradient(x, y, x + bw, y + 28, A(0.85f * vis, 0x1A0409), A(0.85f * vis, 0x0A0205));
+        g.fillGradient(x, y, x + bw, y + 28, A(0.85f * vis, Ui.tint(0x120E14, 0.12f)), A(0.85f * vis, Ui.tint(0x08070A, 0.07f)));
         g.fill(x, y, x + bw, y + 2, A(vis, Ui.ACCENT));
         g.fill(x, y + 26, x + bw, y + 28, A(0.6f * vis, Ui.ACCENT2));
         Ui.glowText(g, font, t, w / 2 - tw / 2, y + 9, 0xFF8080, scale);
