@@ -36,8 +36,8 @@ void main(){
     float dither = (BAYER[bi] + 0.5) / 16.0 - 0.5;
 
     if (Params.z > 0.5 && Params.z < 1.5) {
-        // retro: 5 levels per channel (125 colours) with ordered dithering
-        c = clamp(floor(c * 4.0 + dither + 0.5) / 4.0, 0.0, 1.0);
+        // retro: 6 levels per channel (216 colours) with light ordered dithering
+        c = clamp(floor(c * 5.0 + dither * 0.6 + 0.5) / 5.0, 0.0, 1.0);
     } else if (Params.z > 1.5 && Params.z < 2.5) {
         // Game Boy: 4 shades of green
         float l = dot(c, vec3(0.299, 0.587, 0.114));

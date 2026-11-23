@@ -839,12 +839,20 @@ public class PunishFxClientTest implements FabricClientGameTest {
             check(ok, "several at once - " + names[mode] + ": " + r);
             if (mode == 1) {
                 // the queued one plays after the first finishes
-                ctx.waitTicks(70);
-                String later = ctx.computeOnClient(mc -> {
-                    StringBuilder sb = new StringBuilder();
-                    for (PunishManager.Active a : PunishManager.active()) sb.append(a.p.id).append(" ");
-                    return sb + "| queue=" + PunishManager.queue().size();
-                });
+                // punishments run on real time and CI frames are slow, so watch for it rather than waiting a fixed time
+                String later = "never started";
+                for (int i = 0; i < 120; i++) {
+                    ctx.waitTicks(2);
+                    String now = ctx.computeOnClient(mc -> {
+                        StringBuilder sb = new StringBuilder();
+                        for (PunishManager.Active a : PunishManager.active()) sb.append(a.p.id).append(" ");
+                        return sb + "| queue=" + PunishManager.queue().size();
+                    });
+                    if (now.contains("fog")) {
+                        later = now;
+                        break;
+                    }
+                }
                 check(later.contains("fog") && later.contains("queue=0"), "queue: the next donation plays when the first ends (" + later + ")");
                 ctx.runOnClient(mc -> { PunishManager.hit(200_000, "Alice", 0, false); PunishManager.hit(300_000, "Bob", 1, false); PunishManager.hit(300_000, "Carl", 1, false); });
                 ctx.waitTicks(3);
