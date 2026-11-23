@@ -193,12 +193,12 @@ public class RecapScreen extends Screen {
         String used = r.mostUsed();
         int pct = (int) Math.round(100.0 * r.punishedMs / r.duration());
         String[][] tiles = {
-                {"Biggest donation", best == null ? "-" : Money.compact(best.amount), best == null ? "" : best.name},
-                {"Busiest 5 minutes", busy[1] <= 0 ? "-" : Money.compact(busy[1]), busy[1] <= 0 ? "" : "from " + at((long) busy[0])},
-                {"Time punished", length(r.punishedMs), pct + "% of the stream"},
+                {"Biggest gift", best == null ? "-" : Money.compact(best.amount), best == null ? "" : best.name},
+                {"Best 5 minutes", busy[1] <= 0 ? "-" : Money.compact(busy[1]), busy[1] <= 0 ? "" : "from " + at((long) busy[0])},
+                {"Punished for", length(r.punishedMs), pct + "% of the stream"},
                 {"Most used", used == null ? "-" : Punishes.name(used), used == null ? "" : r.punishCount.get(used) + " times"},
-                {"Cancelled", String.valueOf(r.cancels), r.cooldownSkips > 0 ? r.cooldownSkips + " blocked by cooldown" : "with your cancel key"},
-                {"Extremes dodged", r.extremesCancelled + " / " + r.extremesTriggered, r.extremesTriggered == 0 ? "none triggered" : "cancelled in time"},
+                {"Cancelled", String.valueOf(r.cancels), r.cooldownSkips > 0 ? r.cooldownSkips + " on cooldown" : "you stopped them"},
+                {"Dodged", r.extremesCancelled + " / " + r.extremesTriggered, r.extremesTriggered == 0 ? "no extremes" : "extremes cancelled"},
         };
         int tw = 84, th = 34;
         for (int i = 0; i < tiles.length; i++) {
@@ -227,9 +227,9 @@ public class RecapScreen extends Screen {
                 var d = donors.get(i);
                 int y = dy + 18 + i * 13;
                 String amt = Money.compact(d.getValue());
-                int barX = dx + 76, barW = dw - 76 - 8 - this.font.width(amt) - 6;
+                int barX = dx + 94, barW = dw - 94 - 8 - this.font.width(amt) - 6;
                 g.drawString(this.font, (i + 1) + ".", dx + 6, y + 2, Ui.a(1f, medal[i]), false);
-                Ui.text(g, this.font, d.getKey(), dx + 18, y + 2, 0xFFFFFF, 56);
+                Ui.text(g, this.font, d.getKey(), dx + 18, y + 2, 0xFFFFFF, 74);
                 g.fill(barX, y + 1, barX + barW, y + 10, Ui.a(0.18f, 0xFFFFFF));
                 int fill = (int) Math.max(2, barW * (d.getValue() / max) * t);
                 g.fill(barX, y + 1, barX + fill, y + 10, Ui.a(0.9f, medal[i]));
@@ -280,10 +280,8 @@ public class RecapScreen extends Screen {
         button(g, older(), mx, my, Ui.ACCENT2);
         button(g, newer(), mx, my, Ui.ACCENT2);
         button(g, close(), mx, my, Ui.GOOD);
-        String pos = "Stream " + (index + 1) + " of " + StreamSession.history().size();
+        String pos = "Stream " + (index + 1) + " of " + StreamSession.history().size() + "   \u00b7   arrow keys to browse";
         g.drawString(this.font, pos, 148, 252, Ui.a(1f, 0x8C7E82), false);
-        String tip = "Use the arrow keys to see older streams";
-        g.drawString(this.font, tip, VW - 12 - 70 - 8 - this.font.width(tip), 252, Ui.a(1f, 0x5E5256), false);
         pose.popMatrix();
     }
 

@@ -58,7 +58,7 @@ public final class StreamHud {
 
         public boolean shown() { return Config.get().streamHud; }
         public String showSettingName() { return "Show the live counter"; }
-        public void reset() { set(0.0, 0.0, 1.0); }
+        public void reset() { set(0.0, 0.15, 1.0); }
     };
 
     public static void render(GuiGraphics g, Font font, int sw, int sh) {

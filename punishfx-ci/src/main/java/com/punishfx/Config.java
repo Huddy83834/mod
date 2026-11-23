@@ -84,7 +84,7 @@ public final class Config {
     // ---- stream mode
     public boolean streamHud = true;
     public boolean streamHudMoney = true, streamHudCount = true, streamHudTimer = true;
-    public double streamScale = 1.0, streamX = 0.0, streamY = 0.0;
+    public double streamScale = 1.0, streamX = 0.0, streamY = 0.15;
     public boolean streamAutoRecap = true;
     public boolean streamFreshBoard = true;
 

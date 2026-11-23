@@ -538,8 +538,19 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.setScreen(() -> new RecapScreen(null));
         ctx.waitTicks(50);
         shot(ctx, "ui_recap_480x270");
-        ctx.clickScreenButton("Close");
+        // Close is drawn on the scaled canvas, so click where it really is on screen
+        double[] closeAt = ctx.computeOnClient(mc -> {
+            float sc = Math.min(mc.getWindow().getGuiScaledWidth() / 480f, mc.getWindow().getGuiScaledHeight() / 270f);
+            double ox = Math.round((mc.getWindow().getGuiScaledWidth() - 480 * sc) / 2f), oy = Math.round((mc.getWindow().getGuiScaledHeight() - 270 * sc) / 2f);
+            double gs = mc.getWindow().getGuiScale();
+            return new double[]{(ox + (480 - 12 - 35) * sc) * gs, (oy + 256 * sc) * gs};
+        });
+        ctx.getInput().setCursorPos(closeAt[0], closeAt[1]);
+        ctx.waitTicks(2);
+        ctx.getInput().pressMouse(0);
         ctx.waitTicks(3);
+        String afterClose = ctx.computeOnClient(mc -> mc.screen == null ? "none" : mc.screen.getClass().getSimpleName());
+        check(afterClose.equals("none"), "recap Close button closes it (" + afterClose + ")");
 
         // the Stream page's buttons: go live, then end it -> the recap opens
         ctx.runOnClient(mc -> Config.get().streamAutoRecap = true);
