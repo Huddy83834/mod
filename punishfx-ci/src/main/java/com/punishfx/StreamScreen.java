@@ -90,7 +90,9 @@ public class StreamScreen extends PfxFrame {
             float pulse = 0.55f + 0.45f * (float) Math.sin(System.currentTimeMillis() / 280.0);
             g.fill(x, y + 1, x + 5, y + 6, Ui.a(pulse, 0xFF3B3B));
             g.drawString(this.font, "LIVE  " + StreamHud.clock(r.duration()), x + 9, y, Ui.a(1f, 0xFF7A7A), false);
-            String s = Money.compact(r.total()) + " made  ·  " + r.donations.size() + " donations  ·  " + r.donors().size() + " donors";
+            int n = r.donations.size(), d = r.donors().size();
+            String s = Money.compact(r.total()) + " made  ·  " + n + (n == 1 ? " donation" : " donations")
+                    + "  ·  " + d + (d == 1 ? " donor" : " donors");
             Ui.text(g, this.font, s, x, y + 12, 0xFFFFFF, cw - 20);
         }
         if (statusH >= 46) {
