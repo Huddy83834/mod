@@ -469,7 +469,7 @@ public abstract class PfxFrame extends Screen {
                 int bg = open ? Ui.tint(0x241820, 0.14f) : hov ? Ui.tint(0x1E1820, 0.1f) : Ui.tint(0x16121A, 0.06f);
                 g.fill(cx, p[1], cx + listW, p[1] + p[2], Ui.a(1f, bg));
                 g.fill(cx, p[1] + p[2] - 1, cx + listW, p[1] + p[2], Ui.a(open ? 0.8f : 0.25f, Ui.ACCENT));
-                String arrow = open ? "\u25be" : "\u25b8";
+                String arrow = open ? "\u2212" : "+";
                 g.drawString(this.font, arrow, cx + 6, p[1] + (p[2] - 8) / 2, Ui.a(1f, open ? Ui.ACCENT : 0x9A8F94), false);
                 g.drawString(this.font, hd.text(), cx + 17, p[1] + (p[2] - 8) / 2, Ui.a(1f, open || hov ? 0xFFFFFF : 0xD8CDD1), false);
                 int n = sectionSize.getOrDefault(hd.text(), 0);
