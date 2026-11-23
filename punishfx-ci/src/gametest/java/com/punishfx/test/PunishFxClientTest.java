@@ -94,6 +94,9 @@ public class PunishFxClientTest implements FabricClientGameTest {
             ctx.waitTicks(20);
             effectShots(ctx);
             newPunishmentTests(ctx, server);
+            pixelTests(ctx, server);
+            gameTests(ctx, server);
+            overlapTests(ctx);
             detectorTest(ctx);
             streamTests(ctx);
             uiShots(ctx);
@@ -584,6 +587,287 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.waitTicks(3);
     }
 
+    // ------------------------------------------------------------------ 1.5: pixelated
+
+    /** Fraction of neighbouring pixel pairs (in the middle of the picture) that differ: low = blocky. */
+    private static double edges(Path png) throws Exception {
+        BufferedImage im = ImageIO.read(png.toFile());
+        int w = im.getWidth(), h = im.getHeight();
+        long diff = 0, n = 0;
+        for (int y = h / 5; y < h * 3 / 4; y += 2)
+            for (int x = w / 5; x < w * 4 / 5 - 1; x++, n++) {
+                int a = im.getRGB(x, y), b = im.getRGB(x + 1, y);
+                int d = Math.abs(((a >> 16) & 255) - ((b >> 16) & 255)) + Math.abs(((a >> 8) & 255) - ((b >> 8) & 255)) + Math.abs((a & 255) - (b & 255));
+                if (d > 6) diff++;
+            }
+        return diff / (double) Math.max(1, n);
+    }
+
+    private void pixelTests(ClientGameTestContext ctx, TestServerContext server) {
+        reset(ctx);
+        server.runCommand("tp @a 0.5 101 0.5 0 35");
+        ctx.waitTicks(20);
+        shot(ctx, "fx_04_floor_baseline");
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 7; c.pixelPalette = 0; c.pixelDegrade = false; });
+        ctx.runOnClient(mc -> PunishManager.force("pixelated", 0));
+        ctx.waitTicks(10);
+        String id = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
+        check(id.equals("punishfx:fx/m0_r8_p0"), "pixelated turns on the 36p effect (" + id + ")");
+        shot(ctx, "fx_pixelated_36p");
+        try {
+            double base = edges(shots.resolve("fx_04_floor_baseline.png")), pix = edges(shots.resolve("fx_pixelated_36p.png"));
+            check(base > 0.04 && pix < base * 0.6, "pixelated really lowers the resolution (detail " + fmt(base) + " -> " + fmt(pix) + ")");
+        } catch (Exception e) {
+            check(false, "pixelated screenshot check: " + e);
+        }
+        reset(ctx);
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 4; c.pixelPalette = 2; });
+        ctx.runOnClient(mc -> PunishManager.force("pixelated", 0));
+        ctx.waitTicks(10);
+        shot(ctx, "fx_pixelated_96p_gameboy");
+        try {
+            BufferedImage im = ImageIO.read(shots.resolve("fx_pixelated_96p_gameboy.png").toFile());
+            int green = 0, n = 0;
+            for (int y = im.getHeight() / 5; y < im.getHeight() * 3 / 4; y += 7)
+                for (int x = im.getWidth() / 5; x < im.getWidth() * 4 / 5; x += 7, n++) {
+                    int c = im.getRGB(x, y);
+                    if (((c >> 8) & 255) >= ((c >> 16) & 255) && ((c >> 8) & 255) > (c & 255)) green++;
+                }
+            check(green > n * 0.9, "Game Boy colours: the picture is all green (" + green + "/" + n + ")");
+        } catch (Exception e) {
+            check(false, "game boy screenshot check: " + e);
+        }
+        reset(ctx);
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 5; c.pixelPalette = 1; });
+        ctx.runOnClient(mc -> PunishManager.force("pixelated", 0));
+        ctx.waitTicks(10);
+        shot(ctx, "fx_pixelated_72p_retro");
+        // with mirror world at the same time: one combined effect
+        ctx.runOnClient(mc -> PunishManager.force("mirror", 0));
+        ctx.waitTicks(5);
+        String both = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
+        check(both.equals("punishfx:fx/m1_r6_p1"), "pixelated + mirror world run together (" + both + ")");
+        reset(ctx);
+        String off = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
+        check(off.equals("null"), "pixelated effect removed after (" + off + ")");
+        // gets worse over time: starts at 240p
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 7; c.pixelPalette = 0; c.pixelDegrade = true; });
+        ctx.runOnClient(mc -> PunishManager.force("pixelated", 0));
+        ctx.waitTicks(3);
+        String early = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
+        ctx.waitTicks(60);
+        String later = ctx.computeOnClient(mc -> String.valueOf(mc.gameRenderer.currentPostEffect()));
+        check(early.contains("_r1_") && !later.equals(early), "'gets worse' starts sharp and gets blockier (" + early + " -> " + later + ")");
+        reset(ctx);
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.pixelRes = 3; c.pixelPalette = 0; c.pixelDegrade = false; });
+        server.runCommand("tp @a 0.5 101 0.5 0 10");
+        ctx.waitTicks(5);
+    }
+
+    // ------------------------------------------------------------------ 1.5: wheel + case
+
+    private void gameTests(ClientGameTestContext ctx, TestServerContext server) {
+        reset(ctx);
+        // ---- maths, without the animation: the pointer always ends on the chosen slot, and the luck settings hold
+        String maths = ctx.computeOnClient(mc -> {
+            Config c = Config.get();
+            c.wheelSlots = 2; c.wheelNothing = 2; c.wheelAgain = 1; c.wheelDouble = 1; c.wheelJackpot = 1;
+            StringBuilder bad = new StringBuilder();
+            for (int luck = 0; luck < 3; luck++) {
+                c.wheelLuck = luck;
+                int nothing = 0;
+                for (int i = 0; i < 400; i++) {
+                    com.punishfx.Games.Game g = com.punishfx.Games.build(com.punishfx.Games.Kind.WHEEL, 1, "T", null, 1, -1, 1, 0, i * 31L + luck);
+                    g.start = 1000;
+                    if (g.under(g.endAt() + 1) != g.win) bad.append("wheel lands wrong (luck ").append(luck).append(") ");
+                    if (g.winner().id.equals(com.punishfx.Games.NOTHING)) nothing++;
+                    if (g.entries.size() != 8) bad.append("wrong slot count ");
+                }
+                if (luck == 1 && nothing > 0) bad.append("rigged landed on NOTHING ").append(nothing).append("x ");
+                if (luck == 0 && (nothing < 50 || nothing > 160)) bad.append("fair NOTHING rate off: ").append(nothing).append("/400 ");
+            }
+            c.wheelLuck = 0;
+            for (int i = 0; i < 300; i++) {
+                com.punishfx.Games.Game g = com.punishfx.Games.build(com.punishfx.Games.Kind.CASE, 2, "T", null, 1, -1, 1, 0, i * 17L);
+                g.start = 1000;
+                if (g.under(g.endAt() + 1) != g.win) { bad.append("case lands wrong "); break; }
+            }
+            // real CS odds: blue items should win ~80% of the time
+            c.caseOdds = 0; c.caseRarity = 0; c.caseGold = 1; c.caseSafe = 1;
+            int[] per = new int[5];
+            for (int i = 0; i < 4000; i++)
+                per[com.punishfx.Games.build(com.punishfx.Games.Kind.CASE, 4, "T", null, 1, -1, 1, 0, 99L + i).winner().rarity]++;
+            double blue = per[0] / 4000.0, gold = per[4] / 4000.0;
+            if (blue < 0.74 || blue > 0.86 || gold > 0.012) bad.append("CS odds off: blue ").append(blue).append(" gold ").append(gold).append(" ");
+            return bad.length() == 0 ? "ok " + java.util.Arrays.toString(per) : bad.toString();
+        });
+        check(maths.startsWith("ok"), "wheel/case always land on the chosen slot; rigged never gives NOTHING; CS odds are right (" + maths + ")");
+
+        // ---- a real spin
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.wheelSlots = 2; c.wheelNothing = 1; c.wheelAgain = 0; c.wheelDouble = 1; c.wheelJackpot = 0;
+            c.wheelLuck = 1; c.wheelSpin = 0; c.wheelColors = 1; c.wheelRim = 3; c.wheelLabels = 2; c.wheelBg = 1;
+            c.wheelScale = 1.0; c.wheelX = 0.5; c.wheelY = 0.55;
+        });
+        ctx.runOnClient(mc -> PunishManager.force("spin_wheel", 1));
+        ctx.waitTicks(30);
+        shot(ctx, "fx_wheel_spinning_casino");
+        boolean showing = ctx.computeOnClient(mc -> com.punishfx.Games.showing() && com.punishfx.Games.current().spinning(System.currentTimeMillis()));
+        check(showing, "the wheel shows up and spins");
+        ctx.waitTicks(45);
+        String result = ctx.computeOnClient(mc -> {
+            com.punishfx.Games.Game g = com.punishfx.Games.current();
+            if (g == null || !g.resolved) return "not finished";
+            List<String> names = new ArrayList<>();
+            for (PunishManager.Active a : PunishManager.active()) names.add(a.p.id);
+            return g.winner().id + " -> " + names;
+        });
+        shot(ctx, "fx_wheel_result");
+        boolean applied = !result.equals("not finished") && result.contains("-> [") && !result.endsWith("[]");
+        check(applied, "the wheel's result really runs (" + result + ")");
+        ctx.waitTicks(60);
+        check(ctx.computeOnClient(mc -> !com.punishfx.Games.showing()), "the wheel goes away after showing the result");
+        reset(ctx);
+
+        // another look: rainbow, neon rim, icons only, bigger
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.wheelColors = 2; c.wheelRim = 4; c.wheelLabels = 1; c.wheelSlots = 5; c.wheelPointer = 3; c.wheelScale = 1.25;
+            c.wheelTitle = "{name} SPINS!"; c.wheelSpin = 1; c.wheelBg = 2;
+        });
+        ctx.runOnClient(mc -> PunishManager.force("spin_wheel", 2));
+        ctx.waitTicks(28);
+        shot(ctx, "fx_wheel_rainbow_icons");
+        reset(ctx);
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.wheelColors = 5; c.wheelRim = 1; c.wheelLabels = 0; c.wheelSlots = 3; c.wheelScale = 1.0; c.wheelTitle = "SPIN THE WHEEL"; c.wheelBg = 0;
+        });
+        ctx.runOnClient(mc -> PunishManager.force("spin_wheel", 0));
+        ctx.waitTicks(28);
+        shot(ctx, "fx_wheel_gameshow_names");
+        reset(ctx);
+
+        // ---- case opening
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.caseOpen = 0; c.caseOdds = 2; c.caseGold = 1; c.caseSafe = 1; c.caseStyle = 0; c.caseCard = 0; c.caseBg = 1;
+        });
+        ctx.runOnClient(mc -> PunishManager.force("case_open", 3));
+        ctx.waitTicks(30);
+        shot(ctx, "fx_case_opening");
+        ctx.waitTicks(45);
+        String unboxed = ctx.computeOnClient(mc -> {
+            com.punishfx.Games.Game g = com.punishfx.Games.current();
+            return g == null ? "gone" : g.resolved ? g.winner().name + " (" + com.punishfx.Games.RARITY_NAMES[g.winner().rarity] + ") " + g.resultSub : "still opening";
+        });
+        shot(ctx, "fx_case_result");
+        check(!unboxed.equals("gone") && !unboxed.equals("still opening"), "the case opens and unboxes something (" + unboxed + ")");
+        reset(ctx);
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.caseCard = 1; c.caseColors = 2; c.caseShowOdds = false; c.caseScale = 1.3; });
+        ctx.runOnClient(mc -> PunishManager.force("case_open", 0));
+        ctx.waitTicks(30);
+        shot(ctx, "fx_case_flat_rainbow");
+        reset(ctx);
+
+        // ---- "every donation" spins the wheel
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.wheelUse = 1; c.cooldownSeconds = 0; c.caseCard = 0; c.caseColors = 0; c.caseShowOdds = true; c.caseScale = 1.0; });
+        ctx.runOnClient(mc -> Detector.onMessage("Notch paid you $300,000.", false));
+        ctx.waitTicks(4);
+        boolean wheelFromDonation = ctx.computeOnClient(mc -> com.punishfx.Games.busy() && PunishManager.active().isEmpty());
+        check(wheelFromDonation, "'Every donation' makes a real donation spin the wheel");
+        reset(ctx);
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.wheelUse = 0; c.wheelColors = 1; c.wheelSlots = 2; c.wheelRim = 3; c.wheelLabels = 2; c.wheelSpin = 2; });
+
+        // ---- the move editor shows the wheel full size
+        ctx.setScreen(() -> new MoveScreen(null, com.punishfx.GameRender.WHEEL_PIECE));
+        ctx.waitTicks(30);
+        shot(ctx, "ui_move_wheel");
+        ctx.setScreen(() -> new MoveScreen(null, com.punishfx.GameRender.CASE_PIECE));
+        ctx.waitTicks(30);
+        shot(ctx, "ui_move_case");
+        ctx.setScreen(() -> null);
+        ctx.waitTicks(3);
+    }
+
+    // ------------------------------------------------------------------ 1.5: several donations at once
+
+    private void overlapTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.cooldownSeconds = 0;
+            c.overlapWindow = 0;
+            c.queueGap = 0;
+            c.tiers.get(0).pool = new ArrayList<>(List.of("jitter"));
+            c.tiers.get(0).count = 1;
+            c.tiers.get(0).seconds = 2;
+            c.tiers.get(1).pool = new ArrayList<>(List.of("fog"));
+            c.tiers.get(1).count = 1;
+            c.tiers.get(1).seconds = 4;
+        });
+        String[] names = PunishManager.OVERLAP_NAMES;
+        for (int mode = 0; mode < names.length; mode++) {
+            final int m = mode;
+            reset(ctx);
+            ctx.runOnClient(mc -> Config.get().overlapMode = m);
+            // A ($60k, level 1: jitter) then B ($300k, level 2: fog) straight after
+            String r = ctx.computeOnClient(mc -> {
+                PunishManager.hit(200_000, "Alice", 0, false);
+                long endA = PunishManager.active().isEmpty() ? 0 : PunishManager.active().get(0).end;
+                PunishManager.hit(m == 6 ? 200_000 : 300_000, "Bob", m == 6 ? 0 : 1, false);
+                StringBuilder sb = new StringBuilder();
+                for (PunishManager.Active a : PunishManager.active())
+                    sb.append(a.p.id).append(":").append(Math.round((a.end - a.start) / 100.0) / 10.0).append("s ");
+                sb.append("| queue=").append(PunishManager.queue().size()).append(" combo=").append(PunishManager.comboCount)
+                        .append(" endA+=").append(PunishManager.active().isEmpty() ? 0 : (PunishManager.active().get(0).end - endA) / 1000)
+                        .append(" | ").append(PunishManager.donorSub);
+                return sb.toString();
+            });
+            boolean ok = switch (mode) {
+                case 0 -> r.contains("jitter") && r.contains("fog");
+                case 1 -> r.contains("jitter") && !r.contains("fog") && r.contains("queue=1");
+                case 2 -> r.contains("jitter") && r.contains("fog:6.0s") && r.contains("combo=2");
+                case 3 -> !r.contains("jitter") && r.contains("fog");
+                case 4 -> r.contains("jitter") && !r.contains("fog") && r.contains("endA+=4");
+                case 5 -> !r.contains("jitter") && r.contains("fog");
+                case 6 -> !r.contains("jitter") && r.contains("fog") && r.contains("TEAM-UP");
+                case 7 -> r.contains("jitter") && !r.contains("fog") && r.contains("just the banner");
+                default -> r.contains("Surprise");
+            };
+            check(ok, "several at once - " + names[mode] + ": " + r);
+            if (mode == 1) {
+                // the queued one plays after the first finishes
+                ctx.waitTicks(70);
+                String later = ctx.computeOnClient(mc -> {
+                    StringBuilder sb = new StringBuilder();
+                    for (PunishManager.Active a : PunishManager.active()) sb.append(a.p.id).append(" ");
+                    return sb + "| queue=" + PunishManager.queue().size();
+                });
+                check(later.contains("fog") && later.contains("queue=0"), "queue: the next donation plays when the first ends (" + later + ")");
+                ctx.runOnClient(mc -> { PunishManager.hit(200_000, "Alice", 0, false); PunishManager.hit(300_000, "Bob", 1, false); PunishManager.hit(300_000, "Carl", 1, false); });
+                ctx.waitTicks(3);
+                shot(ctx, "fx_queue_up_next");
+            }
+            if (mode == 2) {
+                ctx.runOnClient(mc -> PunishManager.hit(300_000, "Carl", 1, false));
+                ctx.waitTicks(3);
+                shot(ctx, "fx_combo_x3");
+            }
+            if (mode == 3) {
+                String small = ctx.computeOnClient(mc -> {
+                    PunishManager.hit(100_000, "Dan", 0, false);
+                    return PunishManager.donorSub + " | active " + PunishManager.active().size();
+                });
+                check(small.contains("smaller") && small.endsWith("active 1"), "biggest wins: a smaller one doesn't punish (" + small + ")");
+            }
+        }
+        ctx.runOnClient(mc -> { Config.get().overlapMode = 0; });
+        reset(ctx);
+        ctx.runOnClient(mc -> Config.reset());
+    }
+
     // ------------------------------------------------------------------ donation detection
 
     private void detectorTest(ClientGameTestContext ctx) {
@@ -686,6 +970,33 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.waitTicks(3);
         shot(ctx, "fx_topdonors_illager_theme_gold");
 
+        // "top donator only" style, and hidden amounts
+        ctx.runOnClient(mc -> {
+            Config c = Config.get();
+            c.topFont = 0; c.topBackground = 1; c.topColor = 0; c.topItalic = false; c.topAmounts = 0;
+            c.topStyle = 1; c.topLabelPos = 0; c.topCrown = true; c.topX = 1.0; c.topY = 0.3; c.topScale = 1.5;
+            Config.save();
+        });
+        ctx.waitTicks(3);
+        shot(ctx, "fx_topdonator_above");
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.topLabelPos = 1; c.topAmounts = 2; c.topX = 0.0; c.topY = 0.0; c.topScale = 1.0; });
+        ctx.waitTicks(3);
+        shot(ctx, "fx_topdonator_before_hidden");
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.topLabelPos = 2; c.topLabel = "BIGGEST SIMP"; c.topCrown = false; c.topAmounts = 0; c.topX = 0.5; c.topY = 1.0; });
+        ctx.waitTicks(3);
+        shot(ctx, "fx_topdonator_after_custom");
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.topStyle = 0; c.topAmounts = 2; c.topRows = 3; c.topX = 1.0; c.topY = 0.3; c.topLabel = "TOP DONATOR"; c.topCrown = true; });
+        ctx.waitTicks(3);
+        shot(ctx, "fx_topdonors_3_hidden_amounts");
+        int[] widths = ctx.computeOnClient(mc -> {
+            int hidden = com.punishfx.TopDonorsHud.bounds(mc.font, 480, 270, true)[2];
+            Config.get().topAmounts = 0;
+            int shown = com.punishfx.TopDonorsHud.bounds(mc.font, 480, 270, true)[2];
+            return new int[]{hidden, shown};
+        });
+        check(widths[0] < widths[1], "hidden amounts: the board leaves the money out (" + widths[0] + " < " + widths[1] + " wide)");
+        ctx.runOnClient(mc -> Config.get().topRows = 5);
+
         // back to defaults, then drag it with the real mouse in the editor
         ctx.runOnClient(mc -> {
             Config c = Config.get();
@@ -728,6 +1039,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
     // ------------------------------------------------------------------ UI
 
     private void pages(ClientGameTestContext ctx, String size) {
+        com.punishfx.GamesScreen.tab = 0;
         ctx.setScreen(() -> PfxFrame.open(null, PfxFrame.Page.GENERAL));
         ctx.waitTicks(4);
         shot(ctx, "ui_" + size + "_1_general");
@@ -740,6 +1052,14 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.clickScreenButton("Customize");
         ctx.waitTicks(4);
         shot(ctx, "ui_" + size + "_4_customize");
+        ctx.clickScreenButton("Wheel & Case");
+        ctx.waitTicks(30);
+        shot(ctx, "ui_" + size + "_4b_wheel");
+        ctx.clickScreenButton("Case Opening");
+        ctx.waitTicks(40);
+        shot(ctx, "ui_" + size + "_4c_case");
+        ctx.clickScreenButton("Spin the Wheel");
+        ctx.waitTicks(2);
         ctx.clickScreenButton("Top Donors");
         ctx.waitTicks(4);
         shot(ctx, "ui_" + size + "_5_topdonors");

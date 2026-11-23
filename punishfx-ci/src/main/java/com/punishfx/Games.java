@@ -353,7 +353,7 @@ public final class Games {
         return w.length - 1;
     }
 
-    static Game build(Kind kind, int level, String donor, String player, double amount, long donation, double mult, int chain, long seed) {
+    public static Game build(Kind kind, int level, String donor, String player, double amount, long donation, double mult, int chain, long seed) {
         Config c = Config.get();
         Random r = new Random(seed);
         if (kind == Kind.WHEEL) {
