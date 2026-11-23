@@ -122,7 +122,7 @@ public final class Presets {
 
     /** Save (or overwrite) a preset with your current settings. Returns the name it was saved as. */
     public static String saveCurrent(String name) {
-        String n = name == null || name.isBlank() ? "My preset" : name.trim();
+        String n = name == null || name.isBlank() ? freeName("My preset") : name.trim();
         if (n.length() > 32) n = n.substring(0, 32);
         Saved s = null;
         for (Saved x : file.presets) if (x.name.equalsIgnoreCase(n)) s = x;
@@ -136,6 +136,60 @@ public final class Presets {
         file.lastApplied = n;
         save();
         return n;
+    }
+
+    /** A name nobody else is using: "Chill stream copy", "Chill stream copy 2"... */
+    public static String freeName(String base) {
+        String n = base.length() > 26 ? base.substring(0, 26) : base;
+        if (!exists(n)) return n;
+        for (int i = 2; ; i++) if (!exists(n + " " + i)) return n + " " + i;
+    }
+
+    /** Copy one of your presets. Returns the copy's name. */
+    public static String duplicate(Saved src) {
+        Saved s = new Saved();
+        s.name = freeName(src.name + " copy");
+        s.savedAt = System.currentTimeMillis();
+        s.data = src.data.deepCopy();
+        file.presets.add(file.presets.indexOf(src) + 1, s);
+        save();
+        return s.name;
+    }
+
+    /** Copy a ready-made preset into your own list, so you can change it. */
+    public static String duplicate(Builtin b) {
+        Config c = b.make().apply(copyOfCurrent());
+        JsonObject data = GSON.toJsonTree(c).getAsJsonObject();
+        for (String k : KEEP) data.remove(k);
+        Saved s = new Saved();
+        s.name = freeName(b.name() + " copy");
+        s.savedAt = System.currentTimeMillis();
+        s.data = data;
+        file.presets.add(s);
+        save();
+        return s.name;
+    }
+
+    public static void rename(Saved s, String name) {
+        if (name == null || name.isBlank()) return;
+        String n = name.trim();
+        if (n.equals(s.name)) return;
+        if (file.lastApplied.equals(s.name)) file.lastApplied = n;
+        s.name = n;
+        save();
+    }
+
+    /** The saved preset you last switched to (null if it was a ready-made one). */
+    public static Saved lastSaved() {
+        for (Saved s : file.presets) if (s.name.equals(file.lastApplied)) return s;
+        return null;
+    }
+
+    /** Put your current settings into a saved preset. */
+    public static void update(Saved s) {
+        s.data = snapshot();
+        s.savedAt = System.currentTimeMillis();
+        save();
     }
 
     public static void delete(Saved s) {

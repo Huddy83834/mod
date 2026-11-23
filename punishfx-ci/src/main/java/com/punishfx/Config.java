@@ -105,7 +105,10 @@ public final class Config {
 
     // ---- spin the wheel
     public int wheelUse = 0;               // 0 when a level picks it, 1 every donation, 2..5 level N and up
-    public int wheelContents = 0;          // 0 the level's punishments, 1 every punishment
+    public int wheelContents = 0;          // 0 the level's punishments, 1 every punishment, 2 your own picks
+    public List<String> wheelPicks = new ArrayList<>(List.of("drunk", "frozen", "mirror", "upside_down", "pixelated", "blur", "fisheye", "window"));
+    public List<String> casePicks = new ArrayList<>(List.of("drunk", "frozen", "mirror", "upside_down", "pixelated", "blur", "fisheye", "window",
+            "jitter", "fog", "disco_eyes", "blackout"));
     public int wheelSlots = 2;             // index into Games.WHEEL_SLOTS
     public int wheelNothing = 1, wheelAgain = 1, wheelDouble = 1, wheelJackpot = 0;
     public int wheelLuck = 0;              // 0 fair, 1 rigged (never Nothing), 2 teasing near-misses
@@ -379,7 +382,9 @@ public final class Config {
         queueGap = clamp(queueGap, 0, 3);
         comboStep = clamp(comboStep, 0, 2);
         wheelUse = clamp(wheelUse, 0, 5);
-        wheelContents = clamp(wheelContents, 0, 1);
+        wheelContents = clamp(wheelContents, 0, 2);
+        if (wheelPicks == null) wheelPicks = new ArrayList<>();
+        if (casePicks == null) casePicks = new ArrayList<>();
         wheelSlots = clamp(wheelSlots, 0, Games.WHEEL_SLOTS.length - 1);
         wheelNothing = clamp(wheelNothing, 0, 3);
         wheelAgain = clamp(wheelAgain, 0, 2);
@@ -402,7 +407,7 @@ public final class Config {
         wheelY = Math.max(0.0, Math.min(1.0, wheelY));
         wheelScale = Math.max(0.5, Math.min(4.0, wheelScale));
         caseUse = clamp(caseUse, 0, 5);
-        caseContents = clamp(caseContents, 0, 1);
+        caseContents = clamp(caseContents, 0, 2);
         caseRarity = clamp(caseRarity, 0, 2);
         caseOdds = clamp(caseOdds, 0, 2);
         caseGold = clamp(caseGold, 0, 3);

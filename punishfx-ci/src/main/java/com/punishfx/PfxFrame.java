@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -165,7 +166,7 @@ public abstract class PfxFrame extends Screen {
         float ls = sw < 100 ? 1.25f : 1.5f;
         Ui.glowText(g, this.font, "PUNISH", px + 8, py + 9, Ui.ACCENT, ls);
         Ui.glowText(g, this.font, "FX", px + 8 + (int) (this.font.width("PUNISH ") * ls), py + 9, 0xFFFFFF, ls);
-        g.drawString(this.font, "v1.8", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
+        g.drawString(this.font, "v1.9", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
 
         // page title + subtitle
         Ui.glowText(g, this.font, heading, cx, py + 9, 0xFFFFFF, 1.4f);
@@ -178,9 +179,10 @@ public abstract class PfxFrame extends Screen {
         renderPage(g, mouseX, mouseY);
 
         // footer: hover help, or where the keys are
-        String f = footer != null ? footer
-                : "Open: " + PunishFxClient.settingsKeyName() + "   Cancel punishments: " + PunishFxClient.cancelKeyName() + "   Commands: /pfx";
-        Ui.text(g, this.font, f, cx, py + ph - 13, footer != null ? Ui.TEXT : 0x7A6C70, cw);
+        String f = footer != null ? "\u00bb " + footer
+                : "Point at a setting to see what it does   \u00b7   Open: " + PunishFxClient.settingsKeyName()
+                + "   \u00b7   Cancel: " + PunishFxClient.cancelKeyName();
+        Ui.text(g, this.font, f, cx, py + ph - 13, footer != null ? 0xFFE9A8 : 0x7A6C70, cw);
     }
 
     // ================================================================== settings list
@@ -216,6 +218,12 @@ public abstract class PfxFrame extends Screen {
     protected record Pair(String label, String desc, Supplier<String> b1, int accent1, Runnable run1,
                           Supplier<String> b2, int accent2, Runnable run2) implements Row {}
 
+    /** One button in a {@link Buttons} row. */
+    protected record Btn(Supplier<String> text, int accent, int width, Runnable run) {}
+
+    /** A row with several buttons; {@code rename} (optional) makes the name editable in place. */
+    protected record Buttons(Supplier<String> name, Consumer<String> rename, String desc, List<Btn> buttons) implements Row {}
+
     /** A choice between number values (shown with {@code fmt}); picks the nearest one to the current value. */
     protected static Choice numbers(String label, String desc, double[] vals, DoubleFunction<String> fmt, DoubleSupplier get, DoubleConsumer set) {
         String[] names = new String[vals.length];
@@ -229,23 +237,63 @@ public abstract class PfxFrame extends Screen {
     }
 
     private static final Map<Page, Integer> SCROLL = new EnumMap<>(Page.class);
+    /** Which section is open on each page (one at a time; "" = all closed). */
+    private static final Map<String, String> OPEN = new HashMap<>();
     private List<Row> rows = List.of();
+    private final Map<String, Integer> sectionSize = new HashMap<>();
     private final List<int[]> placed = new ArrayList<>(); // {row index, y, card height}
     private int listTop, listBottom, listW, rowH;
-    private boolean listOverflows;
-    private static final int VALUE_W = 78;
+    private boolean listOverflows, folding;
+    private static final int VALUE_W = 78, HEADER_H = 18;
 
-    private int heightOf(Row r) {
-        return r instanceof Header ? 14 : rowH;
+    /** Which page (and tab) the open section is remembered for. */
+    protected String sectionKey() {
+        return page.name();
     }
 
-    /** Lay out {@code list} between {@code top} and {@code bottom} of the content area. */
-    protected void list(List<Row> list, int top, int bottom) {
-        rows = list;
+    /** Open a section by its title (the others close). */
+    public void openSection(String header) {
+        OPEN.put(sectionKey(), header);
+        SCROLL.put(page, 0);
+        rebuild();
+    }
+
+    private int heightOf(Row r) {
+        return r instanceof Header ? HEADER_H : rowH;
+    }
+
+    /**
+     * Lay out {@code list} between {@code top} and {@code bottom} of the content area. Settings are grouped by
+     * their headers into sections that fold: only one is open at a time, so a page never shows everything at once.
+     */
+    protected void list(List<Row> all, int top, int bottom) {
+        List<String> headers = new ArrayList<>();
+        for (Row r : all) if (r instanceof Header h) headers.add(h.text());
+        folding = headers.size() > 1;
+        String key = sectionKey();
+        String open = OPEN.get(key);
+        if (open == null || (!open.isEmpty() && !headers.contains(open))) open = headers.isEmpty() ? "" : headers.get(0);
+        OPEN.put(key, open);
+        List<Row> shown = new ArrayList<>();
+        sectionSize.clear();
+        String cur = null;
+        for (Row r : all) {
+            if (r instanceof Header h) {
+                cur = h.text();
+                sectionSize.put(cur, 0);
+                shown.add(r);
+            } else {
+                if (cur != null) sectionSize.merge(cur, 1, Integer::sum);
+                if (cur == null || !folding || cur.equals(open)) shown.add(r);
+            }
+        }
+        if (headers.size() == 1 && !shown.isEmpty() && shown.get(0) instanceof Header) shown.remove(0); // one section: no need for its title
+
+        rows = shown;
         listTop = top;
         listBottom = bottom;
         placed.clear();
-        rowH = bottom - top >= 170 ? 26 : 22;
+        rowH = 20;
 
         // the furthest we can scroll and still fill the space
         int maxFirst = 0, used = 0;
@@ -266,11 +314,32 @@ public abstract class PfxFrame extends Screen {
             Row r = rows.get(i);
             int h = heightOf(r);
             if (y + h > bottom) break;
-            int ch = r instanceof Header ? h : h - 3;
+            int ch = r instanceof Header ? h - 2 : h - 2;
             placeRow(r, y, ch);
             placed.add(new int[]{i, y, ch});
             y += h;
         }
+    }
+
+    private boolean isOpen(String header) {
+        return !folding || header.equals(OPEN.get(sectionKey()));
+    }
+
+    @Override
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent e, boolean doubleClick) {
+        if (folding && e.button() == 0) {
+            for (int[] p : placed) {
+                if (!(rows.get(p[0]) instanceof Header h)) continue;
+                if (e.x() >= cx && e.x() < cx + listW && e.y() >= p[1] && e.y() < p[1] + p[2]) {
+                    Config.save();
+                    openSection(isOpen(h.text()) ? "" : h.text());
+                    Minecraft.getInstance().getSoundManager().play(
+                            net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1f));
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(e, doubleClick);
     }
 
     private void placeRow(Row r, int y, int h) {
@@ -308,6 +377,27 @@ public abstract class PfxFrame extends Screen {
                 p.run2().run();
                 b.setMessage(Component.literal(p.b2().get()));
             }).accent(p.accent2()));
+        } else if (r instanceof Buttons br) {
+            int x = cx + listW - 6, bh = Math.min(16, h - 2), by = y + (h - bh) / 2;
+            for (int i = br.buttons().size() - 1; i >= 0; i--) {
+                Btn bt = br.buttons().get(i);
+                x -= bt.width();
+                addRenderableWidget(new FancyButton(x, by, bt.width(), bh, Component.literal(bt.text().get()), b -> {
+                    bt.run().run();
+                    b.setMessage(Component.literal(bt.text().get()));
+                }).accent(bt.accent()));
+                x -= 3;
+            }
+            if (br.rename() != null) {
+                int fw = Math.max(40, x - cx - 12);
+                EditBox e = new EditBox(this.font, cx + 8, y + (h - 8) / 2, fw, 10, Component.literal("Name"));
+                e.setMaxLength(32);
+                e.setBordered(false);
+                e.setValue(br.name().get());
+                e.setTextColor(0xFFFFFFFF);
+                e.setResponder(v -> br.rename().accept(v));
+                addRenderableWidget(e);
+            }
         } else if (r instanceof Text t) {
             int fw = Math.min(140, listW / 2);
             EditBox e = new EditBox(this.font, cx + listW - 8 - fw + 4, y + (h - 8) / 2, fw - 6, 10, Component.literal(t.label()));
@@ -323,10 +413,18 @@ public abstract class PfxFrame extends Screen {
         }
     }
 
+    /** The thin edge on each row: barely there, so pages look calm. */
+    private static final int QUIET = 0x3A3240;
+
     private int rightReserve(Row r) {
         if (r instanceof Choice) return VALUE_W + 48;
         if (r instanceof Action) return 98;
         if (r instanceof Pair) return 132;
+        if (r instanceof Buttons br) {
+            int w = 6;
+            for (Btn b : br.buttons()) w += b.width() + 3;
+            return w + 6;
+        }
         if (r instanceof Info) return 8;
         if (r instanceof Text) return Math.min(140, listW / 2) + 12;
         return 40;
@@ -337,12 +435,19 @@ public abstract class PfxFrame extends Screen {
             Row r = rows.get(p[0]);
             if (r instanceof Header || r instanceof Toggle) continue; // toggles draw their own row
             boolean hov = mouseX >= cx && mouseX < cx + listW && mouseY >= p[1] && mouseY < p[1] + p[2];
+            if (r instanceof Buttons br) {
+                Ui.rowCard(g, this.font, cx, p[1], listW, p[2], br.rename() != null ? "" : br.name().get(), "", hov, QUIET, rightReserve(r));
+                if (br.rename() != null) {
+                    int w = rightReserve(r);
+                    Ui.card(g, cx + 4, p[1] + 2, listW - w - 4, p[2] - 4, Ui.tint(0x0E0C10, 0.06f));
+                }
+                continue;
+            }
             String label = r instanceof Choice c ? c.label() : r instanceof Action a ? a.label() : r instanceof Pair pr ? pr.label()
                     : r instanceof Info in ? in.label() : ((Text) r).label();
             String desc = r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : r instanceof Pair pr ? pr.desc()
                     : r instanceof Info in ? in.desc() : ((Text) r).desc();
-            int bar = r instanceof Choice ? Ui.ACCENT2 : r instanceof Action a ? Ui.resolve(a.accent()) : r instanceof Pair pr ? Ui.resolve(pr.accent1())
-                    : r instanceof Info in ? Ui.resolve(in.accent()) : Ui.ACCENT;
+            int bar = r instanceof Info in ? Ui.resolve(in.accent()) : QUIET;
             Ui.rowCard(g, this.font, cx, p[1], listW, p[2], label, desc, hov, bar, rightReserve(r));
             if (r instanceof Text) {
                 int fw = Math.min(140, listW / 2);
@@ -355,7 +460,22 @@ public abstract class PfxFrame extends Screen {
         for (int[] p : placed) {
             Row r = rows.get(p[0]);
             if (r instanceof Header hd) {
-                Ui.section(g, this.font, hd.text(), cx, p[1] + 4, listW);
+                boolean hov = mouseX >= cx && mouseX < cx + listW && mouseY >= p[1] && mouseY < p[1] + p[2];
+                if (!folding) {
+                    Ui.section(g, this.font, hd.text(), cx, p[1] + 5, listW);
+                    continue;
+                }
+                boolean open = isOpen(hd.text());
+                int bg = open ? Ui.tint(0x241820, 0.14f) : hov ? Ui.tint(0x1E1820, 0.1f) : Ui.tint(0x16121A, 0.06f);
+                g.fill(cx, p[1], cx + listW, p[1] + p[2], Ui.a(1f, bg));
+                g.fill(cx, p[1] + p[2] - 1, cx + listW, p[1] + p[2], Ui.a(open ? 0.8f : 0.25f, Ui.ACCENT));
+                String arrow = open ? "\u25be" : "\u25b8";
+                g.drawString(this.font, arrow, cx + 6, p[1] + (p[2] - 8) / 2, Ui.a(1f, open ? Ui.ACCENT : 0x9A8F94), false);
+                g.drawString(this.font, hd.text(), cx + 17, p[1] + (p[2] - 8) / 2, Ui.a(1f, open || hov ? 0xFFFFFF : 0xD8CDD1), false);
+                int n = sectionSize.getOrDefault(hd.text(), 0);
+                String cnt = open ? "" : n + (n == 1 ? " setting" : " settings");
+                g.drawString(this.font, cnt, cx + listW - 8 - this.font.width(cnt), p[1] + (p[2] - 8) / 2, Ui.a(1f, 0x7A6C70), false);
+                if (hov) footer = open ? "Click to close this section" : "Click to open " + hd.text();
             } else if (r instanceof Choice c) {
                 int nextX = cx + listW - 8 - 16;
                 int mid = nextX - VALUE_W / 2;
@@ -365,8 +485,9 @@ public abstract class PfxFrame extends Screen {
             }
             // rows too short for their description show it in the footer on hover
             boolean hov = mouseX >= cx && mouseX < cx + listW && mouseY >= p[1] && mouseY < p[1] + p[2];
-            if (hov && p[2] < 22) {
-                String d = r instanceof Toggle t ? t.desc() : r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : r instanceof Pair pr ? pr.desc() : r instanceof Info in ? in.desc() : r instanceof Text t ? t.desc() : null;
+            if (hov && p[2] < 22 && !(r instanceof Header)) {
+                String d = r instanceof Toggle t ? t.desc() : r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : r instanceof Pair pr ? pr.desc()
+                        : r instanceof Info in ? in.desc() : r instanceof Text t ? t.desc() : r instanceof Buttons br ? br.desc() : null;
                 if (d != null && !d.isEmpty()) footer = d;
             }
         }

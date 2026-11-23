@@ -243,9 +243,13 @@ public final class Games {
     }
 
     /** What the game can land on: a level's punishments, or all of them (never the games themselves). */
-    static List<String> contents(int mode, int level) {
+    /** What a wheel/case can land on: 0 the level's list, 1 everything, 2 your own picks. */
+    public static List<String> contents(int mode, int level, List<String> picks) {
         Config c = Config.get();
         List<String> out = new ArrayList<>();
+        if (mode == 2 && picks != null) {
+            for (Punishes.P p : Punishes.all()) if (!p.game() && picks.contains(p.id)) out.add(p.id); // in a steady order
+        }
         if (mode == 0 && level >= 0 && level < c.tiers.size()) {
             for (String id : Punishes.poolFor(c.tiers.get(level))) {
                 Punishes.P p = Punishes.get(id);
@@ -365,7 +369,7 @@ public final class Games {
         Config c = Config.get();
         Random r = new Random(seed);
         if (kind == Kind.WHEEL) {
-            List<String> pool = contents(c.wheelContents, level);
+            List<String> pool = contents(c.wheelContents, level, c.wheelPicks);
             List<Entry> slots = wheelSlots(pool, r);
             int n = slots.size();
             List<Integer> choices = new ArrayList<>();
@@ -387,7 +391,7 @@ public final class Games {
             return new Game(kind, slots, null, win, pool, donor, player, amount, level, donation, mult, chain, seed,
                     secs * 1000L, 0, target, c.wheelStyle);
         }
-        List<String> pool = contents(c.caseContents, level);
+        List<String> pool = contents(c.caseContents, level, c.casePicks);
         List<Entry> items = caseContents(pool, r);
         double[] w = chances(items);
         int secs = OPEN_SECONDS[c.caseOpen];
