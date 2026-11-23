@@ -41,6 +41,7 @@ public final class PunishOverlay {
         // the top donors board sits under the punishment effects
         TopDonorsHud.render(g, font, w, h);
         StreamHud.render(g, font, w, h);
+        GiveawayHud.render(g, font, w, h);
 
         float strength = (float) Config.get().overlayStrength;
         for (PunishManager.Active a : PunishManager.active()) {

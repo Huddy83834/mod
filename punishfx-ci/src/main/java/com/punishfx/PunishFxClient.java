@@ -41,6 +41,7 @@ public class PunishFxClient implements ClientModInitializer {
         DonorBoard.load();
         StreamSession.load();
         Presets.load();
+        Giveaway.load();
 
         KeyMapping.Category cat = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
         settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.punishfx.settings", InputConstants.Type.KEYSYM, InputConstants.KEY_K, cat));
@@ -168,6 +169,23 @@ public class PunishFxClient implements ClientModInitializer {
                     PunishManager.force("case_open", 0);
                     return say(ctx, "Opening a case (test).");
                 }))
+                .then(ClientCommandManager.literal("giveaway")
+                        .executes(ctx -> giveawayStatus(ctx))
+                        .then(ClientCommandManager.literal("start").executes(ctx -> {
+                            if (Giveaway.live()) return say(ctx, "A giveaway is already open. /pfx giveaway draw to pick the winner.");
+                            Giveaway.start();
+                            return say(ctx, "\u00a7aGiveaway open!\u00a7r Entry: " + Money.full(Config.get().gwPrice) + ". /pfx giveaway draw when you're ready.");
+                        }))
+                        .then(ClientCommandManager.literal("draw").executes(ctx -> {
+                            if (!Giveaway.live()) return say(ctx, "No giveaway is open. /pfx giveaway start first.");
+                            if (!Giveaway.draw()) return say(ctx, "Nobody has entered yet.");
+                            return 1;
+                        }))
+                        .then(ClientCommandManager.literal("cancel").executes(ctx -> {
+                            Giveaway.cancel();
+                            return say(ctx, "Giveaway cancelled.");
+                        }))
+                        .then(ClientCommandManager.literal("status").executes(ctx -> giveawayStatus(ctx))))
                 .then(ClientCommandManager.literal("recap").executes(ctx -> {
                     if (StreamSession.history().isEmpty()) return say(ctx, "No streams yet. /pfx stream start when you go live.");
                     pendingScreen = new RecapScreen(null);
@@ -211,6 +229,13 @@ public class PunishFxClient implements ClientModInitializer {
                             PunishManager.hit(r.amount(), r.player(), level, true);
                             return say(ctx, "§aDetected " + Money.full(r.amount()) + " from " + r.player() + " = level " + (level + 1));
                         })));
+    }
+
+    private static int giveawayStatus(CommandContext<FabricClientCommandSource> ctx) {
+        if (!Giveaway.live()) return say(ctx, Giveaway.lastWinner() == null ? "No giveaway open. /pfx giveaway start to open one."
+                : "No giveaway open. Last winner: " + Giveaway.lastWinner());
+        return say(ctx, "Giveaway: " + Giveaway.count() + " entered (" + Giveaway.tickets() + " tickets), entry "
+                + Money.full(Giveaway.state().price) + ", prize " + Giveaway.prizeText());
     }
 
     private static int streamStatus(CommandContext<FabricClientCommandSource> ctx) {

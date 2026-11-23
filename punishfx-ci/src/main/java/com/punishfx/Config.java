@@ -144,6 +144,19 @@ public final class Config {
     public int caseBg = 1;
     public double caseX = 0.5, caseY = 0.5, caseScale = 1.0;
 
+    // ---- giveaways
+    public String gwPrize = "$1M";
+    public double gwPrice = 100_000;
+    public boolean gwMoreTickets = false;  // paying 3x the price = 3 tickets
+    public int gwMaxTickets = 2;           // index into Giveaway.MAX_TICKETS
+    public int gwPrizeMode = 0;            // 0 your prize text, 1 the pot, 2 half the pot
+    public boolean gwPunish = false;       // entry payments also trigger punishments
+    public int gwMethod = 0;               // index into Giveaway.METHOD_NAMES
+    public int gwDrawTime = 1;             // index into Giveaway.DRAW_SECONDS
+    public boolean gwHud = true;
+    public double gwX = 1.0, gwY = 0.72, gwScale = 1.0;
+    public String gwPayCommand = "/pay {name} {amount}";
+
     // ---- stream mode
     public boolean streamHud = true;
     public boolean streamHudMoney = true, streamHudCount = true, streamHudTimer = true;
@@ -295,6 +308,16 @@ public final class Config {
         blurLevel = clamp(blurLevel, 0, ScreenFx.BLUR_NAMES.length - 1);
         fisheyeLevel = clamp(fisheyeLevel, 0, ScreenFx.FISHEYE_NAMES.length - 1);
         if (mutedSounds == null) mutedSounds = new ArrayList<>();
+        if (gwPrize == null) gwPrize = "";
+        if (gwPayCommand == null || gwPayCommand.isBlank()) gwPayCommand = "/pay {name} {amount}";
+        if (!(gwPrice > 0)) gwPrice = 100_000;
+        gwMaxTickets = clamp(gwMaxTickets, 0, Giveaway.MAX_TICKETS.length - 1);
+        gwPrizeMode = clamp(gwPrizeMode, 0, 2);
+        gwMethod = clamp(gwMethod, 0, Giveaway.METHOD_NAMES.length - 1);
+        gwDrawTime = clamp(gwDrawTime, 0, Giveaway.DRAW_SECONDS.length - 1);
+        gwX = Math.max(0.0, Math.min(1.0, gwX));
+        gwY = Math.max(0.0, Math.min(1.0, gwY));
+        gwScale = Math.max(0.5, Math.min(4.0, gwScale));
         if (configVersion < 2) { // 1.5: "stack punishments" became "several donations at once"
             if (!stack) overlapMode = 5;
             configVersion = 2;

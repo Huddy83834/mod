@@ -272,6 +272,28 @@ public final class PunishManager {
         Games.cancelDonations(copy);
     }
 
+    /** A short message across the top of the screen. */
+    public static void showBanner(String text) {
+        banner = text;
+        bannerUntil = System.currentTimeMillis() + 4000;
+    }
+
+    /** Someone entered the giveaway: the donor banner, with a cheerful sound instead of the punishment one. */
+    public static void announceEntry(String who, double amount, String sub) {
+        Config c = Config.get();
+        long now = System.currentTimeMillis();
+        donor = who;
+        donorAmount = Money.full(amount);
+        donorSub = sub;
+        donorStart = now;
+        donorUntil = now + (long) (c.bannerSeconds * 1000);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            playSound(mc, "minecraft:entity.experience_orb.pickup", 0.8f, 1.2f);
+            playSound(mc, "minecraft:block.note_block.chime", 0.6f, 1.5f);
+        }
+    }
+
     /** Who paid + how much (and what it does) across the top of the screen. */
     private static void announce(String who, double amount, String sub) {
         Config c = Config.get();

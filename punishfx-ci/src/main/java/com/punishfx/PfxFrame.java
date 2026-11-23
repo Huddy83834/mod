@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  * and the current page on the right, so everything always lives in the same place.
  */
 public abstract class PfxFrame extends Screen {
-    public enum Page { GENERAL, LEVELS, PUNISHMENTS, CUSTOMIZE, GAMES, TOP_DONORS, STREAM, PRESETS }
+    public enum Page { GENERAL, LEVELS, PUNISHMENTS, CUSTOMIZE, GAMES, TOP_DONORS, STREAM, GIVEAWAY, PRESETS }
 
     protected final Screen parent;
     private final Page page;
@@ -56,6 +56,7 @@ public abstract class PfxFrame extends Screen {
             case STREAM -> new StreamScreen(parent);
             case GAMES -> new GamesScreen(parent);
             case PRESETS -> new PresetsScreen(parent);
+            case GIVEAWAY -> new GiveawayScreen(parent);
         };
     }
 
@@ -91,7 +92,8 @@ public abstract class PfxFrame extends Screen {
         int x = px + 7, w = sw - 14;
         int y = py + 34;
         // seven pages: tighter buttons on small windows so they never run into Enabled/Test/Stop
-        int step = ph >= 300 ? 22 : ph >= 260 ? 19 : 17, nh = ph >= 300 ? 20 : ph >= 260 ? 17 : 16;
+        // eight pages: tighter buttons on small windows so they never run into Enabled/Test/Stop
+        int step = ph >= 300 ? 22 : ph >= 260 ? 18 : 15, nh = ph >= 300 ? 20 : ph >= 260 ? 16 : 14;
         addNav(x, y, w, nh, "General", Page.GENERAL);
         addNav(x, y += step, w, nh, "Levels", Page.LEVELS);
         addNav(x, y += step, w, nh, "Punishments", Page.PUNISHMENTS);
@@ -99,6 +101,7 @@ public abstract class PfxFrame extends Screen {
         addNav(x, y += step, w, nh, "Wheel & Case", Page.GAMES);
         addNav(x, y += step, w, nh, "Top Donors", Page.TOP_DONORS);
         addNav(x, y += step, w, nh, StreamSession.live() ? "Stream \u25cf" : "Stream", Page.STREAM);
+        addNav(x, y += step, w, nh, Giveaway.live() ? "Giveaway \u25cf" : "Giveaway", Page.GIVEAWAY);
 
         // Presets: top-right corner of every page
         addRenderableWidget(new FancyButton(px + pw - 10 - PRESET_W, py + 7, PRESET_W, 16, Component.literal("\u2605 Presets"), b -> {
@@ -159,7 +162,7 @@ public abstract class PfxFrame extends Screen {
         float ls = sw < 100 ? 1.25f : 1.5f;
         Ui.glowText(g, this.font, "PUNISH", px + 8, py + 9, Ui.ACCENT, ls);
         Ui.glowText(g, this.font, "FX", px + 8 + (int) (this.font.width("PUNISH ") * ls), py + 9, 0xFFFFFF, ls);
-        g.drawString(this.font, "v1.6", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
+        g.drawString(this.font, "v1.7", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
 
         // page title + subtitle
         Ui.glowText(g, this.font, heading, cx, py + 9, 0xFFFFFF, 1.4f);

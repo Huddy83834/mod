@@ -68,7 +68,36 @@ public final class GameRender {
     };
 
     public static HudPiece piece(Games.Kind k) {
-        return k == Games.Kind.WHEEL ? WHEEL_PIECE : CASE_PIECE;
+        return switch (k) {
+            case WHEEL -> WHEEL_PIECE;
+            case CASE -> CASE_PIECE;
+            default -> null;
+        };
+    }
+
+    static final int ELIM_W = 300, RAFFLE_W = 240, RAFFLE_H = 26 + 74 + 40;
+
+    static int elimRows(Games.Game g) {
+        return (g.entries.size() + elimCols(g) - 1) / elimCols(g);
+    }
+
+    static int elimCols(Games.Game g) {
+        int n = g.entries.size();
+        return n <= 4 ? 2 : n <= 9 ? 3 : n <= 20 ? 4 : 5;
+    }
+
+    /** Unscaled {width, height} of a game. */
+    static int[] size(Games.Game g) {
+        return switch (g.kind) {
+            case WHEEL -> new int[]{WHEEL_W, WHEEL_H};
+            case CASE -> new int[]{CASE_W, caseH(g)};
+            case ELIMINATION -> new int[]{ELIM_W, 28 + elimRows(g) * 16 + 40};
+            case RAFFLE -> new int[]{RAFFLE_W, RAFFLE_H};
+        };
+    }
+
+    static int caseH(Games.Game g) {
+        return BOX_T + BOX_H + (Config.get().caseShowOdds && !g.giveaway ? 14 : 4) + 30;
     }
 
     // ------------------------------------------------------------------ HUD
@@ -78,7 +107,7 @@ public final class GameRender {
         Games.Game game = Games.current();
         if (game == null || game.start == 0) return;
         HudPiece piece = piece(game.kind);
-        if (MoveScreen.editing(piece)) return;
+        if (piece != null && MoveScreen.editing(piece)) return;
         Config c = Config.get();
         long now = System.currentTimeMillis();
         float vis = Math.min(1f, (now - game.start) / 250f);
@@ -91,14 +120,21 @@ public final class GameRender {
             float f = 1f - (now - game.resolvedAt) / 380f;
             if (f > 0.05f) g.fill(0, 0, sw, sh, Ui.a(0.4f * f, 0xFFFFFF));
         }
-        int[] b = piece.bounds(font, sw, sh, false);
-        draw(g, font, game, b[0], b[1], (float) piece.scale(), now, vis, true);
+        if (piece != null) {
+            int[] b = piece.bounds(font, sw, sh, false);
+            draw(g, font, game, b[0], b[1], (float) piece.scale(), now, vis, true);
+        } else { // elimination / raffle: centred, as big as fits
+            int[] wh = size(game);
+            float s = (float) Math.min(Config.get().caseScale * 1.1, Math.min((sw - 16) / (double) wh[0], (sh - 50) / (double) wh[1]));
+            draw(g, font, game, (sw - wh[0] * s) / 2f, (sh - wh[1] * s) / 2f - sh * 0.04f, s, now, vis, true);
+        }
         Games.frame(game, now);
     }
 
     /** Draws a game with its top-left at (x, y). */
     public static void draw(GuiGraphics g, Font font, Games.Game game, float x, float y, float scale, long now, float alpha, boolean live) {
-        int w = game.kind == Games.Kind.WHEEL ? WHEEL_W : CASE_W, h = game.kind == Games.Kind.WHEEL ? WHEEL_H : caseH();
+        int[] wh = size(game);
+        int w = wh[0], h = wh[1];
         // pop in during the intro
         float intro = (float) Math.max(0, Math.min(1, (now - game.start) / (double) game.introMs));
         float pop = live ? (float) (0.7 + 0.3 * backOut(intro)) : 1f;
@@ -107,8 +143,12 @@ public final class GameRender {
         pose.translate(x + w * scale / 2f, y + h * scale / 2f);
         pose.scale(scale * pop);
         pose.translate(-w / 2f, -h / 2f);
-        if (game.kind == Games.Kind.WHEEL) drawWheel(g, font, game, now, alpha, scale * pop);
-        else drawCase(g, font, game, now, alpha);
+        switch (game.kind) {
+            case WHEEL -> drawWheel(g, font, game, now, alpha, scale * pop);
+            case CASE -> drawCase(g, font, game, now, alpha);
+            case ELIMINATION -> drawElimination(g, font, game, now, alpha, w, h);
+            case RAFFLE -> drawRaffle(g, font, game, now, alpha, w);
+        }
         confetti(g, game, now, w, h);
         pose.popMatrix();
     }
@@ -124,6 +164,7 @@ public final class GameRender {
     }
 
     private static void header(GuiGraphics g, Font font, String title, boolean donorLine, Games.Game game, int w, float alpha) {
+        if (game.titleOverride != null) title = game.titleOverride;
         float ts = Math.min(1.3f, (w - 8) / (float) Math.max(1, font.width(title)));
         int tw = (int) (font.width(title) * ts);
         g.pose().pushMatrix();
@@ -132,7 +173,10 @@ public final class GameRender {
         g.drawString(font, title, 1, 1, Ui.a(0.85f * alpha, 0x000000), false);
         g.drawString(font, title, 0, 0, Ui.a(alpha, Ui.mix(0xFFFFFF, Ui.ACCENT, 0.35f)), false);
         g.pose().popMatrix();
-        if (donorLine && game.donor != null) {
+        if (game.subtitle != null) {
+            String d = Ui.fit(font, game.subtitle, w - 8);
+            g.drawString(font, d, (w - font.width(d)) / 2, 13, Ui.a(0.95f * alpha, 0xFFD24A), true);
+        } else if (donorLine && game.donor != null) {
             String d = game.donor + " paid " + Money.compact(game.amount);
             d = Ui.fit(font, d, w - 8);
             g.drawString(font, d, (w - font.width(d)) / 2, 13, Ui.a(0.9f * alpha, 0xC8B4BA), true);
@@ -314,7 +358,7 @@ public final class GameRender {
         }
 
         // ---- labels
-        int mode = c.wheelLabels;
+        int mode = game.giveaway ? 0 : c.wheelLabels;
         for (int i = 0; i < n; i++) {
             Games.Entry e = game.entries.get(i);
             double mid = rot + (i + 0.5) * seg;
@@ -421,9 +465,10 @@ public final class GameRender {
     }
 
     private static void confetti(GuiGraphics g, Games.Game game, long now, int w, int h) {
-        int win = game.kind == Games.Kind.WHEEL ? Config.get().wheelWin : Config.get().caseWin;
+        int win = game.giveaway ? 0 : game.kind == Games.Kind.WHEEL ? Config.get().wheelWin : Config.get().caseWin;
         if (!game.resolved || win != 0 || game.winner().id.equals(Games.AGAIN)) return;
         float t = (now - game.resolvedAt) / 1000f;
+        if (game.giveaway && t > 2.4f) t = (t - 2.4f) % 2.4f; // giveaways keep celebrating
         if (t > 2.4f) return;
         Random r = new Random(game.seed);
         float fade = Math.min(1f, (2.4f - t) / 0.6f);
@@ -434,6 +479,95 @@ public final class GameRender {
             float sz = 1.5f + r.nextFloat() * 1.8f;
             float wob = (float) Math.sin(t * 9 + i) * sz * 0.5f;
             g.fill(Math.round(x), Math.round(y), Math.round(x + sz + wob), Math.round(y + sz), Ui.a(fade, col));
+        }
+    }
+
+    // ------------------------------------------------------------------ giveaway: elimination + raffle
+
+    private static void drawElimination(GuiGraphics g, Font font, Games.Game game, long now, float alpha, int w, int h) {
+        header(g, font, "LAST ONE STANDING", false, game, w, alpha);
+        int n = game.entries.size(), cols = elimCols(game);
+        int out = game.start == 0 ? 0 : Math.min(n - 1, Math.max(0, game.under(now)));
+        boolean[] gone = new boolean[n];
+        long[] goneAt = new long[n];
+        for (int k = 0; k < out && k < game.elimOrder.length; k++) gone[game.elimOrder[k]] = true;
+        // when did the latest one go? (for its red flash)
+        int latest = out > 0 && out - 1 < game.elimOrder.length ? game.elimOrder[out - 1] : -1;
+        int cw = (w - 12 - (cols - 1) * 3) / cols, ch = 13;
+        int top = 28;
+        for (int i = 0; i < n; i++) {
+            int x = 6 + (i % cols) * (cw + 3), y = top + (i / cols) * (ch + 3);
+            Games.Entry e = game.entries.get(i);
+            boolean win = game.resolved && i == game.win;
+            int bg = gone[i] ? 0x1A0E10 : win ? 0x5A4510 : 0x22222C;
+            g.fill(x, y, x + cw, y + ch, Ui.a(0.92f * alpha, bg));
+            int edge = gone[i] ? (i == latest && game.spinning(now) ? 0xFF3B3B : 0x4A2A2E) : win ? 0xFFD700 : Ui.ACCENT2;
+            g.fill(x, y, x + 2, y + ch, Ui.a(alpha, edge));
+            if (win) {
+                float p = 0.6f + 0.4f * (float) Math.sin(now / 120.0);
+                int gc = Ui.a(p * alpha, 0xFFD700);
+                g.fill(x - 1, y - 1, x + cw + 1, y, gc);
+                g.fill(x - 1, y + ch, x + cw + 1, y + ch + 1, gc);
+                g.fill(x + cw, y - 1, x + cw + 1, y + ch + 1, gc);
+            }
+            String nm = Ui.fit(font, e.name, cw - 14);
+            int tc = gone[i] ? 0x6A5A5E : win ? 0xFFE680 : 0xFFFFFF;
+            g.drawString(font, nm, x + 5, y + 3, Ui.a(alpha, tc), !gone[i]);
+            if (gone[i]) {
+                g.fill(x + 4, y + 7, x + 5 + font.width(nm), y + 8, Ui.a(0.8f * alpha, 0xC03040)); // struck out
+                g.drawString(font, "\u2716", x + cw - 9, y + 3, Ui.a(alpha, 0xFF4A4A), false);
+            }
+        }
+        int left = n - out;
+        int ry = top + elimRows(game) * (ch + 3) + 4;
+        if (game.resolved) resultBanner(g, font, game, now, alpha, w, ry);
+        else {
+            String s = left + " left";
+            g.drawString(font, s, (w - font.width(s)) / 2, ry + 8, Ui.a(0.9f * alpha, 0xC8B4BA), true);
+        }
+    }
+
+    private static void drawRaffle(GuiGraphics g, Font font, Games.Game game, long now, float alpha, int w) {
+        header(g, font, "RAFFLE DRAW", false, game, w, alpha);
+        var pose = g.pose();
+        double p = game.start == 0 ? game.from : game.pos(now);
+        int cur = Math.max(0, Math.min(game.reel.size() - 1, (int) Math.floor(p)));
+        int bx = 10, by = 28, bw = w - 20, bh = 70;
+        // a ticket: gold edges with notches
+        g.fill(bx, by, bx + bw, by + bh, Ui.a(alpha, 0x2A1E08));
+        g.fill(bx + 2, by + 2, bx + bw - 2, by + bh - 2, Ui.a(alpha, 0x3C2C0E));
+        boolean done = game.resolved;
+        int edge = done ? Ui.mix(0xFFD700, 0xFFFFFF, 0.3f + 0.3f * (float) Math.sin(now / 110.0)) : 0xD9A520;
+        g.fill(bx, by, bx + bw, by + 2, Ui.a(alpha, edge));
+        g.fill(bx, by + bh - 2, bx + bw, by + bh, Ui.a(alpha, edge));
+        for (int k = 0; k < 5; k++) {
+            int ny = by + 8 + k * 13;
+            g.fill(bx, ny, bx + 3, ny + 6, Ui.a(alpha, 0x0C0A0E));
+            g.fill(bx + bw - 3, ny, bx + bw, ny + 6, Ui.a(alpha, 0x0C0A0E));
+        }
+        // the names rolling past: previous above, current big, next below
+        double frac = p - Math.floor(p);
+        for (int d = -1; d <= 1; d++) {
+            int i = cur + d;
+            if (i < 0 || i >= game.reel.size()) continue;
+            String nm = game.reel.get(i).name;
+            float sc = d == 0 ? 2.0f : 1.0f;
+            float yy = by + bh / 2f + (float) ((d - (done ? 0 : frac - 0.5)) * 22) - 4 * sc;
+            if (yy < by + 3 || yy + 8 * sc > by + bh - 3) continue;
+            int tw = font.width(nm);
+            float fit = Math.min(sc, (bw - 20) / (float) Math.max(1, tw));
+            pose.pushMatrix();
+            pose.translate(bx + bw / 2f - tw * fit / 2f, yy);
+            pose.scale(fit);
+            int col = d == 0 ? (done ? 0xFFE680 : 0xFFFFFF) : 0x8C7A5A;
+            g.drawString(font, nm, 0, 0, Ui.a(d == 0 ? alpha : 0.6f * alpha, col), d == 0);
+            pose.popMatrix();
+        }
+        int ry = by + bh + 6;
+        if (done) resultBanner(g, font, game, now, alpha, w, ry);
+        else if (game.start != 0) {
+            String s = "Drawing...";
+            g.drawString(font, s, (w - font.width(s)) / 2, ry + 8, Ui.a(0.8f * alpha, 0xC8B4BA), true);
         }
     }
 
@@ -526,7 +660,7 @@ public final class GameRender {
         }
 
         int y = BOX_T + BOX_H + 4;
-        if (c.caseShowOdds) {
+        if (c.caseShowOdds && !game.giveaway) {
             double[] odds = Games.rarityChances(game.entries);
                 int total = 0;
             String[] labels = new String[5];

@@ -20,7 +20,7 @@ import java.util.Random;
  * settings are exact) and the animation is built to land on it.
  */
 public final class Games {
-    public enum Kind { WHEEL, CASE }
+    public enum Kind { WHEEL, CASE, ELIMINATION, RAFFLE }
 
     // ---- choices shown in the settings
     public static final int[] WHEEL_SLOTS = {4, 6, 8, 10, 12, 16};
@@ -90,6 +90,11 @@ public final class Games {
         public int resultColor = 0xFFFFFF;
         int lastTick = Integer.MIN_VALUE;
         long lastTickAt;
+        /** Giveaway draws: names instead of punishments, and a winner instead of a punishment. */
+        public boolean giveaway, preview;
+        public String titleOverride, subtitle, prize;
+        /** Elimination: the order names get knocked out (never the winner). */
+        public int[] elimOrder;
 
         Game(Kind kind, List<Entry> entries, List<Entry> reel, int win, List<String> pool, String donor, String player, double amount,
              int level, long donation, double mult, int chain, long seed, long runMs, double from, double target, int style) {
@@ -205,7 +210,7 @@ public final class Games {
             case MEGA -> "MEGA COMBO";
             case DTIME -> "DOUBLE TIME";
             case WHEEL_SLOT -> "THE WHEEL";
-            default -> Punishes.name(id);
+            default -> id.startsWith("@") ? id.substring(1) : Punishes.name(id);
         };
     }
 
@@ -222,6 +227,7 @@ public final class Games {
                 case DTIME -> "clock";
                 case WHEEL_SLOT -> "target";
                 default -> {
+                    if (k.startsWith("@")) yield "player_head";
                     Punishes.P p = Punishes.get(k);
                     yield p == null ? "barrier" : p.icon;
                 }
@@ -394,6 +400,111 @@ public final class Games {
                 secs * 1000L, 2.5, winSlot + f, c.caseStyle);
     }
 
+    /**
+     * A giveaway draw: the winner is already picked (weighted by tickets); this builds the show that lands on them.
+     * {@code names}/{@code tickets} are the entrants, {@code winner} an index into them.
+     */
+    public static Game buildGiveaway(Kind kind, List<String> names, List<Integer> tickets, int winner, String prize, int seconds, long seed) {
+        Config c = Config.get();
+        Random r = new Random(seed);
+        String winId = "@" + names.get(winner);
+        long runMs = seconds * 1000L;
+        Game g;
+        switch (kind) {
+            case WHEEL -> {
+                // a slice per ticket (at least one each), at most 24 slices; the winner is always on it
+                int total = 0;
+                for (int t : tickets) total += Math.max(1, t);
+                List<String> slices = new ArrayList<>();
+                if (names.size() > 24) {
+                    List<Integer> idx = new ArrayList<>();
+                    for (int i = 0; i < names.size(); i++) if (i != winner) idx.add(i);
+                    Collections.shuffle(idx, r);
+                    slices.add(winId);
+                    for (int i = 0; i < 23; i++) slices.add("@" + names.get(idx.get(i)));
+                } else {
+                    double scale = Math.min(1.0, 24.0 / total);
+                    for (int i = 0; i < names.size(); i++) {
+                        int n = Math.max(1, (int) Math.round(Math.max(1, tickets.get(i)) * scale));
+                        for (int k = 0; k < n; k++) slices.add("@" + names.get(i));
+                    }
+                }
+                if (slices.size() < 2) slices.add(winId); // a wheel needs at least two slices
+                Collections.shuffle(slices, r);
+                for (int i = 1; i < slices.size(); i++) // spread out repeats of the same name
+                    if (slices.get(i).equals(slices.get(i - 1))) {
+                        for (int j = i + 1; j < slices.size(); j++)
+                            if (!slices.get(j).equals(slices.get(i))) {
+                                Collections.swap(slices, i, j);
+                                break;
+                            }
+                    }
+                List<Entry> entries = new ArrayList<>();
+                List<Integer> mine = new ArrayList<>();
+                for (int i = 0; i < slices.size(); i++) {
+                    entries.add(new Entry(slices.get(i), 0));
+                    if (slices.get(i).equals(winId)) mine.add(i);
+                }
+                int win = mine.get(r.nextInt(mine.size()));
+                int n = entries.size();
+                double seg = Math.PI * 2 / n, f = 0.15 + r.nextDouble() * 0.7;
+                int turns = Math.max(3, (int) Math.round(seconds * 0.9 + 1));
+                double land = (((-(win + f) * seg) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                g = new Game(kind, entries, null, win, List.of(), null, null, 0, 0, -1, 1, 0, seed, runMs, 0, turns * Math.PI * 2 + land, c.wheelStyle);
+            }
+            case ELIMINATION -> {
+                List<Integer> shown = new ArrayList<>();
+                for (int i = 0; i < names.size(); i++) if (i != winner) shown.add(i);
+                Collections.shuffle(shown, r);
+                while (shown.size() > 39) shown.remove(shown.size() - 1);
+                shown.add(r.nextInt(shown.size() + 1), winner);
+                List<Entry> entries = new ArrayList<>();
+                int win = 0;
+                for (int i = 0; i < shown.size(); i++) {
+                    entries.add(new Entry("@" + names.get(shown.get(i)), 0));
+                    if (shown.get(i) == winner) win = i;
+                }
+                List<Integer> order = new ArrayList<>();
+                for (int i = 0; i < entries.size(); i++) if (i != win) order.add(i);
+                Collections.shuffle(order, r);
+                g = new Game(kind, entries, null, win, List.of(), null, null, 0, 0, -1, 1, 0, seed, runMs, 0, entries.size() - 1, 0);
+                g.elimOrder = order.stream().mapToInt(Integer::intValue).toArray();
+            }
+            default -> { // CASE and RAFFLE: a strip of names (more tickets = shows up more) ending on the winner
+                double[] w = new double[names.size()];
+                double sum = 0;
+                for (int i = 0; i < w.length; i++) sum += w[i] = Math.max(1, tickets.get(i));
+                for (int i = 0; i < w.length; i++) w[i] /= sum;
+                int len = kind == Kind.CASE ? 26 + seconds * 6 : 16 + seconds * 5;
+                int winSlot = kind == Kind.CASE ? len - 5 : len - 1;
+                List<Entry> reel = new ArrayList<>();
+                for (int i = 0; i < len; i++) reel.add(new Entry("@" + names.get(draw(w, r)), r.nextInt(4)));
+                reel.set(winSlot, new Entry(winId, 4));
+                List<Entry> entries = new ArrayList<>();
+                for (String nm : names) entries.add(new Entry("@" + nm, 0));
+                double from = kind == Kind.CASE ? 2.5 : 0.5;
+                double target = kind == Kind.CASE ? winSlot + 0.12 + r.nextDouble() * 0.76 : winSlot + 0.5;
+                g = new Game(kind, entries, reel, winSlot, List.of(), null, null, 0, 0, -1, 1, 0, seed, runMs, from, target,
+                        kind == Kind.CASE ? c.caseStyle : 0);
+            }
+        }
+        g.giveaway = true;
+        g.prize = prize;
+        g.titleOverride = switch (kind) {
+            case WHEEL -> "GIVEAWAY WHEEL";
+            case CASE -> "GIVEAWAY CASE";
+            case ELIMINATION -> "LAST ONE STANDING";
+            case RAFFLE -> "RAFFLE DRAW";
+        };
+        g.subtitle = (prize == null || prize.isBlank() ? "" : "Prize: " + prize + "  \u00b7  ") + names.size() + (names.size() == 1 ? " entrant" : " entrants");
+        return g;
+    }
+
+    /** Put a ready-made game next in line (giveaway draws). */
+    public static void requestBuilt(Game g) {
+        QUEUE.addFirst(g);
+    }
+
     /** Queue a game for a donation. {@code front} puts it next in line (Spin again, the case's wheel). */
     public static void request(Kind kind, int level, String donor, String player, double amount, long donation, double mult, int chain, boolean front) {
         Game g = build(kind, level, donor, player, amount, donation, mult, chain, R.nextLong());
@@ -409,8 +520,9 @@ public final class Games {
         if (current == null && !QUEUE.isEmpty()) {
             current = QUEUE.pollFirst();
             current.start = now;
-            if (PunishSounds.on(soundId(current.kind)))
-                PunishManager.playSound(mc, current.kind == Kind.WHEEL ? "minecraft:block.note_block.bell" : "minecraft:block.chest.open", 0.8f, 1.0f);
+            if (current.giveaway || PunishSounds.on(soundId(current.kind)))
+                PunishManager.playSound(mc, current.kind == Kind.WHEEL ? "minecraft:block.note_block.bell"
+                        : current.kind == Kind.CASE ? "minecraft:block.chest.open" : "minecraft:block.note_block.chime", 0.8f, 1.0f);
         }
         if (current != null && !current.resolved && now >= current.endAt()) resolve(mc, current, now);
     }
@@ -424,9 +536,10 @@ public final class Games {
             g.lastTick = u;
             int idx = g.kind == Kind.WHEEL ? Config.get().wheelTick : Config.get().caseTick;
             String snd = TICK_SOUNDS[Math.max(0, Math.min(TICK_SOUNDS.length - 1, idx))];
-            if (!first && snd != null && now - g.lastTickAt > 30 && PunishSounds.on(soundId(g.kind))) {
+            if (!first && snd != null && now - g.lastTickAt > 30 && (g.giveaway || PunishSounds.on(soundId(g.kind)))) {
                 g.lastTickAt = now;
-                float pitch = 0.9f + 0.6f * (float) (1 - g.t(now)) + (g.kind == Kind.CASE ? 0.3f : 0f);
+                float pitch = 0.9f + 0.6f * (float) (1 - g.t(now)) + (g.kind == Kind.WHEEL ? 0f : 0.3f);
+                if (g.kind == Kind.ELIMINATION) snd = "minecraft:entity.item.break";
                 PunishManager.playSound(Minecraft.getInstance(), snd, 0.45f, pitch);
             }
         }
@@ -452,6 +565,16 @@ public final class Games {
         g.resolvedAt = now;
         g.until = now + 2600;
         Entry e = g.winner();
+        if (g.giveaway) {
+            g.until = now + 6500;
+            g.resultTitle = e.name + " WINS!";
+            g.resultSub = g.prize == null || g.prize.isBlank() ? "Congratulations!" : "Prize: " + g.prize;
+            g.resultColor = 0xFFD700;
+            PunishManager.playSound(mc, "minecraft:ui.toast.challenge_complete", 1f, 1f);
+            PunishManager.playSound(mc, "minecraft:entity.firework_rocket.twinkle", 0.8f, 1f);
+            if (!g.preview) Giveaway.finished(e.name);
+            return;
+        }
         Random r = new Random(g.seed ^ 0x5DEECE66DL);
         double mult = g.mult * (g.kind == Kind.WHEEL ? LENGTHS[c.wheelLength] : (c.caseLonger ? RARITY_LONGER[e.rarity] : 1.0));
         List<String> run = new ArrayList<>();
