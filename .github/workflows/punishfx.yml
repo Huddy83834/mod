@@ -46,31 +46,6 @@ jobs:
             echo "::error title=Build errors::${msg}"
           fi
           exit $code
-      - name: Probe new APIs
-        if: always()
-        shell: bash
-        run: |
-          set +e +o pipefail
-          J=""
-          for f in $(find / -name "*.jar" -path "*minecraft*" 2>/dev/null | grep -i -E "merged|client" | grep -v sources); do
-            if unzip -l "$f" 2>/dev/null | grep -q "net/minecraft/client/Options.class"; then J="$f"; break; fi
-          done
-          P() { echo "@@@@@ $1"; }
-          P "globals.glsl"; unzip -p "$J" assets/minecraft/shaders/include/globals.glsl
-          P "box_blur.fsh"; unzip -p "$J" assets/minecraft/shaders/post/box_blur.fsh
-          P "blur.json"; unzip -p "$J" assets/minecraft/post_effect/blur.json | head -40
-          P "PostChain"; javap -p -cp "$J" net.minecraft.client.renderer.PostChain
-          P "PostPass"; javap -p -cp "$J" net.minecraft.client.renderer.PostPass
-          P "PostPass strings"; javap -p -c -cp "$J" net.minecraft.client.renderer.PostPass | grep -E "ldc|invoke" | grep -iE "String|Uniform|Globals|bindDefault|setUniform|writeToBuffer" | head -40
-          P "PostChain strings"; javap -p -c -cp "$J" net.minecraft.client.renderer.PostChain | grep -E "ldc|invoke" | grep -iE "String|Uniform|Globals|withUniform" | head -40
-          P "RenderSystem uniform"; javap -cp "$J" com.mojang.blaze3d.systems.RenderSystem | grep -iE "uniform|global"
-          P "CommandEncoder"; javap -cp "$J" com.mojang.blaze3d.systems.CommandEncoder
-          P "GameRenderer fields"; javap -p -cp "$J" net.minecraft.client.renderer.GameRenderer | grep -iE "pool|Pool|render\(|renderLevel"
-          P "GameRenderer.render invokes"; javap -p -c -cp "$J" net.minecraft.client.renderer.GameRenderer | awk '/ void render\(net.minecraft.client.DeltaTracker, boolean\);/{f=1} f&&/invoke/{print} f&&/^$/{exit}' | head -80
-          P "ShaderManager"; javap -cp "$J" net.minecraft.client.renderer.ShaderManager | grep -i post
-          P "KeyboardHandler"; javap -cp "$J" net.minecraft.client.KeyboardHandler | grep -i clip
-          P "END"
-          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: punishfx-jar
