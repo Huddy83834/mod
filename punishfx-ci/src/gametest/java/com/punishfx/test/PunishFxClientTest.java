@@ -8,6 +8,9 @@ import com.punishfx.PunishManager;
 import com.punishfx.DonorBoard;
 import com.punishfx.MoveScreen;
 import com.punishfx.Ui;
+import com.punishfx.StreamSession;
+import com.punishfx.StreamHud;
+import com.punishfx.RecapScreen;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -90,7 +93,9 @@ public class PunishFxClientTest implements FabricClientGameTest {
             server.runCommand("tp @a ~ ~ ~ 0 10");
             ctx.waitTicks(20);
             effectShots(ctx);
+            newPunishmentTests(ctx, server);
             detectorTest(ctx);
+            streamTests(ctx);
             uiShots(ctx);
         }
 
@@ -269,6 +274,305 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.waitTicks(30);
     }
 
+    // ------------------------------------------------------------------ 1.4 punishments
+
+    private void reset(ClientGameTestContext ctx) {
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; PunishManager.donorUntil = 0; });
+        ctx.waitTicks(6);
+    }
+
+    /** Mean of (channel a minus channel b) over a region given as fractions of the screenshot. */
+    private static double diff(Path png, int a, int b, double x0, double x1, double y0, double y1) throws Exception {
+        BufferedImage im = ImageIO.read(png.toFile());
+        int w = im.getWidth(), h = im.getHeight();
+        long sum = 0, n = 0;
+        for (int y = (int) (h * y0); y < (int) (h * y1); y += 3)
+            for (int x = (int) (w * x0); x < (int) (w * x1); x += 3) {
+                int c = im.getRGB(x, y);
+                int[] ch = {(c >> 16) & 255, (c >> 8) & 255, c & 255};
+                sum += ch[a] - ch[b];
+                n++;
+            }
+        return n == 0 ? 0 : sum / (double) n;
+    }
+
+    private void newPunishmentTests(ClientGameTestContext ctx, TestServerContext server) {
+        reset(ctx);
+        server.runCommand("tp @a 0.5 101 0.5 0 10");
+        ctx.waitTicks(20);
+        shot(ctx, "fx_01_sky_baseline");
+
+        // ---- upside down: the sky ends up at the bottom of the screen
+        ctx.runOnClient(mc -> Config.get().upsideMode = 0);
+        ctx.runOnClient(mc -> PunishManager.force("upside_down", 0));
+        ctx.waitTicks(30);
+        check(ControlState.upside > 170f, "upside down: camera rolled over (" + fmt(ControlState.upside) + " deg)");
+        shot(ctx, "fx_upside_down");
+        try {
+            double baseTop = diff(shots.resolve("fx_01_sky_baseline.png"), 2, 0, 0.2, 0.8, 0.02, 0.2);
+            double baseBot = diff(shots.resolve("fx_01_sky_baseline.png"), 2, 0, 0.2, 0.8, 0.8, 0.95);
+            double upTop = diff(shots.resolve("fx_upside_down.png"), 2, 0, 0.2, 0.8, 0.02, 0.2);
+            double upBot = diff(shots.resolve("fx_upside_down.png"), 2, 0, 0.2, 0.8, 0.8, 0.95);
+            check(baseTop > baseBot + 20 && upBot > upTop + 20, "upside down: sky moves from the top to the bottom (base top/bot blue "
+                    + fmt(baseTop) + "/" + fmt(baseBot) + ", flipped " + fmt(upTop) + "/" + fmt(upBot) + ")");
+        } catch (Exception e) {
+            check(false, "upside down screenshot check: " + e);
+        }
+        reset(ctx);
+        check(ControlState.upside == 0f, "upside down: camera back to normal after");
+
+        // ---- front camera
+        ctx.runOnClient(mc -> PunishManager.force("front_camera", 0));
+        ctx.waitTicks(10);
+        String cam = ctx.computeOnClient(mc -> mc.options.getCameraType().name());
+        check(cam.equals("THIRD_PERSON_FRONT"), "forced front camera: camera is third-person front (" + cam + ")");
+        shot(ctx, "fx_front_camera");
+        reset(ctx);
+        String cam2 = ctx.computeOnClient(mc -> mc.options.getCameraType().name());
+        check(cam2.equals("FIRST_PERSON"), "front camera: back to first person after (" + cam2 + ")");
+
+        // ---- mirror world: a red wall on the LEFT should appear on the RIGHT
+        server.runCommand("fill 1 101 6 8 108 6 minecraft:red_wool");
+        server.runCommand("tp @a 0.5 101 0.5 0 10");
+        ctx.waitTicks(25);
+        shot(ctx, "fx_02_wall_baseline");
+        ctx.runOnClient(mc -> PunishManager.force("mirror", 0));
+        ctx.waitTicks(10);
+        shot(ctx, "fx_mirror");
+        try {
+            Path b = shots.resolve("fx_02_wall_baseline.png"), m = shots.resolve("fx_mirror.png");
+            double bl = diff(b, 0, 1, 0.05, 0.45, 0.2, 0.7), br = diff(b, 0, 1, 0.55, 0.95, 0.2, 0.7);
+            double ml = diff(m, 0, 1, 0.05, 0.45, 0.2, 0.7), mr = diff(m, 0, 1, 0.55, 0.95, 0.2, 0.7);
+            check(bl > br + 25 && mr > ml + 25, "mirror world flips the picture (red left/right " + fmt(bl) + "/" + fmt(br)
+                    + " -> " + fmt(ml) + "/" + fmt(mr) + ")");
+        } catch (Exception e) {
+            check(false, "mirror screenshot check: " + e);
+        }
+        // mouse: turning right should turn you left
+        double turned = ctx.computeOnClient(mc -> {
+            float y0 = mc.player.getYRot();
+            mc.player.turn(100, 0);
+            return (double) (mc.player.getYRot() - y0);
+        });
+        check(turned < -5, "mirror world flips mouse look (turn +100 -> " + fmt(turned) + " deg)");
+        // keys: A (left) walks right
+        double x0 = pos(ctx).x;
+        ctx.getInput().holdKeyFor(o -> o.keyLeft, 20);
+        ctx.waitTicks(5);
+        double dx = pos(ctx).x - x0;
+        check(dx < -1.0, "mirror world flips A/D (A moved " + fmt(dx) + "m on X, normally +)");
+        reset(ctx);
+        server.runCommand("fill 1 101 6 8 108 6 minecraft:air");
+        server.runCommand("tp @a 0.5 101 0.5 0 10");
+        ctx.waitTicks(10);
+        double back = ctx.computeOnClient(mc -> {
+            float y0 = mc.player.getYRot();
+            mc.player.turn(100, 0);
+            float d = mc.player.getYRot() - y0;
+            mc.player.turn(-100, 0);
+            return (double) d;
+        });
+        check(back > 5, "mouse look normal again after mirror (" + fmt(back) + ")");
+        String post = ctx.computeOnClient(mc -> mc.gameRenderer.currentPostEffect() == null ? "none" : mc.gameRenderer.currentPostEffect().toString());
+        check(post.equals("none"), "mirror shader removed after (" + post + ")");
+
+        // ---- language swap
+        String normal = ctx.computeOnClient(mc -> net.minecraft.locale.Language.getInstance().getOrDefault("menu.returnToGame"));
+        ctx.runOnClient(mc -> Config.get().languageMode = 0); // pirate
+        ctx.runOnClient(mc -> PunishManager.force("language", 0));
+        ctx.waitTicks(10);
+        String pirate = ctx.computeOnClient(mc -> net.minecraft.locale.Language.getInstance().getOrDefault("menu.returnToGame"));
+        check(!pirate.equals(normal), "language swap changes the game's text (\"" + normal + "\" -> \"" + pirate + "\")");
+        ctx.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
+        ctx.waitTicks(5);
+        shot(ctx, "fx_language_pirate_menu");
+        ctx.setScreen(() -> null);
+        ctx.runOnClient(mc -> Config.get().languageMode = 1); // upside down
+        reset(ctx);
+        ctx.runOnClient(mc -> PunishManager.force("language", 0));
+        ctx.waitTicks(10);
+        ctx.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
+        ctx.waitTicks(5);
+        shot(ctx, "fx_language_upside_down_menu");
+        ctx.setScreen(() -> null);
+        reset(ctx);
+        ctx.waitTicks(5);
+        String restored = ctx.computeOnClient(mc -> net.minecraft.locale.Language.getInstance().getOrDefault("menu.returnToGame"));
+        check(restored.equals(normal), "language back to normal after (\"" + restored + "\")");
+        ctx.runOnClient(mc -> Config.get().languageMode = 4);
+
+        // ---- chipmunk (sound can't be heard in CI; it must just run without breaking anything)
+        ctx.runOnClient(mc -> Config.get().chipmunkMode = 2);
+        ctx.runOnClient(mc -> PunishManager.force("chipmunk", 0));
+        ctx.waitTicks(5);
+        boolean chip = ctx.computeOnClient(mc -> {
+            for (int i = 0; i < 5; i++)
+                mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1f));
+            return ControlState.chipmunk && ControlState.goats;
+        });
+        ctx.waitTicks(10);
+        check(chip, "chipmunk mode: squeaky + goat sounds switched on, playing sounds works");
+        reset(ctx);
+        check(!ControlState.chipmunk && !ControlState.goats, "chipmunk mode off after");
+        ctx.runOnClient(mc -> Config.get().chipmunkMode = 0);
+
+        // ---- hotbar: fill it first
+        server.runCommand("clear @a");
+        String[] items = {"diamond_sword", "dirt 64", "bow", "cooked_beef 32", "oak_planks 64", "torch 64", "water_bucket", "shield", "golden_apple 8"};
+        for (String it : items) server.runCommand("give @a minecraft:" + it);
+        ctx.waitTicks(10);
+        ctx.runOnClient(mc -> mc.player.getInventory().setSelectedSlot(0));
+        ctx.waitTicks(3);
+        shot(ctx, "fx_03_hotbar_baseline");
+
+        ctx.runOnClient(mc -> Config.get().possessedLevel = 2); // frantic
+        ctx.runOnClient(mc -> PunishManager.force("possessed_hotbar", 0));
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        for (int i = 0; i < 12; i++) {
+            ctx.waitTicks(7);
+            seen.add(ctx.computeOnClient(mc -> mc.player.getInventory().getSelectedSlot()));
+        }
+        check(seen.size() >= 3, "possessed hotbar: selected slot keeps changing " + seen);
+        reset(ctx);
+        ctx.runOnClient(mc -> Config.get().possessedLevel = 1);
+
+        ctx.runOnClient(mc -> PunishManager.force("hotbar_chaos", 0));
+        ctx.waitTicks(10);
+        shot(ctx, "fx_hotbar_chaos");
+        ctx.waitTicks(35);
+        shot(ctx, "fx_hotbar_chaos_reroll");
+        String first = ctx.computeOnClient(mc -> net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(mc.player.getInventory().getItem(0).getItem()).getPath());
+        check(first.equals("diamond_sword"), "hotbar chaos is visual only: your real items are untouched (slot 1 = " + first + ")");
+        try {
+            double changed = 0;
+            BufferedImage a = ImageIO.read(shots.resolve("fx_03_hotbar_baseline.png").toFile());
+            BufferedImage b = ImageIO.read(shots.resolve("fx_hotbar_chaos.png").toFile());
+            int w = a.getWidth(), h = a.getHeight(), n = 0;
+            for (int y = h - h / 12; y < h; y += 2)
+                for (int x = w / 2 - w / 6; x < w / 2 + w / 6; x += 2, n++)
+                    if (Math.abs((a.getRGB(x, y) & 255) - (b.getRGB(x, y) & 255)) > 30) changed++;
+            check(changed / n > 0.05, "hotbar chaos changes what the hotbar shows (" + fmt(100 * changed / n) + "% of hotbar pixels)");
+        } catch (Exception e) {
+            check(false, "hotbar chaos screenshot check: " + e);
+        }
+        reset(ctx);
+
+        // ---- butterfingers really drops (slot 2 = 64 dirt)
+        ctx.runOnClient(mc -> { mc.player.getInventory().setSelectedSlot(1); Config.get().butterLevel = 0; });
+        ctx.waitTicks(3);
+        int before = ctx.computeOnClient(mc -> mc.player.getInventory().getItem(1).getCount());
+        ctx.runOnClient(mc -> PunishManager.force("butterfingers", 0));
+        ctx.waitTicks(95);
+        int after = ctx.computeOnClient(mc -> mc.player.getInventory().getItem(1).getCount());
+        shot(ctx, "fx_butterfingers");
+        reset(ctx);
+        check(after <= before - 2, "butterfingers drops your items (dirt " + before + " -> " + after + ")");
+        boolean optIn = com.punishfx.Punishes.get("butterfingers").optIn;
+        boolean notInAll = ctx.computeOnClient(mc -> {
+            Config.Tier t = new Config.Tier();
+            t.pool = new ArrayList<>();
+            return !com.punishfx.Punishes.poolFor(t).contains("butterfingers");
+        });
+        check(optIn && notInAll, "butterfingers is opt-in only (never picked by 'All')");
+        server.runCommand("kill @e[type=item]");
+        server.runCommand("clear @a");
+        ctx.waitTicks(5);
+    }
+
+    // ------------------------------------------------------------------ stream mode
+
+    private void streamTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        ctx.runOnClient(mc -> {
+            StreamSession.clearHistory();
+            Config c = Config.get();
+            c.streamHud = true;
+            c.streamX = 0;
+            c.streamY = 0;
+            c.streamScale = 1.0;
+            c.topShow = true;
+            StreamSession.start();
+        });
+        check(StreamSession.live(), "stream starts");
+        ctx.runOnClient(mc -> Detector.onMessage("Bob paid you $1,000,000.", false));
+        ctx.waitTicks(30);
+        ctx.runOnClient(mc -> Detector.onMessage("Alex paid you $2,500,000.", false));
+        ctx.waitTicks(30);
+        shot(ctx, "fx_stream_live_hud");
+        double total = ctx.computeOnClient(mc -> StreamSession.current().total());
+        int count = ctx.computeOnClient(mc -> StreamSession.current().donations.size());
+        check(Math.abs(total - 3_500_000) < 1 && count == 2, "stream counts donations ($" + total + " from " + count + ")");
+        int started = ctx.computeOnClient(mc -> StreamSession.current().punishCount.values().stream().mapToInt(Integer::intValue).sum());
+        check(started >= 2, "stream records which punishments ran (" + started + ")");
+        reset(ctx);
+        ctx.runOnClient(mc -> StreamSession.stop());
+        check(!StreamSession.live() && StreamSession.history().size() == 1 && Math.abs(StreamSession.history().get(0).total() - 3_500_000) < 1,
+                "ending the stream saves it to history");
+
+        // a long, busy example stream so the recap screen has something to show off
+        ctx.runOnClient(mc -> {
+            StreamSession.Record r = new StreamSession.Record();
+            long end = System.currentTimeMillis(), start = end - (2 * 3600 + 13 * 60) * 1000L;
+            r.start = start;
+            r.end = end;
+            String[] who = {"Huddy83834", "Steve", "Alex", "Notch", "Jeb_", "Dinnerbone", "xX_Gamer_Xx", "Grian"};
+            double[] amt = {250_000, 1_000_000, 500_000, 2_000_000, 100_000, 5_000_000, 750_000, 300_000};
+            java.util.Random rnd = new java.util.Random(7);
+            for (int i = 0; i < 34; i++) {
+                long t = start + (long) ((end - start) * Math.pow((i + rnd.nextDouble()) / 34.0, 0.9));
+                int k = rnd.nextInt(who.length);
+                r.donations.add(new StreamSession.Donation(t, who[k], amt[rnd.nextInt(amt.length)], 0));
+            }
+            r.donations.sort((a, b) -> Long.compare(a.t, b.t));
+            r.punishCount.put("drunk", 9);
+            r.punishCount.put("mirror", 6);
+            r.punishCount.put("frozen", 4);
+            r.punishedMs = 41 * 60_000L;
+            r.donorChaosMs.put("Dinnerbone", 9 * 60_000L);
+            r.donorChaosMs.put("Steve", 5 * 60_000L);
+            r.cancels = 3;
+            r.extremesTriggered = 2;
+            r.extremesCancelled = 1;
+            StreamSession.history().add(r);
+        });
+        ctx.setScreen(() -> new RecapScreen(null));
+        ctx.waitTicks(50);
+        shot(ctx, "ui_recap_480x270");
+        ctx.clickScreenButton("Close");
+        ctx.waitTicks(3);
+
+        // the Stream page's buttons: go live, then end it -> the recap opens
+        ctx.runOnClient(mc -> Config.get().streamAutoRecap = true);
+        ctx.setScreen(() -> PfxFrame.open(null, PfxFrame.Page.STREAM));
+        ctx.waitTicks(4);
+        ctx.clickScreenButton("Go live");
+        ctx.waitTicks(4);
+        check(StreamSession.live(), "'Go live' on the Stream page starts a stream");
+        ctx.runOnClient(mc -> Detector.onMessage("Steve paid you $750,000.", false));
+        ctx.waitTicks(10);
+        ctx.runOnClient(mc -> { PunishManager.cancelAll(); PunishManager.bannerUntil = 0; PunishManager.donorUntil = 0; });
+        ctx.setScreen(() -> PfxFrame.open(null, PfxFrame.Page.STREAM));
+        ctx.waitTicks(4);
+        shot(ctx, "ui_stream_page_live");
+        ctx.clickScreenButton("End stream");
+        ctx.waitTicks(30);
+        String scr = ctx.computeOnClient(mc -> mc.screen == null ? "none" : mc.screen.getClass().getSimpleName());
+        check(!StreamSession.live() && scr.equals("RecapScreen"), "'End stream' ends it and shows the recap (" + scr + ")");
+        shot(ctx, "ui_recap_short_stream");
+        ctx.setScreen(() -> new RecapScreen(null, 1));
+        ctx.waitTicks(50);
+
+        // live counter editor
+        ctx.runOnClient(mc -> StreamSession.start());
+        ctx.setScreen(() -> new MoveScreen(null, StreamHud.PIECE));
+        ctx.waitTicks(4);
+        shot(ctx, "ui_move_live_counter");
+        ctx.clickScreenButton("Done");
+        ctx.setScreen(() -> null);
+        ctx.runOnClient(mc -> { StreamSession.stop(); StreamSession.history().remove(StreamSession.history().size() - 1); });
+        ctx.waitTicks(3);
+    }
+
     // ------------------------------------------------------------------ donation detection
 
     private void detectorTest(ClientGameTestContext ctx) {
@@ -428,6 +732,9 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.clickScreenButton("Top Donors");
         ctx.waitTicks(4);
         shot(ctx, "ui_" + size + "_5_topdonors");
+        ctx.clickScreenButton("Stream");
+        ctx.waitTicks(4);
+        shot(ctx, "ui_" + size + "_6_stream");
         ctx.setScreen(() -> null);
         ctx.waitTicks(3);
     }
@@ -478,10 +785,21 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.getInput().resizeWindow(854, 480); // auto -> 427x240, the smallest Minecraft allows
         ctx.waitTicks(5);
         pages(ctx, "427x240");
+        recapShot(ctx, "427x240");
         ctx.runOnClient(mc -> mc.options.guiScale().set(2));
         ctx.getInput().resizeWindow(1280, 720); // GUI scale 2 -> 640x360
         ctx.waitTicks(5);
         pages(ctx, "640x360");
+        recapShot(ctx, "640x360");
+    }
+
+    private void recapShot(ClientGameTestContext ctx, String size) {
+        if (StreamSession.history().size() < 2) return;
+        ctx.setScreen(() -> new RecapScreen(null, 1));
+        ctx.waitTicks(50);
+        shot(ctx, "ui_recap_" + size);
+        ctx.setScreen(() -> null);
+        ctx.waitTicks(3);
     }
 
     // ------------------------------------------------------------------ helpers

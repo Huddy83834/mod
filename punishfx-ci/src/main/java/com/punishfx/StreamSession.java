@@ -26,9 +26,9 @@ public final class StreamSession {
         public double amount;
         public int level;
 
-        Donation() {}
+        public Donation() {}
 
-        Donation(long t, String name, double amount, int level) {
+        public Donation(long t, String name, double amount, int level) {
             this.t = t;
             this.name = name;
             this.amount = amount;
