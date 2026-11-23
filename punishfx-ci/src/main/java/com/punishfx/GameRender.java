@@ -11,7 +11,8 @@ import java.util.Random;
 /** Draws Spin the Wheel and Case Opening: on the HUD, in the move editor and in the settings preview. */
 public final class GameRender {
     static final int R = 64, RIM = 7;
-    static final int WHEEL_W = 2 * (R + RIM) + 12, WHEEL_H = 26 + 2 * (R + RIM) + 6;
+    static final int HEAD = 31;
+    static final int WHEEL_W = 2 * (R + RIM) + 12, WHEEL_H = HEAD + 2 * (R + RIM) + 6;
     static final int CASE_W = 300;
     private static final int CARD_W = 58, CARD_H = 56, STEP = 62, BOX_L = 6, BOX_R = CASE_W - 6, BOX_T = 26, BOX_H = 64;
     private static final int[] GAME_SHOW = {0xFFD23F, 0x3A86FF, 0xFF006E, 0x06D6A0, 0xFB5607, 0x8338EC};
@@ -217,7 +218,7 @@ public final class GameRender {
         int n = game.entries.size();
         double seg = Math.PI * 2 / n;
         double rot = game.start == 0 ? 0 : game.pos(now);
-        float cx = WHEEL_W / 2f, cy = 26 + R + RIM;
+        float cx = WHEEL_W / 2f, cy = HEAD + R + RIM;
 
         header(g, font, title(c.wheelTitle, "SPIN THE WHEEL", game), c.wheelShowDonor, game, WHEEL_W, alpha);
 
@@ -319,8 +320,8 @@ public final class GameRender {
             double mid = rot + (i + 0.5) * seg;
             mid = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
             if (mode != 0) {
-                double ri = mode == 1 ? R * 0.6 : R * 0.8;
-                float is = (float) Math.max(0.5, Math.min(mode == 1 ? 1.3 : 1.0, ri * seg / 18.0));
+                double ri = mode == 1 ? R * 0.6 : R * 0.83;
+                float is = (float) Math.max(0.45, Math.min(mode == 1 ? 1.3 : 0.85, ri * seg / 18.0));
                 float ix = cx + (float) (Math.sin(mid) * ri), iy = cy - (float) (Math.cos(mid) * ri);
                 pose.pushMatrix();
                 pose.translate(ix, iy);
@@ -329,9 +330,11 @@ public final class GameRender {
                 pose.popMatrix();
             }
             if (mode != 1) {
-                double rIn = R * 0.25, rOut = mode == 2 ? R * 0.68 : R * 0.93;
+                double rIn = R * 0.23, rOut = mode == 2 ? R * 0.71 : R * 0.93;
                 double arc = (rIn + rOut) / 2 * seg;
-                float ls = (float) Math.max(0.5, Math.min(1.0, arc * 0.85 / 9));
+                // shrink long names to fit before cutting them short
+                int fullW = font.width(TopDonorsHud.fontText(e.name, c.wheelFont, e.special()));
+                float ls = (float) Math.max(0.55, Math.min(Math.min(1.0, arc * 0.85 / 9), (rOut - rIn) / Math.max(1, fullW)));
                 String s = Ui.fit(font, e.name, (int) ((rOut - rIn) / ls));
                 var comp = TopDonorsHud.fontText(s, c.wheelFont, e.special());
                 int tw = font.width(comp);
@@ -516,7 +519,7 @@ public final class GameRender {
         // the marker
         int mx = Math.round(centre);
         int mc = 0xFFD24A;
-        g.fill(mx - 1, BOX_T - 3, mx + 1, BOX_T + BOX_H + 3, Ui.a(alpha, mc));
+        g.fill(mx - 1, BOX_T - 3, mx + 1, BOX_T + BOX_H + 3, Ui.a(0.8f * alpha, mc));
         for (int k = 0; k < 5; k++) {
             g.fill(mx - 5 + k, BOX_T - 4 + k, mx + 5 - k, BOX_T - 3 + k, Ui.a(alpha, mc));
             g.fill(mx - 5 + k, BOX_T + BOX_H + 3 - k, mx + 5 - k, BOX_T + BOX_H + 4 - k, Ui.a(alpha, mc));
@@ -525,8 +528,7 @@ public final class GameRender {
         int y = BOX_T + BOX_H + 4;
         if (c.caseShowOdds) {
             double[] odds = Games.rarityChances(game.entries);
-            StringBuilder dummy = new StringBuilder();
-            int total = 0;
+                int total = 0;
             String[] labels = new String[5];
             for (int r = 0; r < 5; r++) {
                 if (odds[r] <= 0) continue;

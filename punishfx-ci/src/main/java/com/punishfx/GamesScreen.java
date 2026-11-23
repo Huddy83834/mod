@@ -50,7 +50,7 @@ public class GamesScreen extends PfxFrame {
             Games.restartPreview();
             rebuild();
         }).accent(Ui.THEME).hot(() -> tab == 1));
-        previewH = ch >= 200 ? 86 : 58;
+        previewH = ch >= 260 ? 86 : ch >= 200 ? 62 : 52;
         int top = cy + 20 + previewH + 4;
         list(tab == 0 ? wheelRows(c) : caseRows(c), top, cy + ch);
     }
@@ -117,7 +117,7 @@ public class GamesScreen extends PfxFrame {
                 new String[]{"Blue 79.9%, purple 16%, pink 3.2%, red 0.64%, gold 0.26%", "Every item has the same chance", "Rare ones show up far more often"}));
         r.add(new Choice("Gold ★ item", "", new String[]{"Off", "Mega combo", "Double time", "The wheel"}, () -> c.caseGold, v -> c.caseGold = v,
                 new String[]{"No gold item", "Three punishments at once", "One punishment, twice as long", "Unboxes a spin of the wheel"}));
-        r.add(new Choice("\"NOTHING!\" items", "Blue items that do nothing", counts(3), () -> c.caseSafe, v -> c.caseSafe = v));
+        r.add(new Choice("\"NOTHING!\" items", "Blue items that do nothing (blue is the most common!)", counts(3), () -> c.caseSafe, v -> c.caseSafe = v));
         r.add(new Toggle("Rarer lasts longer", "Purple 1.25x, pink 1.5x, red 2x as long", () -> c.caseLonger, v -> c.caseLonger = v));
         r.add(tryIt(Games.Kind.CASE));
         r.add(new Header("How it looks"));
@@ -174,7 +174,7 @@ public class GamesScreen extends PfxFrame {
                     n + " slots: " + (n - sp) + " punishments" + (sp > 0 ? ", " + sp + " special" : ""),
                     Games.SPIN_SECONDS[c.wheelSpin] + "s spin  ·  " + new String[]{"fair", "rigged", "teasing"}[c.wheelLuck],
                     "Spins: " + Games.USE_NAMES[c.wheelUse].toLowerCase(),
-                    "Preview - example spin"};
+                    "Full size: Move & resize below"};
             int ly = y + Math.max(4, (previewH - lines.length * 11) / 2);
             for (int i = 0; i < lines.length; i++) {
                 Ui.text(g, this.font, lines[i], tx, ly, i == lines.length - 1 ? 0x6E6064 : i == 0 ? 0xFFFFFF : 0xC8B4BA, tw);

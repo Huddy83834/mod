@@ -504,8 +504,10 @@ public final class Games {
             if (g.resultSub.isEmpty()) {
                 List<String> names = new ArrayList<>();
                 for (String id : run) names.add(Punishes.name(id));
-                String len = mult > 1.01 ? "  ·  " + (Math.round(mult * 10) / 10.0) + "x as long" : "";
-                g.resultSub = String.join(" + ", names) + len;
+                int lvl = Math.max(0, Math.min(c.tiers.size() - 1, g.level));
+                long secs = Math.round(c.tiers.get(lvl).seconds * c.lengthScale * mult);
+                String len = "for " + secs + "s" + (mult > 1.01 ? " (" + (Math.round(mult * 10) / 10.0) + "x)" : "");
+                g.resultSub = run.size() > 1 ? String.join(" + ", names) + "  ·  " + len : len;
             }
             if (g.kind == Kind.CASE && !e.special()) g.resultSub = RARITY_NAMES[e.rarity] + "  ·  " + g.resultSub;
             for (String id : run) PunishManager.startFromGame(id, g.level, g.player, g.amount, mult, g.donation);

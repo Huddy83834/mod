@@ -119,7 +119,7 @@ public final class Config {
     public int caseRarity = 0;             // 0 how bad it is, 1 category, 2 random
     public int caseOdds = 0;               // 0 real CS odds, 1 even, 2 generous
     public int caseGold = 1;               // 0 off, 1 mega combo, 2 double time, 3 opens the wheel
-    public int caseSafe = 1;
+    public int caseSafe = 0;
     public boolean caseLonger = true;      // rarer = lasts longer
     public String caseTitle = "PUNISHMENT CASE";
     public boolean caseShowDonor = true;

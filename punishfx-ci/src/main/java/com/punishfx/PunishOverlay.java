@@ -55,7 +55,7 @@ public final class PunishOverlay {
         }
         GameRender.render(g, font, w, h);
         combo(g, font, w, now);
-        queue(g, font, now);
+        queue(g, font, h, now);
         donorBanner(g, font, w, now);
         banner(g, font, w, now);
         countdown(g, font, w, h, now);
@@ -80,7 +80,7 @@ public final class PunishOverlay {
     }
 
     /** The donations waiting in line (Queue mode). */
-    private static void queue(GuiGraphics g, Font font, long now) {
+    private static void queue(GuiGraphics g, Font font, int sh, long now) {
         if (!Config.get().queueShow) return;
         List<PunishManager.Donation> q = PunishManager.queue();
         if (q.isEmpty()) return;
@@ -88,10 +88,10 @@ public final class PunishOverlay {
         String head = "UP NEXT";
         String line = next.who() + "  " + Money.compact(next.amount()) + (q.size() > 1 ? "   +" + (q.size() - 1) + " more" : "");
         int w = Math.max(font.width(head), font.width(line)) + 14;
-        int x = 4, y = 4;
+        int x = 4, y = sh / 2 - 48; // left side, clear of the banner (top) and chat (bottom)
         g.fill(x, y, x + w, y + 26, A(0.75f, 0x000000));
         g.fill(x, y, x + 2, y + 26, A(1f, Ui.ACCENT2));
-        float pulse = 0.6f + 0.4f * (float) Math.sin(now / 250.0);
+        float pulse = 0.75f + 0.25f * (float) Math.sin(now / 250.0);
         g.drawString(font, head, x + 7, y + 4, A(pulse, Ui.ACCENT2), false);
         g.drawString(font, line, x + 7, y + 15, A(1f, 0xFFFFFF), false);
     }
