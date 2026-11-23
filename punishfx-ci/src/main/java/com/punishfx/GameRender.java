@@ -42,8 +42,18 @@ public final class GameRender {
             c.wheelScale = s;
         }
         public boolean shown() { return true; }
+        public boolean canHide() { return false; }
         public String showSettingName() { return ""; }
         public void reset() { set(0.5, 0.55, 1.0); }
+        public java.util.List<HudPiece.Item> menu() {
+            Config c = Config.get();
+            return java.util.List.of(
+                    HudPiece.cycle("Colours", Games.WHEEL_COLOR_NAMES, () -> c.wheelColors, v -> c.wheelColors = v),
+                    HudPiece.cycle("Rim", Games.RIM_NAMES, () -> c.wheelRim, v -> c.wheelRim = v),
+                    HudPiece.cycle("Labels", new String[]{"Names", "Icons", "Icons + names"}, () -> c.wheelLabels, v -> c.wheelLabels = v),
+                    HudPiece.cycle("Pointer", Games.POINTER_NAMES, () -> c.wheelPointer, v -> c.wheelPointer = v),
+                    HudPiece.cycle("Background", new String[]{"Clear", "Dim", "Dark"}, () -> c.wheelBg, v -> c.wheelBg = v));
+        }
     };
 
     public static final HudPiece CASE_PIECE = new HudPiece() {
@@ -63,8 +73,18 @@ public final class GameRender {
             c.caseScale = s;
         }
         public boolean shown() { return true; }
+        public boolean canHide() { return false; }
         public String showSettingName() { return ""; }
         public void reset() { set(0.5, 0.5, 1.0); }
+        public java.util.List<HudPiece.Item> menu() {
+            Config c = Config.get();
+            return java.util.List.of(
+                    HudPiece.cycle("Cards", new String[]{"CS", "Flat", "Minimal"}, () -> c.caseCard, v -> c.caseCard = v),
+                    HudPiece.cycle("Rarity colours", new String[]{"CS", "Theme", "Rainbow"}, () -> c.caseColors, v -> c.caseColors = v),
+                    HudPiece.toggle("Odds strip", () -> c.caseShowOdds, v -> c.caseShowOdds = v),
+                    HudPiece.toggle("Icons", () -> c.caseIcons, v -> c.caseIcons = v),
+                    HudPiece.cycle("Background", new String[]{"Clear", "Dim", "Dark"}, () -> c.caseBg, v -> c.caseBg = v));
+        }
     };
 
     public static HudPiece piece(Games.Kind k) {

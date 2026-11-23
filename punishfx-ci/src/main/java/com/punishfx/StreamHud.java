@@ -29,6 +29,18 @@ public final class StreamHud {
         return out;
     }
 
+    private static boolean on(boolean sample) {
+        return sample || StreamSession.live();
+    }
+
+    private static String label(boolean sample) {
+        return on(sample) ? "LIVE" : "NOT LIVE";
+    }
+
+    private static String shownText(boolean sample) {
+        return on(sample) ? text(sample) : "Go live on the Stream page";
+    }
+
     private static String text(boolean sample) {
         return String.join("  ·  ", parts(sample));
     }
@@ -37,8 +49,8 @@ public final class StreamHud {
         public String name() { return "live counter"; }
 
         public int[] size(Font font, boolean sample) {
-            String t = text(sample);
-            return new int[]{8 + 7 + font.width("LIVE") + 6 + (t.isEmpty() ? 0 : font.width(t) + 6) + 4, 15};
+            String t = shownText(sample);
+            return new int[]{8 + 7 + font.width(label(sample)) + 6 + (t.isEmpty() ? 0 : font.width(t) + 6) + 4, 15};
         }
 
         public void drawAt(GuiGraphics g, Font font, float x, float y, float scale, boolean sample) {
@@ -57,12 +69,27 @@ public final class StreamHud {
         }
 
         public boolean shown() { return Config.get().streamHud; }
+        public void setShown(boolean on) { Config.get().streamHud = on; }
+        public java.util.List<HudPiece.Item> menu() {
+            Config c = Config.get();
+            return java.util.List.of(
+                    new HudPiece.Item(() -> StreamSession.live() ? "End stream (shows the recap)" : "\u25cf Go live now", () -> {
+                        if (StreamSession.live()) StreamSession.stop();
+                        else StreamSession.start();
+                    }),
+                    HudPiece.toggle("Timer", () -> c.streamHudTimer, v -> c.streamHudTimer = v),
+                    HudPiece.toggle("Money", () -> c.streamHudMoney, v -> c.streamHudMoney = v),
+                    HudPiece.toggle("Donation count", () -> c.streamHudCount, v -> c.streamHudCount = v),
+                    HudPiece.toggle("Show \"NOT LIVE\" when off", () -> c.streamHudIdle, v -> c.streamHudIdle = v));
+        }
         public String showSettingName() { return "Show the live counter"; }
         public void reset() { set(0.0, 0.15, 1.0); }
     };
 
     public static void render(GuiGraphics g, Font font, int sw, int sh) {
-        if (!StreamSession.live() || !Config.get().streamHud || MoveScreen.editing(PIECE)) return;
+        Config c = Config.get();
+        if (!c.streamHud || MoveScreen.editing(PIECE)) return;
+        if (!StreamSession.live() && !c.streamHudIdle) return;
         int[] b = PIECE.bounds(font, sw, sh, false);
         drawAt(g, font, b[0], b[1], (float) PIECE.scale(), false);
     }
@@ -70,20 +97,22 @@ public final class StreamHud {
     public static void drawAt(GuiGraphics g, Font font, float x, float y, float scale, boolean sample) {
         int[] s = PIECE.size(font, sample);
         int w = s[0], h = s[1];
-        String t = text(sample);
+        String t = shownText(sample);
+        boolean live = on(sample);
         long now = System.currentTimeMillis();
         var pose = g.pose();
         pose.pushMatrix();
         pose.translate(x, y);
         pose.scale(scale);
         g.fill(0, 0, w, h, Ui.a(0.7f, 0x000000));
-        g.fill(0, 0, 2, h, Ui.a(1f, 0xFF3B3B));
-        float pulse = 0.55f + 0.45f * (float) Math.sin(now / 280.0);
-        g.fill(6, 5, 11, 10, Ui.a(pulse, 0xFF3B3B)); // blinking record dot
+        int dot = live ? 0xFF3B3B : 0x7A6C70;
+        g.fill(0, 0, 2, h, Ui.a(1f, dot));
+        float pulse = live ? 0.55f + 0.45f * (float) Math.sin(now / 280.0) : 0.8f;
+        g.fill(6, 5, 11, 10, Ui.a(pulse, dot)); // blinking record dot
         int tx = 15;
-        g.drawString(font, "LIVE", tx, 4, Ui.a(1f, 0xFF5A5A), false);
-        tx += font.width("LIVE") + 6;
-        if (!t.isEmpty()) g.drawString(font, t, tx, 4, Ui.a(1f, 0xFFFFFF), false);
+        g.drawString(font, label(sample), tx, 4, Ui.a(1f, live ? 0xFF5A5A : 0xB0A4A8), false);
+        tx += font.width(label(sample)) + 6;
+        if (!t.isEmpty()) g.drawString(font, t, tx, 4, Ui.a(1f, live ? 0xFFFFFF : 0x9A8F94), false);
         pose.popMatrix();
     }
 }

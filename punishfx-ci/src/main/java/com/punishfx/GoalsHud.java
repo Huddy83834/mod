@@ -34,6 +34,13 @@ public final class GoalsHud {
             c.goalScale = s;
         }
         public boolean shown() { return Config.get().goalShow; }
+        public void setShown(boolean on) { Config.get().goalShow = on; }
+        public java.util.List<HudPiece.Item> menu() {
+            Config c = Config.get();
+            return java.util.List.of(
+                    new HudPiece.Item(() -> "Where:  " + Goals.POS_NAMES[c.goalPos], () -> place((c.goalPos + 1) % 4)),
+                    new HudPiece.Item(() -> "Progress:  " + Money.compact(Goals.progress()) + "  (click to reset)", Goals::reset));
+        }
         public String showSettingName() { return "Show the goal bar"; }
         public void reset() { place(Config.get().goalPos); }
     };

@@ -108,6 +108,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
             simplerTests(ctx);
             teachTests(ctx);
             presetStreamTests(ctx);
+            layoutTests(ctx);
             uiShots(ctx);
         }
 
@@ -1483,6 +1484,38 @@ public class PunishFxClientTest implements FabricClientGameTest {
         check(r.equals("live=true total=3000000 hud=true scale=1.5 cancels+=0 punishing=true"),
                 "switching presets keeps the stream going (counter, settings, totals, running punishments): " + r);
         ctx.runOnClient(mc -> Config.reset());
+        reset(ctx);
+    }
+
+    private void layoutTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        // not live: the live counter says so instead of vanishing
+        ctx.runOnClient(mc -> { Config c = Config.get(); c.streamHud = true; c.streamHudIdle = true; c.streamX = 0; c.streamY = 0.15; c.topShow = true; });
+        ctx.waitTicks(3);
+        shot(ctx, "fx_not_live_counter");
+        ctx.setScreen(() -> new com.punishfx.LayoutScreen(null));
+        ctx.waitTicks(20);
+        shot(ctx, "ui_layout_editor");
+        // right-click menu: click "Style" (3rd line) on the top donors board with the real mouse
+        int before = ctx.computeOnClient(mc -> Config.get().topStyle);
+        double[] at = ctx.computeOnClient(mc -> {
+            com.punishfx.LayoutScreen ls = (com.punishfx.LayoutScreen) mc.screen;
+            ls.openMenu(com.punishfx.TopDonorsHud.PIECE);
+            int[] p = ls.menuItemAt(2);
+            double gs = mc.getWindow().getGuiScale();
+            return new double[]{p[0] * gs, p[1] * gs};
+        });
+        ctx.waitTicks(3);
+        shot(ctx, "ui_layout_right_click_menu");
+        ctx.getInput().setCursorPos(at[0], at[1]);
+        ctx.waitTicks(2);
+        ctx.getInput().pressMouse(0);
+        ctx.waitTicks(3);
+        int after = ctx.computeOnClient(mc -> Config.get().topStyle);
+        check(after != before, "layout editor: right-click menu changes the item's settings (style " + before + " -> " + after + ")");
+        shot(ctx, "ui_layout_after_click");
+        ctx.runOnClient(mc -> { Config.get().topStyle = 0; Config.save(); });
+        ctx.setScreen(() -> null);
         reset(ctx);
     }
 

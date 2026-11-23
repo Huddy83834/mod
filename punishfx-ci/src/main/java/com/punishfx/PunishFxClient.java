@@ -208,6 +208,10 @@ public class PunishFxClient implements ClientModInitializer {
                             Goals.reset();
                             return say(ctx, "Goal bar reset to $0.");
                         })))
+                .then(ClientCommandManager.literal("layout").executes(ctx -> {
+                    pendingScreen = new LayoutScreen(null);
+                    return 1;
+                }))
                 .then(ClientCommandManager.literal("recap").executes(ctx -> {
                     if (StreamSession.history().isEmpty()) return say(ctx, "No streams yet. /pfx stream start when you go live.");
                     pendingScreen = new RecapScreen(null);

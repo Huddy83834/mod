@@ -37,7 +37,7 @@ public abstract class PfxFrame extends Screen {
     /** Text shown in the footer; pages can replace it (e.g. with a hover description). */
     protected String footer = null;
 
-    private static final int PRESET_W = 64;
+    private static final int PRESET_W = 64, LAYOUT_W = 46;
 
     protected PfxFrame(Screen parent, Page page, String heading, String subheading) {
         super(Component.literal("Punish FX - " + heading));
@@ -106,7 +106,12 @@ public abstract class PfxFrame extends Screen {
         addNav(x, y += step, w, nh, Giveaway.live() ? "Giveaway \u25cf" : "Giveaway", Page.GIVEAWAY);
         addNav(x, y += step, w, nh, "Goals", Page.GOALS);
 
-        // Presets: top-right corner of every page
+        // Layout + Presets: top-right corner of every page
+        addRenderableWidget(new FancyButton(px + pw - 10 - PRESET_W - 4 - LAYOUT_W, py + 7, LAYOUT_W, 16, Component.literal("Layout"), b -> {
+            Config.save();
+            Minecraft.getInstance().setScreen(new LayoutScreen(this));
+        }).accent(Ui.GOOD));
+
         addRenderableWidget(new FancyButton(px + pw - 10 - PRESET_W, py + 7, PRESET_W, 16, Component.literal("\u2605 Presets"), b -> {
             if (page == Page.PRESETS) return;
             Config.save();
@@ -171,7 +176,7 @@ public abstract class PfxFrame extends Screen {
         // page title + subtitle
         Ui.glowText(g, this.font, heading, cx, py + 9, 0xFFFFFF, 1.4f);
         int hx = cx + (int) (this.font.width(heading) * 1.4f) + 8;
-        Ui.text(g, this.font, subheading, hx, py + 13, 0x8C7E82, px + pw - 16 - PRESET_W - hx);
+        Ui.text(g, this.font, subheading, hx, py + 13, 0x8C7E82, px + pw - 20 - PRESET_W - LAYOUT_W - hx);
         g.fill(cx, py + 27, cx + cw, py + 28, Ui.a(0.3f, Ui.ACCENT));
 
         footer = null;

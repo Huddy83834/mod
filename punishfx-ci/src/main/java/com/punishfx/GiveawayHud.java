@@ -44,6 +44,7 @@ public final class GiveawayHud {
             c.gwScale = s;
         }
         public boolean shown() { return Config.get().gwHud; }
+        public void setShown(boolean on) { Config.get().gwHud = on; }
         public String showSettingName() { return "Show the giveaway box"; }
         public void reset() { set(1.0, 0.72, 1.0); }
     };

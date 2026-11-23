@@ -109,6 +109,19 @@ public final class TopDonorsHud {
             c.topScale = scale;
         }
         public boolean shown() { return Config.get().topShow; }
+        public void setShown(boolean on) { Config.get().topShow = on; }
+        public java.util.List<HudPiece.Item> menu() {
+            Config c = Config.get();
+            String[] rows = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
+            return java.util.List.of(
+                    HudPiece.cycle("Style", new String[]{"Leaderboard", "Top donator only"}, () -> c.topStyle, v -> c.topStyle = v),
+                    HudPiece.cycle("How many people", rows, () -> c.topRows - 1, v -> c.topRows = v + 1),
+                    HudPiece.cycle("Amounts", new String[]{"$1.2M", "$1,200,000", "Hidden"}, () -> c.topAmounts, v -> c.topAmounts = v),
+                    HudPiece.cycle("Counts from", DonorBoard.PERIOD_NAMES, () -> c.topPeriod, v -> c.topPeriod = v),
+                    HudPiece.cycle("Font", FONT_NAMES, () -> c.topFont, v -> c.topFont = v),
+                    HudPiece.cycle("Colour", COLOR_NAMES, () -> c.topColor, v -> c.topColor = v),
+                    HudPiece.cycle("Background", BG_NAMES, () -> c.topBackground, v -> c.topBackground = v));
+        }
         public String showSettingName() { return "Show on screen"; }
         public void reset() { set(1.0, 0.3, 1.0); }
     };

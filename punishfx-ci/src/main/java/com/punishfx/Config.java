@@ -196,6 +196,7 @@ public final class Config {
 
     // ---- stream mode
     public boolean streamHud = true;
+    public boolean streamHudIdle = true;   // show "NOT LIVE" while no stream is running
     public boolean streamHudMoney = true, streamHudCount = true, streamHudTimer = true;
     public double streamScale = 1.0, streamX = 0.0, streamY = 0.15;
     public boolean streamAutoRecap = true;
