@@ -1149,7 +1149,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
                 for (int i = 0; i < names.size(); i++) tickets.add(1 + i % 3);
                 com.punishfx.Games.Kind k = new com.punishfx.Games.Kind[]{com.punishfx.Games.Kind.WHEEL, com.punishfx.Games.Kind.CASE,
                         com.punishfx.Games.Kind.ELIMINATION, com.punishfx.Games.Kind.RAFFLE}[kind];
-                com.punishfx.Games.Game g = com.punishfx.Games.buildGiveaway(k, names, tickets, 6, "$10M", 5, 42L + kind);
+                com.punishfx.Games.Game g = com.punishfx.Games.buildGiveaway(k, names, tickets, 5, "$10M", 5, 42L + kind);
                 g.preview = true;
                 com.punishfx.Games.requestBuilt(g);
             });

@@ -118,7 +118,7 @@ public final class Games {
         }
 
         public Entry winner() {
-            return kind == Kind.WHEEL ? entries.get(win) : reel.get(win);
+            return kind == Kind.WHEEL || kind == Kind.ELIMINATION ? entries.get(win) : reel.get(win);
         }
 
         /** 0..1 through the spin (0 during the intro). */
@@ -524,7 +524,14 @@ public final class Games {
                 PunishManager.playSound(mc, current.kind == Kind.WHEEL ? "minecraft:block.note_block.bell"
                         : current.kind == Kind.CASE ? "minecraft:block.chest.open" : "minecraft:block.note_block.chime", 0.8f, 1.0f);
         }
-        if (current != null && !current.resolved && now >= current.endAt()) resolve(mc, current, now);
+        if (current != null && !current.resolved && now >= current.endAt()) {
+            try {
+                resolve(mc, current, now);
+            } catch (Throwable t) {
+                PunishFxClient.LOG.warn("Punish FX: a wheel/case/draw failed to finish", t);
+                current = null;
+            }
+        }
     }
 
     /** Called every frame while drawing: the ticking sound as slots pass the pointer. */

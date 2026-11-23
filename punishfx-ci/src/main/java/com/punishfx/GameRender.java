@@ -102,8 +102,17 @@ public final class GameRender {
 
     // ------------------------------------------------------------------ HUD
 
-    /** The live game, over everything else on the HUD. */
+    /** The live game, over everything else on the HUD. A game that fails to draw is dropped, never left stuck. */
     public static void render(GuiGraphics g, Font font, int sw, int sh) {
+        try {
+            renderLive(g, font, sw, sh);
+        } catch (Throwable t) {
+            PunishFxClient.LOG.warn("Punish FX: a wheel/case/draw failed and was dropped", t);
+            Games.cancelAll();
+        }
+    }
+
+    private static void renderLive(GuiGraphics g, Font font, int sw, int sh) {
         Games.Game game = Games.current();
         if (game == null || game.start == 0) return;
         HudPiece piece = piece(game.kind);
