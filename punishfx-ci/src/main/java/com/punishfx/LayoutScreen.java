@@ -18,19 +18,41 @@ import java.util.List;
 public class LayoutScreen extends Screen {
     private static final int SNAP = 6, ITEM_H = 13;
     private final Screen parent;
+    /** null = everything on your screen right now; otherwise just these (one item's own editor). */
+    private final List<HudPiece> only;
     private HudPiece dragging, menuFor;
     private double grabX, grabY;
     private int menuX, menuY;
     private boolean confirmReset;
 
+    /** Everything that's on your screen right now. */
     public LayoutScreen(Screen parent) {
         super(Component.literal("Screen layout"));
         this.parent = parent;
+        this.only = null;
     }
 
-    /** Bottom to top: the big wheel and case under the small boxes, so the boxes stay easy to grab. */
-    static List<HudPiece> pieces() {
-        return List.of(GameRender.WHEEL_PIECE, GameRender.CASE_PIECE, GoalsHud.PIECE, GiveawayHud.PIECE, StreamHud.PIECE, TopDonorsHud.PIECE);
+    /** One item's own editor (for things that aren't always on screen, like the wheel). */
+    public LayoutScreen(Screen parent, HudPiece piece) {
+        super(Component.literal("Move the " + piece.name()));
+        this.parent = parent;
+        this.only = List.of(piece);
+    }
+
+    /** Bottom to top: bigger items under the small boxes, so the boxes stay easy to grab. */
+    private static final List<HudPiece> ALL = List.of(GameRender.WHEEL_PIECE, GameRender.CASE_PIECE, GoalsHud.PIECE, GiveawayHud.PIECE,
+            StreamHud.PIECE, TopDonorsHud.PIECE);
+
+    public List<HudPiece> pieces() {
+        if (only != null) return only;
+        List<HudPiece> out = new ArrayList<>();
+        for (HudPiece p : ALL) if (p.onScreenNow()) out.add(p);
+        return out;
+    }
+
+    /** True while this piece is open in a layout editor. */
+    public static boolean editing(HudPiece p) {
+        return Minecraft.getInstance().screen instanceof LayoutScreen ls && ls.pieces().contains(p);
     }
 
     private static String title(HudPiece p) {
@@ -110,6 +132,7 @@ public class LayoutScreen extends Screen {
     }
 
     private int[] menuBox() {
+        if (menuFor != null && !pieces().contains(menuFor)) menuFor = null;
         List<HudPiece.Item> items = menuItems(menuFor);
         int w = menuW(menuFor), h = 14 + items.size() * ITEM_H + 4;
         int x = Math.min(menuX, this.width - w - 2), y = Math.min(menuY, this.height - h - 2);
@@ -215,7 +238,7 @@ public class LayoutScreen extends Screen {
             int[] b = box(p);
             p.drawAt(g, this.font, b[0], b[1], (float) p.scale(), true);
             boolean hot0 = p == hover || p == menuFor;
-            if (!p.canHide() && !hot0) {
+            if (only == null && !p.canHide() && !hot0) {
                 // the wheel and case only pop up during a game: dimmed so the boxes you see all the time stand out
                 g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], Ui.a(0.45f, 0x000000));
                 String h = title(p) + " (pops up in games)";
@@ -250,6 +273,13 @@ public class LayoutScreen extends Screen {
         g.fill(hx, 6, hx + hw, 7, Ui.a(1f, Ui.ACCENT));
         g.drawString(this.font, help, hx + 8, 11, Ui.a(1f, 0xFFFFFF), false);
 
+        if (menuFor != null && !pieces().contains(menuFor)) menuFor = null;
+        if (pieces().isEmpty()) {
+            String a = "Nothing is on your screen right now.";
+            String b = "Switch something on (top donors, live counter, goal bar), or use an item's own Move & resize button.";
+            g.drawString(this.font, a, this.width / 2 - this.font.width(a) / 2, this.height / 2 - 10, Ui.a(1f, 0xFFFFFF), true);
+            g.drawString(this.font, b, this.width / 2 - this.font.width(b) / 2, this.height / 2 + 2, Ui.a(1f, 0xB0A4A8), true);
+        }
         if (menuFor != null) drawMenu(g, mouseX, mouseY);
     }
 

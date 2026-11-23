@@ -40,6 +40,11 @@ public interface HudPiece {
     /** Switch it on/off (pieces that can't be hidden ignore this). */
     default void setShown(boolean on) {}
 
+    /** It's on your screen right now (switched on, and has something to show). */
+    default boolean onScreenNow() {
+        return shown();
+    }
+
     default boolean canHide() {
         return true;
     }

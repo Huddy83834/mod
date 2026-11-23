@@ -70,6 +70,7 @@ public final class StreamHud {
 
         public boolean shown() { return Config.get().streamHud; }
         public void setShown(boolean on) { Config.get().streamHud = on; }
+        public boolean onScreenNow() { return Config.get().streamHud && (StreamSession.live() || Config.get().streamHudIdle); }
         public java.util.List<HudPiece.Item> menu() {
             Config c = Config.get();
             return java.util.List.of(

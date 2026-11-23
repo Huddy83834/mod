@@ -1493,9 +1493,17 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.runOnClient(mc -> { Config c = Config.get(); c.streamHud = true; c.streamHudIdle = true; c.streamX = 0; c.streamY = 0.15; c.topShow = true; });
         ctx.waitTicks(3);
         shot(ctx, "fx_not_live_counter");
+        ctx.runOnClient(mc -> { com.punishfx.Giveaway.cancel(); Config.get().goalShow = true; });
         ctx.setScreen(() -> new com.punishfx.LayoutScreen(null));
         ctx.waitTicks(20);
         shot(ctx, "ui_layout_editor");
+        String listed = ctx.computeOnClient(mc -> {
+            List<String> n = new ArrayList<>();
+            for (com.punishfx.HudPiece p : ((com.punishfx.LayoutScreen) mc.screen).pieces()) n.add(p.name());
+            return String.join(", ", n);
+        });
+        check(!listed.contains("wheel") && !listed.contains("case") && !listed.contains("giveaway") && listed.contains("live counter")
+                && listed.contains("goal bar"), "layout editor shows only what's on screen now (" + listed + ")");
         // right-click menu: click "Style" (3rd line) on the top donors board with the real mouse
         int before = ctx.computeOnClient(mc -> Config.get().topStyle);
         double[] at = ctx.computeOnClient(mc -> {
@@ -1515,6 +1523,10 @@ public class PunishFxClientTest implements FabricClientGameTest {
         check(after != before, "layout editor: right-click menu changes the item's settings (style " + before + " -> " + after + ")");
         shot(ctx, "ui_layout_after_click");
         ctx.runOnClient(mc -> { Config.get().topStyle = 0; Config.save(); });
+        // things that only pop up sometimes have their own editor
+        ctx.setScreen(() -> new com.punishfx.LayoutScreen(null, com.punishfx.GameRender.WHEEL_PIECE));
+        ctx.waitTicks(20);
+        shot(ctx, "ui_layout_wheel_own_editor");
         ctx.setScreen(() -> null);
         reset(ctx);
     }

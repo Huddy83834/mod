@@ -66,8 +66,8 @@ public class GoalsScreen extends PfxFrame {
         r.add(new Toggle("Show the goal bar", "On your screen while you play", () -> c.goalShow, v -> c.goalShow = v));
         r.add(new Choice("Where", "Across the top or bottom, or up a side", Goals.POS_NAMES, () -> c.goalPos, v -> GoalsHud.place(v)));
         r.add(new Text("Title", "Text at the start of the bar", () -> c.goalTitle, v -> c.goalTitle = v));
-        r.add(new Action("Move & resize", "Opens the screen layout editor: drag, resize and right-click every item", () -> "Layout", Ui.GOOD,
-                () -> Minecraft.getInstance().setScreen(new LayoutScreen(this))));
+        r.add(new Action("Move & resize", "Drag it, scroll to resize, right-click for its settings", () -> "Edit", Ui.GOOD,
+                () -> Minecraft.getInstance().setScreen(new LayoutScreen(this, GoalsHud.PIECE))));
         r.add(numbers("Size", "How big the bar is", new double[]{0.5, 0.75, 1.0, 1.25, 1.5, 2.0},
                 v -> Math.round(v * 100) + "%", () -> c.goalScale, v -> c.goalScale = v));
         list(r, cy + previewH + 4, cy + ch);

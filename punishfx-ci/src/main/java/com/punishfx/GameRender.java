@@ -43,6 +43,7 @@ public final class GameRender {
         }
         public boolean shown() { return true; }
         public boolean canHide() { return false; }
+        public boolean onScreenNow() { return false; } // only pops up during a game
         public String showSettingName() { return ""; }
         public void reset() { set(0.5, 0.55, 1.0); }
         public java.util.List<HudPiece.Item> menu() {
@@ -74,6 +75,7 @@ public final class GameRender {
         }
         public boolean shown() { return true; }
         public boolean canHide() { return false; }
+        public boolean onScreenNow() { return false; } // only pops up during a game
         public String showSettingName() { return ""; }
         public void reset() { set(0.5, 0.5, 1.0); }
         public java.util.List<HudPiece.Item> menu() {

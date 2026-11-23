@@ -186,8 +186,8 @@ public class GiveawayScreen extends PfxFrame {
 
         r.add(new Header("On screen"));
         r.add(new Toggle("Show the giveaway box", "Prize, how to enter and who's in, while it's open", () -> c.gwHud, v -> c.gwHud = v));
-        r.add(new Action("Move & resize", "Opens the screen layout editor: drag, resize and right-click every item", () -> "Layout", Ui.GOOD,
-                () -> Minecraft.getInstance().setScreen(new LayoutScreen(this))));
+        r.add(new Action("Move & resize", "Drag it, scroll to resize, right-click for its settings", () -> "Edit", Ui.GOOD,
+                () -> Minecraft.getInstance().setScreen(new LayoutScreen(this, GiveawayHud.PIECE))));
         r.add(numbers("Size", "How big the giveaway box is", new double[]{0.5, 0.75, 1.0, 1.25, 1.5, 2.0},
                 v -> Math.round(v * 100) + "%", () -> c.gwScale, v -> c.gwScale = v));
         list(r, cy + statusH + 4, cy + ch);

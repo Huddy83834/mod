@@ -105,8 +105,8 @@ public class GamesScreen extends PfxFrame {
         r.add(new Choice("Tick sound", "The click as slots pass the arrow", Games.TICK_NAMES, () -> c.wheelTick, v -> c.wheelTick = v));
         r.add(new Choice("Winner effect", "When it stops", new String[]{"Confetti", "Flash", "None"}, () -> c.wheelWin, v -> c.wheelWin = v));
         r.add(new Choice("Background", "Darken the game behind it", new String[]{"Clear", "Dim", "Dark"}, () -> c.wheelBg, v -> c.wheelBg = v));
-        r.add(new Action("Move & resize", "Opens the screen layout editor: drag, resize and right-click every item", () -> "Layout", Ui.GOOD,
-                () -> Minecraft.getInstance().setScreen(new LayoutScreen(this))));
+        r.add(new Action("Move & resize", "Drag it, scroll to resize, right-click for its settings", () -> "Edit", Ui.GOOD,
+                () -> Minecraft.getInstance().setScreen(new LayoutScreen(this, GameRender.WHEEL_PIECE))));
         r.add(numbers("Size", "How big the wheel is", new double[]{0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0},
                 v -> Math.round(v * 100) + "%", () -> c.wheelScale, v -> c.wheelScale = v));
         return r;
@@ -145,8 +145,8 @@ public class GamesScreen extends PfxFrame {
         r.add(new Choice("Tick sound", "The click as cards pass the line", Games.TICK_NAMES, () -> c.caseTick, v -> c.caseTick = v));
         r.add(new Choice("Winner effect", "When it stops", new String[]{"Confetti", "Flash", "None"}, () -> c.caseWin, v -> c.caseWin = v));
         r.add(new Choice("Background", "Darken the game behind it", new String[]{"Clear", "Dim", "Dark"}, () -> c.caseBg, v -> c.caseBg = v));
-        r.add(new Action("Move & resize", "Opens the screen layout editor: drag, resize and right-click every item", () -> "Layout", Ui.GOOD,
-                () -> Minecraft.getInstance().setScreen(new LayoutScreen(this))));
+        r.add(new Action("Move & resize", "Drag it, scroll to resize, right-click for its settings", () -> "Edit", Ui.GOOD,
+                () -> Minecraft.getInstance().setScreen(new LayoutScreen(this, GameRender.CASE_PIECE))));
         r.add(numbers("Size", "How big the case is", new double[]{0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0},
                 v -> Math.round(v * 100) + "%", () -> c.caseScale, v -> c.caseScale = v));
         return r;

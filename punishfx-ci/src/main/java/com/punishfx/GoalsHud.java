@@ -35,6 +35,7 @@ public final class GoalsHud {
         }
         public boolean shown() { return Config.get().goalShow; }
         public void setShown(boolean on) { Config.get().goalShow = on; }
+        public boolean onScreenNow() { return Config.get().goalShow && !Goals.sorted().isEmpty(); }
         public java.util.List<HudPiece.Item> menu() {
             Config c = Config.get();
             return java.util.List.of(

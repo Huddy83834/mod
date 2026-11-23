@@ -24,8 +24,8 @@ public class TopDonorsScreen extends PfxFrame {
         list(List.of(
                 new Header("Board"),
                 new Toggle("Show on screen", "Show the leaderboard while you play", () -> c.topShow, v -> c.topShow = v),
-                new Action("Move & resize", "Opens the screen layout editor: drag, resize and right-click every item", () -> "Layout", Ui.GOOD,
-                        () -> Minecraft.getInstance().setScreen(new LayoutScreen(this))),
+                new Action("Move & resize", "Drag it, scroll to resize, right-click for its settings", () -> "Edit", Ui.GOOD,
+                        () -> Minecraft.getInstance().setScreen(new LayoutScreen(this, TopDonorsHud.PIECE))),
                 numbers("Size", "How big the board is",
                         new double[]{0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0}, v -> Math.round(v * 100) + "%", () -> c.topScale, v -> c.topScale = v),
                 new Choice("Counts donations from", "Which donations make up the totals", DonorBoard.PERIOD_NAMES,

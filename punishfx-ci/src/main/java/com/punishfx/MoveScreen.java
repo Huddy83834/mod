@@ -28,7 +28,7 @@ public class MoveScreen extends Screen {
     /** True while this piece is open in the editor (so the HUD doesn't draw a second copy). */
     public static boolean editing(HudPiece p) {
         var screen = Minecraft.getInstance().screen;
-        return (screen instanceof MoveScreen m && m.piece == p) || screen instanceof LayoutScreen;
+        return (screen instanceof MoveScreen m && m.piece == p) || LayoutScreen.editing(p);
     }
 
     @Override
