@@ -91,7 +91,9 @@ public final class Games {
         int lastTick = Integer.MIN_VALUE;
         long lastTickAt;
         /** Giveaway draws: names instead of punishments, and a winner instead of a punishment. */
-        public boolean giveaway, preview;
+        public boolean giveaway, preview, reroll;
+        /** Giveaways: which place this draw is for (1st..3rd) and how many places there are. */
+        public int place = 1, places = 1;
         public String titleOverride, subtitle, prize;
         /** Elimination: the order names get knocked out (never the winner). */
         public int[] elimOrder;
@@ -500,6 +502,13 @@ public final class Games {
         return g;
     }
 
+    /** A real (not preview) giveaway draw is showing or waiting. */
+    public static boolean giveawayRunning() {
+        if (current != null && current.giveaway && !current.preview) return true;
+        for (Game g : QUEUE) if (g.giveaway && !g.preview) return true;
+        return false;
+    }
+
     /** Put a ready-made game next in line (giveaway draws). */
     public static void requestBuilt(Game g) {
         QUEUE.addFirst(g);
@@ -573,13 +582,14 @@ public final class Games {
         g.until = now + 2600;
         Entry e = g.winner();
         if (g.giveaway) {
-            g.until = now + 6500;
-            g.resultTitle = e.name + " WINS!";
+            g.until = now + (g.preview || g.place == 1 ? 6500 : 4500);
+            String ord = Giveaway.PLACES[Math.max(0, Math.min(2, g.place - 1))].toUpperCase(java.util.Locale.ROOT);
+            g.resultTitle = g.places > 1 ? e.name + " - " + ord + " PLACE!" : e.name + " WINS!";
             g.resultSub = g.prize == null || g.prize.isBlank() ? "Congratulations!" : "Prize: " + g.prize;
-            g.resultColor = 0xFFD700;
-            PunishManager.playSound(mc, "minecraft:ui.toast.challenge_complete", 1f, 1f);
+            g.resultColor = g.place == 1 ? 0xFFD700 : g.place == 2 ? 0xD8DEE6 : 0xD9955A;
+            PunishManager.playSound(mc, "minecraft:ui.toast.challenge_complete", 1f, g.place == 1 ? 1f : 1.2f);
             PunishManager.playSound(mc, "minecraft:entity.firework_rocket.twinkle", 0.8f, 1f);
-            if (!g.preview) Giveaway.finished(e.name);
+            if (!g.preview) Giveaway.finished(g, e.name);
             return;
         }
         Random r = new Random(g.seed ^ 0x5DEECE66DL);

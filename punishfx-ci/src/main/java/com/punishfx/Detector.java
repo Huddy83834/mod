@@ -85,6 +85,7 @@ public final class Detector {
         if (actionBar && !c.readActionBar) return;
         String text = clean(raw);
         if (text.isEmpty()) return;
+        if (!actionBar) Giveaway.chat(text); // servers that send player chat as plain messages
         long now = System.currentTimeMillis();
         if (text.equals(lastText) && now - lastAt < 1500) return; // the same line twice (chat + action bar)
         lastText = text;
@@ -104,6 +105,7 @@ public final class Detector {
             if (r != null) {
                 DonorBoard.record(r.player(), r.amount()); // every real donation counts on the board
                 StreamSession.donation(r.player(), r.amount(), level);
+                Goals.add(r.amount());
             }
             boolean entry = r != null && Giveaway.payment(r.player(), r.amount());
             if (r != null && level >= 0 && c.enabled && (!entry || c.gwPunish)) PunishManager.hit(r.amount(), r.player(), level, false);

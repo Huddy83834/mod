@@ -42,6 +42,7 @@ public final class PunishOverlay {
         TopDonorsHud.render(g, font, w, h);
         StreamHud.render(g, font, w, h);
         GiveawayHud.render(g, font, w, h);
+        GoalsHud.render(g, font, w, h);
 
         float strength = (float) Config.get().overlayStrength;
         for (PunishManager.Active a : PunishManager.active()) {
@@ -251,7 +252,7 @@ public final class PunishOverlay {
         String who = PunishManager.donor;
         String amt = PunishManager.donorAmount;
         String sub = cfg.bannerShowPunishments ? PunishManager.donorSub : "";
-        String head = who + " paid you";
+        String head = PunishManager.donorHead != null ? PunishManager.donorHead : who + " paid you";
 
         // shrink to fit narrow screens / long names
         float scale = 1.7f, amtScale = 2.2f;

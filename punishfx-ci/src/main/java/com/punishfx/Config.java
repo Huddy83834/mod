@@ -156,6 +156,40 @@ public final class Config {
     public boolean gwHud = true;
     public double gwX = 1.0, gwY = 0.72, gwScale = 1.0;
     public String gwPayCommand = "/pay {name} {amount}";
+    public int gwWinners = 1;              // 1..3 places
+    public String gwPrize2 = "$500K", gwPrize3 = "$250K";
+    public int gwEntryMode = 0;            // 0 pay, 1 type the join word in chat, 2 either
+    public String gwJoinWord = "!join";
+    public int gwMinEntries = 0;           // index into Giveaway.MIN_ENTRIES
+    public String gwBanned = "";           // names, separated by commas or spaces
+    public boolean gwNoRepeat = false;     // last giveaway's winners can't enter
+
+    // ---- goals bar
+    public static final class Goal {
+        public double amount;
+        public String text = "";
+        public String action = "";         // "" nothing, "#wheel", "#case", "#giveaway", or a punishment id
+
+        public Goal() {}
+
+        public Goal(double amount, String text, String action) {
+            this.amount = amount;
+            this.text = text;
+            this.action = action;
+        }
+    }
+
+    public List<Goal> goals = defaultGoals();
+    public boolean goalShow = true;
+    public int goalPos = 0;                // 0 top, 1 bottom, 2 left side, 3 right side
+    public double goalX = 0.5, goalY = 0.0, goalScale = 1.0;
+    public String goalTitle = "STREAM GOALS";
+    public boolean goalResetOnStream = true;
+
+    static List<Goal> defaultGoals() {
+        return new ArrayList<>(List.of(new Goal(1_000_000, "Shoutout to everyone", ""), new Goal(5_000_000, "Spin the wheel", "#wheel"),
+                new Goal(10_000_000, "I jump in lava", ""), new Goal(25_000_000, "Giveaway!", "#giveaway")));
+    }
 
     // ---- stream mode
     public boolean streamHud = true;
@@ -309,6 +343,24 @@ public final class Config {
         fisheyeLevel = clamp(fisheyeLevel, 0, ScreenFx.FISHEYE_NAMES.length - 1);
         if (mutedSounds == null) mutedSounds = new ArrayList<>();
         if (gwPrize == null) gwPrize = "";
+        if (gwPrize2 == null) gwPrize2 = "";
+        if (gwPrize3 == null) gwPrize3 = "";
+        gwWinners = clamp(gwWinners, 1, 3);
+        gwEntryMode = clamp(gwEntryMode, 0, 2);
+        if (gwJoinWord == null || gwJoinWord.isBlank()) gwJoinWord = "!join";
+        gwMinEntries = clamp(gwMinEntries, 0, Giveaway.MIN_ENTRIES.length - 1);
+        if (gwBanned == null) gwBanned = "";
+        if (goals == null) goals = defaultGoals();
+        goals.removeIf(g -> g == null);
+        for (Goal g : goals) {
+            if (g.text == null) g.text = "";
+            if (g.action == null) g.action = "";
+        }
+        goalPos = clamp(goalPos, 0, 3);
+        goalX = Math.max(0.0, Math.min(1.0, goalX));
+        goalY = Math.max(0.0, Math.min(1.0, goalY));
+        goalScale = Math.max(0.5, Math.min(4.0, goalScale));
+        if (goalTitle == null) goalTitle = "STREAM GOALS";
         if (gwPayCommand == null || gwPayCommand.isBlank()) gwPayCommand = "/pay {name} {amount}";
         if (!(gwPrice > 0)) gwPrice = 100_000;
         gwMaxTickets = clamp(gwMaxTickets, 0, Giveaway.MAX_TICKETS.length - 1);

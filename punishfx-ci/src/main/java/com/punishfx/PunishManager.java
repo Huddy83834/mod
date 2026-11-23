@@ -278,11 +278,29 @@ public final class PunishManager {
         bannerUntil = System.currentTimeMillis() + 4000;
     }
 
+    /** Replaces "Name paid you" on the banner when set (giveaway joins). */
+    public static String donorHead = null;
+
+    /** Someone typed the join word: "Steve joined the giveaway!" */
+    public static void announceJoin(String who, String sub) {
+        Config c = Config.get();
+        long now = System.currentTimeMillis();
+        donor = who;
+        donorHead = who;
+        donorAmount = "";
+        donorSub = sub;
+        donorStart = now;
+        donorUntil = now + (long) (c.bannerSeconds * 1000);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) playSound(mc, "minecraft:entity.experience_orb.pickup", 0.8f, 1.4f);
+    }
+
     /** Someone entered the giveaway: the donor banner, with a cheerful sound instead of the punishment one. */
     public static void announceEntry(String who, double amount, String sub) {
         Config c = Config.get();
         long now = System.currentTimeMillis();
         donor = who;
+        donorHead = null;
         donorAmount = Money.full(amount);
         donorSub = sub;
         donorStart = now;
@@ -300,6 +318,7 @@ public final class PunishManager {
         if (!c.announce) return;
         long now = System.currentTimeMillis();
         donor = who;
+        donorHead = null;
         donorAmount = Money.full(amount);
         donorSub = sub;
         donorStart = now;
@@ -439,6 +458,7 @@ public final class PunishManager {
         ACTIVE.removeIf(a -> now >= a.end);
         StreamSession.tick(ACTIVE);
         Games.tick(mc);
+        Giveaway.tick();
 
         // the queue: next donation once everything has finished (plus the gap)
         if (!QUEUE.isEmpty()) {

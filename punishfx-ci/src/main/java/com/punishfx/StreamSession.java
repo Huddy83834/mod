@@ -175,6 +175,7 @@ public final class StreamSession {
         current = new Record();
         current.start = System.currentTimeMillis();
         if (Config.get().streamFreshBoard) DonorBoard.resetSession();
+        Goals.streamStarted();
         saveLive();
     }
 

@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  * and the current page on the right, so everything always lives in the same place.
  */
 public abstract class PfxFrame extends Screen {
-    public enum Page { GENERAL, LEVELS, PUNISHMENTS, CUSTOMIZE, GAMES, TOP_DONORS, STREAM, GIVEAWAY, PRESETS }
+    public enum Page { GENERAL, LEVELS, PUNISHMENTS, CUSTOMIZE, GAMES, TOP_DONORS, STREAM, GIVEAWAY, GOALS, PRESETS }
 
     protected final Screen parent;
     private final Page page;
@@ -57,6 +57,7 @@ public abstract class PfxFrame extends Screen {
             case GAMES -> new GamesScreen(parent);
             case PRESETS -> new PresetsScreen(parent);
             case GIVEAWAY -> new GiveawayScreen(parent);
+            case GOALS -> new GoalsScreen(parent);
         };
     }
 
@@ -91,9 +92,9 @@ public abstract class PfxFrame extends Screen {
         Config c = Config.get();
         int x = px + 7, w = sw - 14;
         int y = py + 34;
-        // seven pages: tighter buttons on small windows so they never run into Enabled/Test/Stop
-        // eight pages: tighter buttons on small windows so they never run into Enabled/Test/Stop
-        int step = ph >= 300 ? 22 : ph >= 260 ? 18 : 15, nh = ph >= 300 ? 20 : ph >= 260 ? 16 : 14;
+        // nine pages: on smaller windows the page buttons (and Enabled/Test/Stop/Done) get tighter so nothing overlaps
+        boolean roomy = ph >= 310;
+        int step = roomy ? 22 : ph >= 260 ? 18 : 15, nh = roomy ? 20 : ph >= 260 ? 16 : 14;
         addNav(x, y, w, nh, "General", Page.GENERAL);
         addNav(x, y += step, w, nh, "Levels", Page.LEVELS);
         addNav(x, y += step, w, nh, "Punishments", Page.PUNISHMENTS);
@@ -102,6 +103,7 @@ public abstract class PfxFrame extends Screen {
         addNav(x, y += step, w, nh, "Top Donors", Page.TOP_DONORS);
         addNav(x, y += step, w, nh, StreamSession.live() ? "Stream \u25cf" : "Stream", Page.STREAM);
         addNav(x, y += step, w, nh, Giveaway.live() ? "Giveaway \u25cf" : "Giveaway", Page.GIVEAWAY);
+        addNav(x, y += step, w, nh, "Goals", Page.GOALS);
 
         // Presets: top-right corner of every page
         addRenderableWidget(new FancyButton(px + pw - 10 - PRESET_W, py + 7, PRESET_W, 16, Component.literal("\u2605 Presets"), b -> {
@@ -112,9 +114,10 @@ public abstract class PfxFrame extends Screen {
 
         boolean inWorld = Minecraft.getInstance().player != null;
         int by = py + ph - 7;
-        addRenderableWidget(new FancyButton(x, by -= 20, w, 20, Component.literal("Done"), b -> onClose()).accent(Ui.DIM));
+        int bh = roomy ? 20 : 16, gap = roomy ? 23 : 18;
+        addRenderableWidget(new FancyButton(x, by -= bh, w, bh, Component.literal("Done"), b -> onClose()).accent(Ui.DIM));
         int half = (w - 3) / 2;
-        FancyButton test = new FancyButton(x, by -= 23, half, 20, Component.literal("Test"), b -> {
+        FancyButton test = new FancyButton(x, by -= gap, half, bh, Component.literal("Test"), b -> {
             Config.save();
             Minecraft mc = Minecraft.getInstance();
             int l = (int) (Math.random() * c.tiers.size());
@@ -123,10 +126,10 @@ public abstract class PfxFrame extends Screen {
         });
         test.accent(Ui.WARN).active = inWorld;
         addRenderableWidget(test);
-        FancyButton stop = new FancyButton(x + half + 3, by, w - half - 3, 20, Component.literal("Stop"), b -> PunishManager.cancelAll());
+        FancyButton stop = new FancyButton(x + half + 3, by, w - half - 3, bh, Component.literal("Stop"), b -> PunishManager.cancelAll());
         stop.accent(Ui.THEME).active = inWorld;
         addRenderableWidget(stop);
-        addRenderableWidget(new FancyButton(x, by - 23, w, 20, Component.literal("Enabled"), b -> {
+        addRenderableWidget(new FancyButton(x, by - gap, w, bh, Component.literal("Enabled"), b -> {
             c.enabled = !c.enabled;
             if (!c.enabled) PunishManager.cancelAll();
             Config.save();
@@ -162,7 +165,7 @@ public abstract class PfxFrame extends Screen {
         float ls = sw < 100 ? 1.25f : 1.5f;
         Ui.glowText(g, this.font, "PUNISH", px + 8, py + 9, Ui.ACCENT, ls);
         Ui.glowText(g, this.font, "FX", px + 8 + (int) (this.font.width("PUNISH ") * ls), py + 9, 0xFFFFFF, ls);
-        g.drawString(this.font, "v1.7", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
+        g.drawString(this.font, "v1.8", px + 8, py + 23, Ui.a(1f, 0x6E6064), false);
 
         // page title + subtitle
         Ui.glowText(g, this.font, heading, cx, py + 9, 0xFFFFFF, 1.4f);
@@ -205,6 +208,9 @@ public abstract class PfxFrame extends Screen {
     protected record Action(String label, String desc, Supplier<String> button, int accent, Runnable run) implements Row {}
 
     protected record Text(String label, String desc, Supplier<String> get, Consumer<String> set) implements Row {}
+
+    /** Just text, no control (history lists and the like). */
+    protected record Info(String label, String desc, int accent) implements Row {}
 
     /** A row with two buttons (e.g. Apply / Delete). */
     protected record Pair(String label, String desc, Supplier<String> b1, int accent1, Runnable run1,
@@ -321,6 +327,7 @@ public abstract class PfxFrame extends Screen {
         if (r instanceof Choice) return VALUE_W + 48;
         if (r instanceof Action) return 98;
         if (r instanceof Pair) return 132;
+        if (r instanceof Info) return 8;
         if (r instanceof Text) return Math.min(140, listW / 2) + 12;
         return 40;
     }
@@ -330,9 +337,12 @@ public abstract class PfxFrame extends Screen {
             Row r = rows.get(p[0]);
             if (r instanceof Header || r instanceof Toggle) continue; // toggles draw their own row
             boolean hov = mouseX >= cx && mouseX < cx + listW && mouseY >= p[1] && mouseY < p[1] + p[2];
-            String label = r instanceof Choice c ? c.label() : r instanceof Action a ? a.label() : r instanceof Pair pr ? pr.label() : ((Text) r).label();
-            String desc = r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : r instanceof Pair pr ? pr.desc() : ((Text) r).desc();
-            int bar = r instanceof Choice ? Ui.ACCENT2 : r instanceof Action a ? Ui.resolve(a.accent()) : r instanceof Pair pr ? Ui.resolve(pr.accent1()) : Ui.ACCENT;
+            String label = r instanceof Choice c ? c.label() : r instanceof Action a ? a.label() : r instanceof Pair pr ? pr.label()
+                    : r instanceof Info in ? in.label() : ((Text) r).label();
+            String desc = r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : r instanceof Pair pr ? pr.desc()
+                    : r instanceof Info in ? in.desc() : ((Text) r).desc();
+            int bar = r instanceof Choice ? Ui.ACCENT2 : r instanceof Action a ? Ui.resolve(a.accent()) : r instanceof Pair pr ? Ui.resolve(pr.accent1())
+                    : r instanceof Info in ? Ui.resolve(in.accent()) : Ui.ACCENT;
             Ui.rowCard(g, this.font, cx, p[1], listW, p[2], label, desc, hov, bar, rightReserve(r));
             if (r instanceof Text) {
                 int fw = Math.min(140, listW / 2);
@@ -356,7 +366,7 @@ public abstract class PfxFrame extends Screen {
             // rows too short for their description show it in the footer on hover
             boolean hov = mouseX >= cx && mouseX < cx + listW && mouseY >= p[1] && mouseY < p[1] + p[2];
             if (hov && p[2] < 22) {
-                String d = r instanceof Toggle t ? t.desc() : r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : r instanceof Pair pr ? pr.desc() : r instanceof Text t ? t.desc() : null;
+                String d = r instanceof Toggle t ? t.desc() : r instanceof Choice c ? c.shownDesc() : r instanceof Action a ? a.desc() : r instanceof Pair pr ? pr.desc() : r instanceof Info in ? in.desc() : r instanceof Text t ? t.desc() : null;
                 if (d != null && !d.isEmpty()) footer = d;
             }
         }

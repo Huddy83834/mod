@@ -42,12 +42,20 @@ public class PunishFxClient implements ClientModInitializer {
         StreamSession.load();
         Presets.load();
         Giveaway.load();
+        Goals.load();
 
         KeyMapping.Category cat = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
         settingsKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.punishfx.settings", InputConstants.Type.KEYSYM, InputConstants.KEY_K, cat));
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.punishfx.toggle", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), cat));
         cancelKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.punishfx.cancel", InputConstants.Type.KEYSYM, InputConstants.KEY_BACKSLASH, cat));
 
+        ClientReceiveMessageEvents.CHAT.register((message, signed, sender, params, time) -> {
+            try {
+                Giveaway.chat(message.getString());
+            } catch (Throwable t) {
+                LOG.warn("Punish FX: giveaway chat check failed", t);
+            }
+        });
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             try {
                 Detector.onMessage(message.getString(), overlay);
@@ -178,14 +186,28 @@ public class PunishFxClient implements ClientModInitializer {
                         }))
                         .then(ClientCommandManager.literal("draw").executes(ctx -> {
                             if (!Giveaway.live()) return say(ctx, "No giveaway is open. /pfx giveaway start first.");
-                            if (!Giveaway.draw()) return say(ctx, "Nobody has entered yet.");
-                            return 1;
+                            String why = Giveaway.draw();
+                            return why == null ? 1 : say(ctx, why + ".");
                         }))
                         .then(ClientCommandManager.literal("cancel").executes(ctx -> {
                             Giveaway.cancel();
                             return say(ctx, "Giveaway cancelled.");
                         }))
+                        .then(ClientCommandManager.literal("reroll")
+                                .executes(ctx -> reroll(ctx, 1))
+                                .then(ClientCommandManager.argument("place", IntegerArgumentType.integer(1, 3))
+                                        .executes(ctx -> reroll(ctx, IntegerArgumentType.getInteger(ctx, "place")))))
                         .then(ClientCommandManager.literal("status").executes(ctx -> giveawayStatus(ctx))))
+                .then(ClientCommandManager.literal("goals")
+                        .executes(ctx -> {
+                            Config.Goal next = Goals.next();
+                            return say(ctx, "Goals: " + Money.compact(Goals.progress()) + " so far" + (next == null ? " - every goal reached!"
+                                    : ". Next: " + Money.compact(next.amount) + " " + next.text + " (" + Money.compact(next.amount - Goals.progress()) + " to go)"));
+                        })
+                        .then(ClientCommandManager.literal("reset").executes(ctx -> {
+                            Goals.reset();
+                            return say(ctx, "Goal bar reset to $0.");
+                        })))
                 .then(ClientCommandManager.literal("recap").executes(ctx -> {
                     if (StreamSession.history().isEmpty()) return say(ctx, "No streams yet. /pfx stream start when you go live.");
                     pendingScreen = new RecapScreen(null);
@@ -229,6 +251,11 @@ public class PunishFxClient implements ClientModInitializer {
                             PunishManager.hit(r.amount(), r.player(), level, true);
                             return say(ctx, "§aDetected " + Money.full(r.amount()) + " from " + r.player() + " = level " + (level + 1));
                         })));
+    }
+
+    private static int reroll(CommandContext<FabricClientCommandSource> ctx, int place) {
+        String why = Giveaway.reroll(place);
+        return why == null ? 1 : say(ctx, why + ".");
     }
 
     private static int giveawayStatus(CommandContext<FabricClientCommandSource> ctx) {

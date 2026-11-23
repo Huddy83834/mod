@@ -17,10 +17,13 @@ public final class GiveawayHud {
         }
         int n = Giveaway.count();
         List<String> latest = Giveaway.latest(3);
-        String prize = Giveaway.prizeText();
+        Giveaway.State st = Giveaway.state();
+        String prize = Giveaway.prizeText(1);
+        String how = st.entryMode == 1 ? "Type " + st.joinWord + " to enter (free)"
+                : st.entryMode == 2 ? "Pay " + Money.compact(st.price) + " or type " + st.joinWord : "Entry: " + Money.compact(st.price);
         return new String[]{
-                prize.isBlank() ? "Pay to enter!" : "Prize: " + prize,
-                "Entry: " + Money.compact(Giveaway.state().price),
+                st.winners > 1 ? st.winners + " winners  \u00b7  1st: " + prize : prize.isBlank() ? "Giveaway!" : "Prize: " + prize,
+                how,
                 n + " entered" + (Giveaway.tickets() > n ? "  ·  " + Giveaway.tickets() + " tickets" : ""),
                 latest.isEmpty() ? "Be the first!" : String.join(", ", latest)};
     }
