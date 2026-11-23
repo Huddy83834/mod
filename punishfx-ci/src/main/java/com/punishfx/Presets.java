@@ -103,21 +103,30 @@ public final class Presets {
 
     /** Switch to a preset's settings (keeping how payments are detected). */
     public static void apply(JsonObject data, String name) {
-        JsonObject cur = GSON.toJsonTree(Config.get()).getAsJsonObject();
-        for (Map.Entry<String, JsonElement> e : data.entrySet()) if (!KEEP.contains(e.getKey())) cur.add(e.getKey(), e.getValue());
-        Config c = GSON.fromJson(cur, Config.class);
-        PunishManager.cancelAll();
-        Config.install(c);
+        switchTo(data);
         file.lastApplied = name;
         save();
     }
 
     public static void apply(Builtin b) {
-        Config c = b.make().apply(copyOfCurrent());
-        PunishManager.cancelAll();
-        Config.install(c);
+        switchTo(GSON.toJsonTree(b.make().apply(copyOfCurrent())).getAsJsonObject());
         file.lastApplied = b.name();
         save();
+    }
+
+    /**
+     * Settings a preset leaves alone right now: payment detection always, the stream's settings always (so a
+     * stream keeps going exactly as it was), and the giveaway's while one is open.
+     */
+    private static boolean kept(String key) {
+        return KEEP.contains(key) || key.startsWith("stream") || (Giveaway.live() && key.startsWith("gw"));
+    }
+
+    /** Switch settings without stopping anything: running punishments, the stream and any giveaway carry on. */
+    private static void switchTo(JsonObject data) {
+        JsonObject cur = GSON.toJsonTree(Config.get()).getAsJsonObject();
+        for (Map.Entry<String, JsonElement> e : data.entrySet()) if (!kept(e.getKey())) cur.add(e.getKey(), e.getValue());
+        Config.install(GSON.fromJson(cur, Config.class));
     }
 
     /** Save (or overwrite) a preset with your current settings. Returns the name it was saved as. */

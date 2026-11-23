@@ -106,6 +106,8 @@ public class PunishFxClientTest implements FabricClientGameTest {
             giveaway2Tests(ctx);
             goalTests(ctx);
             simplerTests(ctx);
+            teachTests(ctx);
+            presetStreamTests(ctx);
             uiShots(ctx);
         }
 
@@ -1418,6 +1420,69 @@ public class PunishFxClientTest implements FabricClientGameTest {
         ctx.runOnClient(mc -> ((PfxFrame) mc.screen).openSection("Donations"));
         ctx.setScreen(() -> null);
         ctx.runOnClient(mc -> { com.punishfx.Presets.saveCurrent("Recording"); com.punishfx.Presets.duplicate(com.punishfx.Presets.BUILTIN.get(0)); });
+        reset(ctx);
+    }
+
+    private void teachTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        String r = ctx.computeOnClient(mc -> {
+            StringBuilder out = new StringBuilder();
+            Config.get().customPatterns.clear();
+            Detector.clearCache();
+            String a = "[Bank] 1,500 coins were deposited into your account by Steve";
+            String b = "» Jeb_ tipped you 2.5k gems! Your new balance is 40,000 gems.";
+            StringBuilder why = new StringBuilder();
+            boolean before = Detector.detect(a, why) == null && Detector.detect(b, new StringBuilder()) == null;
+            out.append("unknown before=").append(before).append(" | ");
+            out.append(Detector.learn(a, false)).append(" | ");
+            out.append(Detector.learn(b, false)).append(" | ");
+            var x = Detector.detect("[Bank] 25,000 coins were deposited into your account by Alex", new StringBuilder());
+            var y = Detector.detect("» Notch tipped you 900 gems! Your new balance is 1,234,567 gems.", new StringBuilder());
+            var fake = Detector.detect("<Mallory> [Bank] 99,999 coins were deposited into your account by Mallory", new StringBuilder());
+            out.append(x == null ? "x=null" : "x=" + (long) x.amount() + " " + x.player()).append(" ");
+            out.append(y == null ? "y=null" : "y=" + (long) y.amount() + " " + y.player()).append(" ");
+            out.append("fake=").append(fake == null ? "blocked" : "COUNTED");
+            return out.toString();
+        });
+        check(r.startsWith("unknown before=true") && r.contains("x=25000 Alex") && r.contains("y=900 Notch") && r.endsWith("fake=blocked"),
+                "teach it: learns your server's payment wording from one example, and players can't fake it (" + r + ")");
+        // the teach screen lists recent lines with numbers
+        ctx.runOnClient(mc -> {
+            Detector.onMessage("[Bank] 777 coins were deposited into your account by Grian", false);
+            Detector.onMessage("Steve paid you $5,000.", false);
+            Detector.onMessage("Mumbo has 3 diamonds", false);
+        });
+        reset(ctx);
+        ctx.setScreen(() -> new com.punishfx.TeachScreen(null));
+        ctx.waitTicks(4);
+        shot(ctx, "ui_teach_screen");
+        ctx.setScreen(() -> null);
+        ctx.runOnClient(mc -> { Config.get().customPatterns.clear(); Detector.clearCache(); Config.save(); });
+        reset(ctx);
+    }
+
+    private void presetStreamTests(ClientGameTestContext ctx) {
+        reset(ctx);
+        String r = ctx.computeOnClient(mc -> {
+            Config c = Config.get();
+            c.streamHud = true;
+            c.streamScale = 1.5;
+            StreamSession.start();
+            Detector.onMessage("Steve paid you $1,000,000.", false);
+            int cancels0 = StreamSession.current().cancels;
+            com.punishfx.Presets.apply(com.punishfx.Presets.BUILTIN.get(1)); // chaos
+            com.punishfx.Presets.apply(com.punishfx.Presets.BUILTIN.get(3)); // starting setup
+            Detector.onMessage("Alex paid you $2,000,000.", false);
+            StreamSession.Record rec = StreamSession.current();
+            String out = "live=" + StreamSession.live() + " total=" + (long) rec.total() + " hud=" + Config.get().streamHud
+                    + " scale=" + Config.get().streamScale + " cancels+=" + (rec.cancels - cancels0) + " punishing=" + !PunishManager.active().isEmpty();
+            StreamSession.stop();
+            StreamSession.history().remove(StreamSession.history().size() - 1);
+            return out;
+        });
+        check(r.equals("live=true total=3000000 hud=true scale=1.5 cancels+=0 punishing=true"),
+                "switching presets keeps the stream going (counter, settings, totals, running punishments): " + r);
+        ctx.runOnClient(mc -> Config.reset());
         reset(ctx);
     }
 
