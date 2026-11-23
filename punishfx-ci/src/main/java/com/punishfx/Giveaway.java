@@ -132,6 +132,20 @@ public final class Giveaway {
 
     // ------------------------------------------------------------------ reading the state
 
+    /** Settings changed on the Giveaway page apply straight away, even to an open giveaway. */
+    private static void sync() {
+        if (live == null || live.drawing) return;
+        Config c = Config.get();
+        live.price = Math.max(1, c.gwPrice);
+        live.prize = c.gwPrize == null ? "" : c.gwPrize;
+        live.prize2 = c.gwPrize2 == null ? "" : c.gwPrize2;
+        live.prize3 = c.gwPrize3 == null ? "" : c.gwPrize3;
+        live.prizeMode = c.gwPrizeMode;
+        live.winners = c.gwWinners;
+        live.entryMode = c.gwEntryMode;
+        live.joinWord = c.gwJoinWord;
+    }
+
     public static boolean live() {
         return live != null;
     }
@@ -141,6 +155,7 @@ public final class Giveaway {
     }
 
     public static State state() {
+        sync();
         return live;
     }
 
@@ -185,6 +200,7 @@ public final class Giveaway {
     /** What a place wins, as text (place 1..3). */
     public static String prizeText(int place) {
         if (live == null) return "";
+        sync();
         int n = Math.max(1, Math.min(3, live.winners));
         if (live.prizeMode == 0) {
             String p = place == 1 ? live.prize : place == 2 ? live.prize2 : live.prize3;
@@ -201,6 +217,7 @@ public final class Giveaway {
     /** What a place wins in money, if it's money (-1 if not). */
     public static double prizeAmount(int place) {
         if (live == null) return -1;
+        sync();
         int n = Math.max(1, Math.min(3, live.winners));
         if (live.prizeMode == 0) return Money.parse(place == 1 ? live.prize : place == 2 ? live.prize2 : live.prize3);
         double total = live.prizeMode == 1 ? pot() : pot() / 2;
@@ -289,6 +306,7 @@ public final class Giveaway {
      * punishing it unless "Entries also punish" is on. Blocked people's payments count as normal donations.
      */
     public static boolean payment(String name, double amount) {
+        sync();
         if (live == null || live.drawing || live.entryMode == 1 || name == null || name.isBlank() || name.equals(Detector.UNKNOWN)) return false;
         if (amount + 0.001 < live.price) return false;
         if (blocked(name) != null) return false;
@@ -333,6 +351,7 @@ public final class Giveaway {
 
     /** A chat line arrived: the join word enters them (free, one ticket). */
     public static void chat(String line) {
+        sync();
         if (live == null || live.drawing || live.entryMode == 0) return;
         String name = joinSender(line, live.joinWord);
         if (name == null) return;
@@ -356,6 +375,7 @@ public final class Giveaway {
     public static String draw() {
         if (live == null) return "No giveaway is open";
         if (live.drawing) return "Already drawing";
+        sync();
         int need = minEntries();
         if (live.entrants.size() < Math.max(1, need)) {
             int more = Math.max(1, need) - live.entrants.size();

@@ -1212,7 +1212,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
         // ---- free entry + rules
         String free = ctx.computeOnClient(mc -> {
             Config c = Config.get();
-            c.gwEntryMode = 1; c.gwJoinWord = "!join"; c.gwBanned = "Griefer, Hacker"; c.gwMinEntries = 2; c.gwNoRepeat = false;
+            c.gwEntryMode = 1; c.gwJoinWord = "!join"; c.gwBanned = "Griefer, Hacker"; c.gwMinEntries = 1; // index 1 = "2" c.gwNoRepeat = false;
             c.gwWinners = 1; c.gwPrize = "$1M"; c.cooldownSeconds = 0;
             com.punishfx.Giveaway.cancel();
             com.punishfx.Giveaway.start();

@@ -504,7 +504,7 @@ public final class Games {
 
     /** A real (not preview) giveaway draw is showing or waiting. */
     public static boolean giveawayRunning() {
-        if (current != null && current.giveaway && !current.preview) return true;
+        if (current != null && current.giveaway && !current.preview && !current.resolved) return true;
         for (Game g : QUEUE) if (g.giveaway && !g.preview) return true;
         return false;
     }
