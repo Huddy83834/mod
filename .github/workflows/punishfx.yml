@@ -57,6 +57,7 @@ jobs:
         shell: bash
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
+          LP_NUM_THREADS: "1"
         run: |
           set +e
           xvfb-run -a -s "-screen 0 1920x1080x24" gradle runClientGameTest --no-daemon -Ploader_version=${{ steps.ver.outputs.loader }} "-Pfabric_api_version=${{ steps.ver.outputs.api }}" > gametest.log 2>&1

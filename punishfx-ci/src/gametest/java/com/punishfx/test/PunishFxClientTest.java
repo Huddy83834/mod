@@ -55,6 +55,13 @@ public class PunishFxClientTest implements FabricClientGameTest {
 
         configTests();
 
+        // CI machines render in software on 2 cores: cap FPS and view distance so the integrated
+        // server gets enough CPU to load the world (it was timing out at "Preparing spawn area").
+        ctx.runOnClient(mc -> {
+            mc.options.framerateLimit().set(15);
+            mc.options.renderDistance().set(4);
+            mc.options.simulationDistance().set(5);
+        });
         ctx.getInput().resizeWindow(960, 540); // auto GUI scale -> 480x270, the common 1080p size
         ctx.waitTicks(5);
 
