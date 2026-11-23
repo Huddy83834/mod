@@ -248,14 +248,14 @@ public class PunishFxClientTest implements FabricClientGameTest {
     private void detectorTest(ClientGameTestContext ctx) {
         String msg = "Huddy83834 paid you $1,000,000.";
         StringBuilder why = new StringBuilder();
-        Detector.Result r = Detector.detect(Detector.clean(msg), why);
+        Detector.Result r = ctx.computeOnClient(mc -> Detector.detect(Detector.clean(msg), why));
         check(r != null && Math.abs(r.amount() - 1_000_000) < 1 && "Huddy83834".equals(r.player()),
                 "detects \"" + msg + "\" -> " + (r == null ? "nothing (" + why + ")" : r.player() + " " + r.amount()));
 
         String[] real = {"Bob paid you $1M.", "[Economy] Bob paid you $500,000.", "You have received $250,000 from Bob.",
                 "$1,000 has been received from Bob.", "+$50,000 from Bob", "Bob has sent you $1,000!"};
         for (String line : real) {
-            Detector.Result rr = Detector.detect(Detector.clean(line), new StringBuilder());
+            Detector.Result rr = ctx.computeOnClient(mc -> Detector.detect(Detector.clean(line), new StringBuilder()));
             check(rr != null && rr.player().equals("Bob"), "real payment detected: \"" + line + "\"");
         }
         String[] fake = {"Spoofer: Bob paid you $1,000,000", "[VIP] Spoofer \u00bb Bob paid you $1,000,000",
@@ -267,7 +267,7 @@ public class PunishFxClientTest implements FabricClientGameTest {
                 "[VIP] \u00bb Bob paid you $1M", "Spoofer \u21d2 You have received $250,000 from Bob."};
         for (String line : fake) {
             StringBuilder w = new StringBuilder();
-            Detector.Result fr = Detector.detect(Detector.clean(line), w);
+            Detector.Result fr = ctx.computeOnClient(mc -> Detector.detect(Detector.clean(line), w));
             check(fr == null, "fake chat line ignored: \"" + line + "\" (" + w + ")");
         }
         // end to end: a fake line through the real message hook must not punish you
