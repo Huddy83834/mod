@@ -29,6 +29,13 @@ public final class Ui {
         CARD_HI = mix(0x24202A, ACCENT, 0.13f);
     }
 
+    /** Use as a button accent to mean "the current theme colour" (stays right after a theme change). */
+    public static final int THEME = -1, THEME2 = -2;
+
+    public static int resolve(int c) {
+        return c == THEME ? ACCENT : c == THEME2 ? ACCENT2 : c;
+    }
+
     public static int themeAccent(int i) {
         return THEMES[Math.max(0, Math.min(THEMES.length - 1, i))][0];
     }

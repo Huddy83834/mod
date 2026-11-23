@@ -42,7 +42,7 @@ public class PunishPoolScreen extends PfxFrame {
             addRenderableWidget(new FancyButton(cx + i * (tabW + 3), cy, tabW, 18, Component.literal(tabW >= 40 ? "Lv " + (i + 1) : String.valueOf(i + 1)), b -> {
                 selLevel = idx;
                 rebuild();
-            }).accent(Ui.ACCENT).hot(() -> idx == selLevel));
+            }).accent(Ui.THEME).hot(() -> idx == selLevel));
         }
         addRenderableWidget(new FancyButton(cx + cw - shortcutsW, cy, 52, 18, Component.literal("All"), b -> {
             c.tiers.get(selLevel).pool.clear();

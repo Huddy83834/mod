@@ -105,7 +105,7 @@ public abstract class PfxFrame extends Screen {
         test.accent(Ui.WARN).active = inWorld;
         addRenderableWidget(test);
         FancyButton stop = new FancyButton(x + half + 3, by, w - half - 3, 20, Component.literal("Stop"), b -> PunishManager.cancelAll());
-        stop.accent(Ui.ACCENT).active = inWorld;
+        stop.accent(Ui.THEME).active = inWorld;
         addRenderableWidget(stop);
         addRenderableWidget(new FancyButton(x, by - 23, w, 20, Component.literal("Enabled"), b -> {
             c.enabled = !c.enabled;
@@ -119,7 +119,7 @@ public abstract class PfxFrame extends Screen {
             if (target == page) return;
             Config.save();
             Minecraft.getInstance().setScreen(open(parent, target));
-        }).accent(Ui.ACCENT).hot(() -> target == page));
+        }).accent(Ui.THEME).hot(() -> target == page));
     }
 
     @Override
@@ -246,11 +246,11 @@ public abstract class PfxFrame extends Screen {
             addRenderableWidget(new FancyButton(prevX, by, bw, bh, Component.literal("<"), b -> {
                 c.set().accept((c.get().getAsInt() - 1 + n) % n);
                 Config.save();
-            }).accent(Ui.ACCENT2));
+            }).accent(Ui.THEME2));
             addRenderableWidget(new FancyButton(nextX, by, bw, bh, Component.literal(">"), b -> {
                 c.set().accept((c.get().getAsInt() + 1) % n);
                 Config.save();
-            }).accent(Ui.ACCENT2));
+            }).accent(Ui.THEME2));
         } else if (r instanceof Action a) {
             int bw = 86, bh = Math.min(16, h - 4);
             addRenderableWidget(new FancyButton(cx + listW - 8 - bw, y + (h - bh) / 2, bw, bh, Component.literal(a.button().get()), b -> {
@@ -286,7 +286,7 @@ public abstract class PfxFrame extends Screen {
             boolean hov = mouseX >= cx && mouseX < cx + listW && mouseY >= p[1] && mouseY < p[1] + p[2];
             String label = r instanceof Choice c ? c.label() : r instanceof Action a ? a.label() : ((Text) r).label();
             String desc = r instanceof Choice c ? c.desc() : r instanceof Action a ? a.desc() : ((Text) r).desc();
-            int bar = r instanceof Choice ? Ui.ACCENT2 : r instanceof Action a ? a.accent() : Ui.ACCENT;
+            int bar = r instanceof Choice ? Ui.ACCENT2 : r instanceof Action a ? Ui.resolve(a.accent()) : Ui.ACCENT;
             Ui.rowCard(g, this.font, cx, p[1], listW, p[2], label, desc, hov, bar, rightReserve(r));
             if (r instanceof Text) {
                 int fw = Math.min(140, listW / 2);

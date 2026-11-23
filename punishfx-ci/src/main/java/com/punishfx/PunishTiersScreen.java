@@ -81,7 +81,7 @@ public class PunishTiersScreen extends PfxFrame {
                 t.count = t.count >= 6 ? 1 : t.count + 1;
                 b.setMessage(Component.literal("x" + t.count));
                 Config.save();
-            }).accent(Ui.ACCENT2));
+            }).accent(Ui.THEME2));
 
             FancyButton test = new FancyButton(colTest, y, wTest, rowH - 3, Component.literal("Test"), b -> {
                 Config.save();
@@ -98,7 +98,7 @@ public class PunishTiersScreen extends PfxFrame {
                 Config.save();
                 rebuild();
             });
-            del.accent(Ui.ACCENT).active = c.tiers.size() > 1;
+            del.accent(Ui.THEME).active = c.tiers.size() > 1;
             addRenderableWidget(del);
         }
 

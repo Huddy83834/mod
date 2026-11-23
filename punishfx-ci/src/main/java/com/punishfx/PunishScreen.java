@@ -28,11 +28,11 @@ public class PunishScreen extends PfxFrame {
                         new double[]{0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0}, v -> Math.round(v * 100) + "%", () -> c.lengthScale, v -> c.lengthScale = v),
                 numbers("Max at once", "Most punishments running together",
                         new double[]{1, 2, 3, 4, 5, 6, 8, 10}, v -> String.valueOf((int) v), () -> c.maxActive, v -> c.maxActive = (int) v),
-                new Toggle("Confirm leave / close", "A cancel countdown before Leave Server or Close Minecraft", () -> c.confirmExtreme, v -> c.confirmExtreme = v),
+                new Toggle("Confirm leave / close", "Countdown before leave / close", () -> c.confirmExtreme, v -> c.confirmExtreme = v),
                 new Header("Files"),
                 new Action("Settings folder", "Open the folder with Punish FX's files", () -> "Open", Ui.DIM,
                         () -> Util.getPlatform().openPath(FabricLoader.getInstance().getConfigDir())),
-                new Action("Reset everything", "Put every setting back to how it started", () -> confirmReset ? "Sure? Click" : "Reset", Ui.ACCENT, () -> {
+                new Action("Reset everything", "Put every setting back to how it started", () -> confirmReset ? "Sure? Click" : "Reset", Ui.THEME, () -> {
                     if (!confirmReset) {
                         confirmReset = true;
                         return;

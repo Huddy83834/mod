@@ -16,7 +16,7 @@ import java.util.function.IntSupplier;
  * ({@link #check}). Every state is read fresh each frame, so it always shows the truth.
  */
 public class FancyButton extends Button {
-    private int accent = Ui.ACCENT;
+    private int accent = Ui.THEME;
     private IntSupplier accentSup;
     private BooleanSupplier onState;
     private BooleanSupplier selected;
@@ -61,8 +61,12 @@ public class FancyButton extends Button {
         return this;
     }
 
-    private int acc() {
+    private int rawAccent() {
         return accentSup != null ? accentSup.getAsInt() : accent;
+    }
+
+    private int acc() {
+        return Ui.resolve(rawAccent());
     }
 
     @Override
@@ -117,7 +121,7 @@ public class FancyButton extends Button {
     // --- ON/OFF switch --------------------------------------------------
     private void renderToggle(GuiGraphics g, Font f, String s, int x, int y, int w, int h, boolean hov) {
         boolean on = onState.getAsBoolean();
-        int onCol = acc() == Ui.ACCENT ? Ui.GOOD : acc();
+        int onCol = rawAccent() == Ui.THEME ? Ui.GOOD : acc();
         int base = on ? Ui.mix(onCol, 0x000000, 0.62f) : (hov ? Ui.tint(0x201C24, 0.1f) : Ui.tint(0x16131A, 0.07f));
         body(g, x, y, w, h, base);
         g.fill(x + 1, y + 1, x + 3, y + h - 1, Ui.a(1f, on ? onCol : 0x55454A));

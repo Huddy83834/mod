@@ -49,8 +49,14 @@ public final class TopDonorsHud {
     }
 
     private static MutableComponent styled(String s, boolean bold) {
+        return styled(s, bold, false);
+    }
+
+    /** Numbers (ranks, amounts) stay in the normal font with the novelty fonts so they can be read. */
+    private static MutableComponent styled(String s, boolean bold, boolean numeric) {
         Config c = Config.get();
-        FontDescription f = FONTS[Math.max(0, Math.min(FONTS.length - 1, c.topFont))];
+        int fi = Math.max(0, Math.min(FONTS.length - 1, c.topFont));
+        FontDescription f = numeric && fi >= 2 ? FontDescription.DEFAULT : FONTS[fi];
         return Component.literal(s).withStyle(st -> st.withFont(f).withBold(bold || c.topBold).withItalic(c.topItalic));
     }
 
@@ -64,9 +70,9 @@ public final class TopDonorsHud {
         int titleW = font.width(styled(title(), true));
         int rankW = 0, nameW = 0, amtW = 0;
         for (Line l : lines) {
-            rankW = Math.max(rankW, font.width(styled(l.rank, false)));
+            rankW = Math.max(rankW, font.width(styled(l.rank, false, true)));
             nameW = Math.max(nameW, font.width(styled(l.name, false)));
-            amtW = Math.max(amtW, font.width(styled(l.amount, false)));
+            amtW = Math.max(amtW, font.width(styled(l.amount, false, true)));
         }
         int rowsW = lines.isEmpty() ? font.width(styled("No donations yet", false)) : rankW + 4 + nameW + 10 + amtW;
         int w = PAD * 2 + Math.max(titleW, rowsW);
@@ -148,14 +154,14 @@ public final class TopDonorsHud {
             g.drawString(font, styled("No donations yet", false), PAD, ly, Ui.a(0.7f, 0xFFFFFF), shadow);
         }
         int rankW = 0;
-        for (Line l : lines) rankW = Math.max(rankW, font.width(styled(l.rank, false)));
+        for (Line l : lines) rankW = Math.max(rankW, font.width(styled(l.rank, false, true)));
         for (int i = 0; i < lines.size(); i++) {
             Line l = lines.get(i);
             int col = color(c.topColor, i, now);
             if (c.topMedals && i < 3) col = MEDALS[i];
-            MutableComponent rank = styled(l.rank, i < 3 && c.topMedals);
+            MutableComponent rank = styled(l.rank, i < 3 && c.topMedals, true);
             MutableComponent name = styled(l.name, false);
-            MutableComponent amt = styled(l.amount, false);
+            MutableComponent amt = styled(l.amount, false, true);
             int amtCol = c.topColor == 7 ? col : 0x7CFFA0;
             g.drawString(font, rank, PAD + rankW - font.width(rank), ly, Ui.a(1f, col), shadow);
             g.drawString(font, name, PAD + rankW + 4, ly, Ui.a(1f, col), shadow);

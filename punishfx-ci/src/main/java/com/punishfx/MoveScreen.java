@@ -25,8 +25,8 @@ public class MoveScreen extends Screen {
         int bw = 58, gap = 4, n = 5;
         int total = n * bw + (n - 1) * gap;
         int x = this.width / 2 - total / 2, y = this.height - 28;
-        addRenderableWidget(new FancyButton(x, y, bw, 20, Component.literal("Smaller"), b -> resize(-0.1)).accent(Ui.ACCENT2));
-        addRenderableWidget(new FancyButton(x += bw + gap, y, bw, 20, Component.literal("Bigger"), b -> resize(0.1)).accent(Ui.ACCENT2));
+        addRenderableWidget(new FancyButton(x, y, bw, 20, Component.literal("Smaller"), b -> resize(-0.1)).accent(Ui.THEME2));
+        addRenderableWidget(new FancyButton(x += bw + gap, y, bw, 20, Component.literal("Bigger"), b -> resize(0.1)).accent(Ui.THEME2));
         addRenderableWidget(new FancyButton(x += bw + gap, y, bw, 20, Component.literal("Corner"), b -> {
             corner = (corner + 1) % 4;
             c.topX = corner == 1 || corner == 2 ? 1.0 : 0.0;
